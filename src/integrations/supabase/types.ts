@@ -14,7 +14,167 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      course_content: {
+        Row: {
+          content_type: string | null
+          content_url: string | null
+          created_at: string | null
+          day_number: number
+          description: string | null
+          id: string
+          is_premium_only: boolean | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          content_url?: string | null
+          created_at?: string | null
+          day_number: number
+          description?: string | null
+          id?: string
+          is_premium_only?: boolean | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          content_url?: string | null
+          created_at?: string | null
+          day_number?: number
+          description?: string | null
+          id?: string
+          is_premium_only?: boolean | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      course_packages: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          duration_days: number | null
+          features: string[] | null
+          id: string
+          is_active: boolean | null
+          name: string
+          practicals_schedule: string | null
+          price: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          duration_days?: number | null
+          features?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          practicals_schedule?: string | null
+          price: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          duration_days?: number | null
+          features?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          practicals_schedule?: string | null
+          price?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      enrollments: {
+        Row: {
+          access_link_active: boolean | null
+          access_link_expires_at: string | null
+          access_link_token: string | null
+          amount_paid: number | null
+          created_at: string | null
+          enrolled_at: string | null
+          id: string
+          package_id: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          payment_status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_link_active?: boolean | null
+          access_link_expires_at?: string | null
+          access_link_token?: string | null
+          amount_paid?: number | null
+          created_at?: string | null
+          enrolled_at?: string | null
+          id?: string
+          package_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_link_active?: boolean | null
+          access_link_expires_at?: string | null
+          access_link_token?: string | null
+          amount_paid?: number | null
+          created_at?: string | null
+          enrolled_at?: string | null
+          id?: string
+          package_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "course_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
