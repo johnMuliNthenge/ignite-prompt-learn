@@ -66,42 +66,41 @@ const CheckoutPage = () => {
 
     setProcessing(true);
     try {
-      // For now, we'll simulate a payment process
-      // This is where you would integrate with Stripe or other payment providers
-      
-      // Create enrollment record
-      const { error: enrollmentError } = await supabase
-        .from("enrollments")
-        .insert({
-          user_id: user.id,
-          package_id: packageData.id,
-          amount_paid: packageData.price,
-          payment_status: "paid", // In real implementation, this would be "pending" until payment confirms
-          payment_method: "demo", // This would be the actual payment method
-          payment_reference: `demo_${Date.now()}`, // This would be the actual payment reference
-          access_link_active: true,
-          access_link_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-        });
-
-      if (enrollmentError) {
-        throw enrollmentError;
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No active session");
       }
 
-      toast({
-        title: "Payment successful!",
-        description: "You now have access to the course. Redirecting to dashboard...",
+      // Create Stripe checkout session
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: { packageId: packageData.id },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
-      // Redirect to dashboard after successful payment
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        // Open Stripe checkout in a new tab
+        window.open(data.url, '_blank');
+        
+        toast({
+          title: "Redirecting to payment",
+          description: "Complete your payment in the new tab that opened.",
+        });
+      } else {
+        throw new Error("No checkout URL received");
+      }
 
     } catch (error) {
       console.error("Payment error:", error);
       toast({
         title: "Payment failed",
-        description: "There was an error processing your payment. Please try again.",
+        description: "There was an error creating the payment session. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -196,7 +195,7 @@ const CheckoutPage = () => {
                   </Button>
                   
                   <p className="text-xs text-muted-foreground text-center mt-4">
-                    This is a demo payment. In production, this would integrate with a real payment processor.
+                    Secure payment processing powered by Stripe. Supports VISA, Mastercard, PayPal and more.
                   </p>
                 </div>
               </div>
