@@ -77,7 +77,7 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      payment_method_types: ["card", "paypal"],
+      payment_method_types: ["card"],
       success_url: `${req.headers.get("origin")}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/checkout/${packageId}?payment=cancelled`,
       metadata: {
