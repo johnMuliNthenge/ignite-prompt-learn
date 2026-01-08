@@ -73,7 +73,10 @@ const LandingPage = () => {
       <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="text-2xl font-bold text-gradient">PromptMaster</div>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-4">
+            <Button onClick={() => navigate("/lms/auth")} variant="ghost">
+              Learning Platform
+            </Button>
             {user ? (
               <Button onClick={() => navigate("/dashboard")} variant="outline">
                 Dashboard
