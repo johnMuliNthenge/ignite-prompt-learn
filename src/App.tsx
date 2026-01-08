@@ -19,6 +19,8 @@ import { LMSLayout } from "./components/lms/LMSLayout";
 import LMSDashboard from "./pages/lms/LMSDashboard";
 import UserManagement from "./pages/lms/admin/UserManagement";
 import CategoryManagement from "./pages/lms/admin/CategoryManagement";
+import SiteSettings from "./pages/lms/admin/SiteSettings";
+import AnalyticsDashboard from "./pages/lms/admin/AnalyticsDashboard";
 import CreateCourse from "./pages/lms/courses/CreateCourse";
 import CourseEditor from "./pages/lms/courses/CourseEditor";
 import CourseCatalog from "./pages/lms/courses/CourseCatalog";
@@ -55,6 +57,8 @@ const App = () => (
               <Route path="instructor/courses" element={<InstructorCourses />} />
               <Route path="admin/users" element={<UserManagement />} />
               <Route path="admin/categories" element={<CategoryManagement />} />
+              <Route path="admin/analytics" element={<AnalyticsDashboard />} />
+              <Route path="admin/settings" element={<SiteSettings />} />
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
