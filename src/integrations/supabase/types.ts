@@ -581,6 +581,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      user_enrolled_course_ids: {
+        Args: { _user_id: string }
+        Returns: string[]
+      }
     }
     Enums: {
       app_role: "admin" | "teacher" | "student"
