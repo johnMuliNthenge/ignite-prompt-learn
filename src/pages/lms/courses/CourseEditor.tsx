@@ -44,7 +44,11 @@ import {
   Eye,
   EyeOff,
   Pencil,
+  Music,
+  FileType,
+  HelpCircle,
 } from 'lucide-react';
+import QuizEditor from '@/components/lms/QuizEditor';
 
 interface Section {
   id: string;
@@ -64,6 +68,7 @@ interface Resource {
   content_text: string | null;
   sort_order: number;
   is_visible: boolean;
+  has_quiz?: boolean;
 }
 
 interface Course {
@@ -102,6 +107,10 @@ export default function CourseEditor() {
     content_url: '',
     content_text: '',
   });
+
+  // Quiz editor dialog
+  const [showQuizDialog, setShowQuizDialog] = useState(false);
+  const [quizResourceId, setQuizResourceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -146,7 +155,20 @@ export default function CourseEditor() {
             .eq('section_id', section.id)
             .order('sort_order');
 
-          return { ...section, resources: resources || [] };
+          // Check which resources have quizzes
+          const resourcesWithQuiz = await Promise.all(
+            (resources || []).map(async (resource) => {
+              const { data: quiz } = await supabase
+                .from('lesson_quizzes')
+                .select('id')
+                .eq('resource_id', resource.id)
+                .single();
+
+              return { ...resource, has_quiz: !!quiz };
+            })
+          );
+
+          return { ...section, resources: resourcesWithQuiz };
         })
       );
 
@@ -322,7 +344,7 @@ export default function CourseEditor() {
         if (error) throw error;
       }
 
-      toast({ title: editingResource ? 'Resource updated' : 'Resource added' });
+      toast({ title: editingResource ? 'Lesson updated' : 'Lesson added' });
       setShowResourceDialog(false);
       fetchCourse();
     } catch (error) {
@@ -334,7 +356,7 @@ export default function CourseEditor() {
   };
 
   const deleteResource = async (resourceId: string) => {
-    if (!confirm('Delete this resource?')) return;
+    if (!confirm('Delete this lesson?')) return;
 
     try {
       const { error } = await supabase
@@ -343,7 +365,7 @@ export default function CourseEditor() {
         .eq('id', resourceId);
 
       if (error) throw error;
-      toast({ title: 'Resource deleted' });
+      toast({ title: 'Lesson deleted' });
       fetchCourse();
     } catch (error) {
       console.error('Error deleting resource:', error);
@@ -351,17 +373,29 @@ export default function CourseEditor() {
     }
   };
 
+  const openQuizEditor = (resourceId: string) => {
+    setQuizResourceId(resourceId);
+    setShowQuizDialog(true);
+  };
+
   const getResourceIcon = (type: string) => {
     switch (type) {
       case 'video':
         return <Video className="h-4 w-4" />;
+      case 'audio':
+        return <Music className="h-4 w-4" />;
+      case 'document':
+      case 'file':
+        return <FileType className="h-4 w-4" />;
       case 'link':
         return <LinkIcon className="h-4 w-4" />;
-      case 'file':
-        return <File className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
     }
+  };
+
+  const getTotalLessons = () => {
+    return sections.reduce((acc, s) => acc + s.resources.length, 0);
   };
 
   if (loading) {
@@ -401,6 +435,9 @@ export default function CourseEditor() {
           <p className="mt-1 text-muted-foreground">
             {course.short_description || 'No description'}
           </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {sections.length} sections • {getTotalLessons()} lessons
+          </p>
         </div>
         <div className="flex gap-2">
           {course.status === 'draft' ? (
@@ -427,7 +464,7 @@ export default function CourseEditor() {
           <div>
             <CardTitle>Course Content</CardTitle>
             <CardDescription>
-              Organize your course into sections and add resources
+              Organize your course into sections and add lessons (video, audio, documents)
             </CardDescription>
           </div>
           <Button onClick={() => openSectionDialog()}>
@@ -466,7 +503,7 @@ export default function CourseEditor() {
                         <Badge variant="secondary">Hidden</Badge>
                       )}
                       <span className="ml-auto mr-4 text-sm text-muted-foreground">
-                        {section.resources.length} resources
+                        {section.resources.length} lessons
                       </span>
                     </div>
                   </AccordionTrigger>
@@ -508,7 +545,7 @@ export default function CourseEditor() {
                       <div className="flex-1" />
                       <Button size="sm" onClick={() => openResourceDialog(section.id)}>
                         <Plus className="mr-1 h-3 w-3" />
-                        Add Resource
+                        Add Lesson
                       </Button>
                     </div>
 
@@ -519,7 +556,7 @@ export default function CourseEditor() {
                     )}
 
                     <div className="space-y-2">
-                      {section.resources.map((resource) => (
+                      {section.resources.map((resource, rIndex) => (
                         <div
                           key={resource.id}
                           className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3"
@@ -528,11 +565,29 @@ export default function CourseEditor() {
                             {getResourceIcon(resource.resource_type)}
                           </div>
                           <div className="flex-1">
-                            <p className="font-medium">{resource.title}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">
+                                {rIndex + 1}. {resource.title}
+                              </p>
+                              {resource.has_quiz && (
+                                <Badge variant="outline" className="text-xs">
+                                  <HelpCircle className="mr-1 h-3 w-3" />
+                                  Quiz
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-xs capitalize text-muted-foreground">
                               {resource.resource_type}
                             </p>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openQuizEditor(resource.id)}
+                            title="Manage Quiz"
+                          >
+                            <HelpCircle className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -552,7 +607,7 @@ export default function CourseEditor() {
 
                       {section.resources.length === 0 && (
                         <p className="py-4 text-center text-sm text-muted-foreground">
-                          No resources in this section yet
+                          No lessons in this section yet
                         </p>
                       )}
                     </div>
@@ -617,10 +672,10 @@ export default function CourseEditor() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingResource ? 'Edit Resource' : 'Add Resource'}
+              {editingResource ? 'Edit Lesson' : 'Add Lesson'}
             </DialogTitle>
             <DialogDescription>
-              Add learning content to this section
+              Add learning content to this section (video, audio, documents, etc.)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -647,11 +702,42 @@ export default function CourseEditor() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="text">Text Content</SelectItem>
-                  <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="link">External Link</SelectItem>
-                  <SelectItem value="file">File Download</SelectItem>
-                  <SelectItem value="embed">Embed (YouTube, etc.)</SelectItem>
+                  <SelectItem value="video">
+                    <div className="flex items-center gap-2">
+                      <Video className="h-4 w-4" />
+                      Video
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="audio">
+                    <div className="flex items-center gap-2">
+                      <Music className="h-4 w-4" />
+                      Audio
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="document">
+                    <div className="flex items-center gap-2">
+                      <FileType className="h-4 w-4" />
+                      Document (PDF, etc.)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="text">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Text Content
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="embed">
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4" />
+                      Embed (YouTube, etc.)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="link">
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4" />
+                      External Link
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -663,21 +749,33 @@ export default function CourseEditor() {
                 onChange={(e) =>
                   setResourceForm({ ...resourceForm, description: e.target.value })
                 }
-                placeholder="Brief description"
+                placeholder="Brief description of what students will learn"
                 rows={2}
               />
             </div>
 
-            {['video', 'link', 'file', 'embed'].includes(resourceForm.resource_type) && (
+            {['video', 'audio', 'document', 'link', 'file', 'embed'].includes(resourceForm.resource_type) && (
               <div className="space-y-2">
-                <Label>URL</Label>
+                <Label>
+                  {resourceForm.resource_type === 'embed' ? 'Embed URL (YouTube, Vimeo, etc.)' : 'URL'}
+                </Label>
                 <Input
                   value={resourceForm.content_url}
                   onChange={(e) =>
                     setResourceForm({ ...resourceForm, content_url: e.target.value })
                   }
-                  placeholder="https://..."
+                  placeholder={
+                    resourceForm.resource_type === 'embed' 
+                      ? 'https://www.youtube.com/embed/...'
+                      : 'https://...'
+                  }
                 />
+                <p className="text-xs text-muted-foreground">
+                  {resourceForm.resource_type === 'video' && 'Link to video file (MP4, WebM, etc.)'}
+                  {resourceForm.resource_type === 'audio' && 'Link to audio file (MP3, WAV, etc.)'}
+                  {resourceForm.resource_type === 'document' && 'Link to document (PDF, DOCX, etc.)'}
+                  {resourceForm.resource_type === 'embed' && 'Use embed URL, not regular YouTube link'}
+                </p>
               </div>
             )}
 
@@ -701,9 +799,30 @@ export default function CourseEditor() {
             </Button>
             <Button onClick={saveResource} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingResource ? 'Save Changes' : 'Add Resource'}
+              {editingResource ? 'Save Changes' : 'Add Lesson'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quiz Editor Dialog */}
+      <Dialog open={showQuizDialog} onOpenChange={setShowQuizDialog}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Lesson Quiz</DialogTitle>
+            <DialogDescription>
+              Add a quiz that students must complete for this lesson
+            </DialogDescription>
+          </DialogHeader>
+          {quizResourceId && (
+            <QuizEditor
+              resourceId={quizResourceId}
+              onClose={() => {
+                setShowQuizDialog(false);
+                fetchCourse();
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
