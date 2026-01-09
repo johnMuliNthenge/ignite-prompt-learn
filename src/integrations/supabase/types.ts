@@ -319,6 +319,53 @@ export type Database = {
           },
         ]
       }
+      lesson_quizzes: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_required: boolean | null
+          max_attempts: number | null
+          passing_score: number | null
+          resource_id: string
+          time_limit_minutes: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_required?: boolean | null
+          max_attempts?: number | null
+          passing_score?: number | null
+          resource_id: string
+          time_limit_minutes?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_required?: boolean | null
+          max_attempts?: number | null
+          passing_score?: number | null
+          resource_id?: string
+          time_limit_minutes?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_quizzes_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "course_resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lms_courses: {
         Row: {
           category_id: string | null
@@ -502,6 +549,97 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      quiz_attempts: {
+        Row: {
+          answers: Json
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          passed: boolean
+          quiz_id: string
+          score: number
+          started_at: string | null
+          user_id: string
+        }
+        Insert: {
+          answers: Json
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          passed: boolean
+          quiz_id: string
+          score: number
+          started_at?: string | null
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          passed?: boolean
+          quiz_id?: string
+          score?: number
+          started_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_questions: {
+        Row: {
+          correct_answer: string
+          created_at: string | null
+          id: string
+          options: Json | null
+          points: number | null
+          question_text: string
+          question_type: string
+          quiz_id: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          correct_answer: string
+          created_at?: string | null
+          id?: string
+          options?: Json | null
+          points?: number | null
+          question_text: string
+          question_type: string
+          quiz_id: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string | null
+          id?: string
+          options?: Json | null
+          points?: number | null
+          question_text?: string
+          question_type?: string
+          quiz_id?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       resource_progress: {
         Row: {

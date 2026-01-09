@@ -27,7 +27,11 @@ import {
   Link as LinkIcon,
   File,
   ExternalLink,
+  Music,
+  FileType,
+  HelpCircle,
 } from 'lucide-react';
+import QuizTaker from '@/components/lms/QuizTaker';
 
 interface Course {
   id: string;
@@ -61,6 +65,8 @@ interface Resource {
   sort_order: number;
   is_visible: boolean;
   is_completed?: boolean;
+  has_quiz?: boolean;
+  quiz_passed?: boolean;
 }
 
 interface Enrollment {
@@ -83,6 +89,7 @@ export default function CourseView() {
   const [enrolling, setEnrolling] = useState(false);
   const [activeResource, setActiveResource] = useState<Resource | null>(null);
   const [enrollmentCount, setEnrollmentCount] = useState(0);
+  const [showQuiz, setShowQuiz] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -92,20 +99,15 @@ export default function CourseView() {
 
   const fetchCourseData = async () => {
     try {
-      // Fetch course
       const { data: courseData, error: courseError } = await supabase
         .from('lms_courses')
-        .select(`
-          *,
-          category:course_categories (id, name)
-        `)
+        .select(`*, category:course_categories (id, name)`)
         .eq('id', id)
         .single();
 
       if (courseError) throw courseError;
       setCourse(courseData);
 
-      // Fetch enrollment count
       const { count } = await supabase
         .from('lms_enrollments')
         .select('*', { count: 'exact', head: true })
@@ -113,7 +115,6 @@ export default function CourseView() {
       
       setEnrollmentCount(count || 0);
 
-      // Check user enrollment
       if (user) {
         const { data: enrollmentData } = await supabase
           .from('lms_enrollments')
@@ -125,7 +126,6 @@ export default function CourseView() {
         setEnrollment(enrollmentData);
       }
 
-      // Fetch sections with resources
       const { data: sectionsData } = await supabase
         .from('course_sections')
         .select('*')
@@ -142,7 +142,6 @@ export default function CourseView() {
             .eq('is_visible', true)
             .order('sort_order');
 
-          // Get progress for each resource
           let resourcesWithProgress = resources || [];
           if (user) {
             const { data: progressData } = await supabase
@@ -151,12 +150,36 @@ export default function CourseView() {
               .eq('user_id', user.id)
               .in('resource_id', (resources || []).map((r) => r.id));
 
-            resourcesWithProgress = (resources || []).map((r) => ({
-              ...r,
-              is_completed: progressData?.some(
-                (p) => p.resource_id === r.id && p.is_completed
-              ),
-            }));
+            // Check for quizzes and attempts
+            resourcesWithProgress = await Promise.all(
+              (resources || []).map(async (r) => {
+                const { data: quiz } = await supabase
+                  .from('lesson_quizzes')
+                  .select('id')
+                  .eq('resource_id', r.id)
+                  .single();
+
+                let quizPassed = false;
+                if (quiz) {
+                  const { data: attempt } = await supabase
+                    .from('quiz_attempts')
+                    .select('passed')
+                    .eq('quiz_id', quiz.id)
+                    .eq('user_id', user.id)
+                    .eq('passed', true)
+                    .limit(1)
+                    .single();
+                  quizPassed = !!attempt;
+                }
+
+                return {
+                  ...r,
+                  is_completed: progressData?.some((p) => p.resource_id === r.id && p.is_completed),
+                  has_quiz: !!quiz,
+                  quiz_passed: quizPassed,
+                };
+              })
+            );
           }
 
           return { ...section, resources: resourcesWithProgress };
@@ -166,43 +189,25 @@ export default function CourseView() {
       setSections(sectionsWithResources);
     } catch (error) {
       console.error('Error fetching course:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load course',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to load course', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
   const handleEnroll = async () => {
-    if (!user) {
-      navigate('/lms/auth');
-      return;
-    }
-
+    if (!user) { navigate('/lms/auth'); return; }
     setEnrolling(true);
-
     try {
       const { data, error } = await supabase.from('lms_enrollments').insert({
-        course_id: id,
-        user_id: user.id,
-        role: 'student',
-        status: 'active',
+        course_id: id, user_id: user.id, role: 'student', status: 'active',
       }).select().single();
-
       if (error) throw error;
-
       setEnrollment(data);
       toast({ title: 'Enrolled successfully!' });
     } catch (error) {
       console.error('Error enrolling:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to enroll in course',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to enroll', variant: 'destructive' });
     } finally {
       setEnrolling(false);
     }
@@ -210,22 +215,12 @@ export default function CourseView() {
 
   const markResourceComplete = async (resourceId: string) => {
     if (!user) return;
-
     try {
-      // Upsert progress
       const { error } = await supabase.from('resource_progress').upsert(
-        {
-          user_id: user.id,
-          resource_id: resourceId,
-          is_completed: true,
-          completed_at: new Date().toISOString(),
-        },
+        { user_id: user.id, resource_id: resourceId, is_completed: true, completed_at: new Date().toISOString() },
         { onConflict: 'user_id,resource_id' }
       );
-
       if (error) throw error;
-
-      // Refresh data
       fetchCourseData();
       toast({ title: 'Progress saved!' });
     } catch (error) {
@@ -235,27 +230,24 @@ export default function CourseView() {
 
   const getResourceIcon = (type: string) => {
     switch (type) {
-      case 'video':
-        return <Video className="h-4 w-4" />;
-      case 'link':
-        return <LinkIcon className="h-4 w-4" />;
-      case 'file':
-        return <File className="h-4 w-4" />;
-      default:
-        return <FileText className="h-4 w-4" />;
+      case 'video': return <Video className="h-4 w-4" />;
+      case 'audio': return <Music className="h-4 w-4" />;
+      case 'document': case 'file': return <FileType className="h-4 w-4" />;
+      case 'link': return <LinkIcon className="h-4 w-4" />;
+      default: return <FileText className="h-4 w-4" />;
     }
   };
 
+  // Calculate dynamic progress
+  const totalLessons = sections.reduce((acc, s) => acc + s.resources.length, 0);
+  const completedLessons = sections.reduce((acc, s) => acc + s.resources.filter(r => r.is_completed).length, 0);
+  const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
   const isEnrolled = !!enrollment;
-  const canEdit =
-    isAdmin || (isTeacher && course?.created_by === user?.id);
+  const canEdit = isAdmin || (isTeacher && course?.created_by === user?.id);
 
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   if (!course) {
@@ -263,20 +255,32 @@ export default function CourseView() {
       <div className="flex h-full flex-col items-center justify-center">
         <BookOpen className="h-12 w-12 text-muted-foreground" />
         <p className="mt-4 text-lg">Course not found</p>
-        <Button asChild className="mt-4">
-          <Link to="/lms/catalog">Browse Courses</Link>
-        </Button>
+        <Button asChild className="mt-4"><Link to="/lms/catalog">Browse Courses</Link></Button>
       </div>
     );
   }
 
-  // Show resource content view
+  // Quiz view
+  if (showQuiz && activeResource) {
+    return (
+      <div className="p-6">
+        <QuizTaker
+          resourceId={activeResource.id}
+          onComplete={(passed) => {
+            if (passed) fetchCourseData();
+          }}
+          onClose={() => setShowQuiz(false)}
+        />
+      </div>
+    );
+  }
+
+  // Resource content view
   if (activeResource && isEnrolled) {
     return (
       <div className="p-6">
         <Button variant="ghost" className="mb-4" onClick={() => setActiveResource(null)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Course
+          <ArrowLeft className="mr-2 h-4 w-4" />Back to Course
         </Button>
 
         <Card>
@@ -284,71 +288,46 @@ export default function CourseView() {
             <div className="flex items-start justify-between">
               <div>
                 <CardTitle>{activeResource.title}</CardTitle>
-                {activeResource.description && (
-                  <CardDescription>{activeResource.description}</CardDescription>
-                )}
+                {activeResource.description && <CardDescription>{activeResource.description}</CardDescription>}
               </div>
-              {!activeResource.is_completed && (
-                <Button onClick={() => markResourceComplete(activeResource.id)}>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Mark Complete
-                </Button>
-              )}
-              {activeResource.is_completed && (
-                <Badge className="bg-green-500">
-                  <CheckCircle className="mr-1 h-3 w-3" />
-                  Completed
-                </Badge>
-              )}
+              <div className="flex gap-2">
+                {activeResource.has_quiz && (
+                  <Button variant={activeResource.quiz_passed ? "outline" : "default"} onClick={() => setShowQuiz(true)}>
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    {activeResource.quiz_passed ? 'Retake Quiz' : 'Take Quiz'}
+                  </Button>
+                )}
+                {!activeResource.is_completed && (
+                  <Button onClick={() => markResourceComplete(activeResource.id)}>
+                    <CheckCircle className="mr-2 h-4 w-4" />Mark Complete
+                  </Button>
+                )}
+                {activeResource.is_completed && <Badge className="bg-green-500"><CheckCircle className="mr-1 h-3 w-3" />Completed</Badge>}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            {activeResource.resource_type === 'text' && (
-              <div className="prose max-w-none">
-                <p className="whitespace-pre-wrap">{activeResource.content_text}</p>
-              </div>
-            )}
-
+            {activeResource.resource_type === 'text' && <div className="prose max-w-none"><p className="whitespace-pre-wrap">{activeResource.content_text}</p></div>}
             {activeResource.resource_type === 'video' && activeResource.content_url && (
-              <div className="aspect-video">
-                <video
-                  src={activeResource.content_url}
-                  controls
-                  className="h-full w-full rounded-lg"
-                />
-              </div>
+              <div className="aspect-video"><video src={activeResource.content_url} controls className="h-full w-full rounded-lg" /></div>
             )}
-
+            {activeResource.resource_type === 'audio' && activeResource.content_url && (
+              <audio src={activeResource.content_url} controls className="w-full" />
+            )}
             {activeResource.resource_type === 'embed' && activeResource.content_url && (
-              <div className="aspect-video">
-                <iframe
-                  src={activeResource.content_url}
-                  className="h-full w-full rounded-lg"
-                  allowFullScreen
-                />
+              <div className="aspect-video"><iframe src={activeResource.content_url} className="h-full w-full rounded-lg" allowFullScreen /></div>
+            )}
+            {activeResource.resource_type === 'document' && activeResource.content_url && (
+              <div className="space-y-4">
+                <iframe src={activeResource.content_url} className="h-[600px] w-full rounded-lg border" />
+                <Button asChild><a href={activeResource.content_url} download><File className="mr-2 h-4 w-4" />Download</a></Button>
               </div>
             )}
-
             {activeResource.resource_type === 'link' && activeResource.content_url && (
-              <Button asChild>
-                <a
-                  href={activeResource.content_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open Link
-                </a>
-              </Button>
+              <Button asChild><a href={activeResource.content_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4" />Open Link</a></Button>
             )}
-
             {activeResource.resource_type === 'file' && activeResource.content_url && (
-              <Button asChild>
-                <a href={activeResource.content_url} download>
-                  <File className="mr-2 h-4 w-4" />
-                  Download File
-                </a>
-              </Button>
+              <Button asChild><a href={activeResource.content_url} download><File className="mr-2 h-4 w-4" />Download File</a></Button>
             )}
           </CardContent>
         </Card>
@@ -358,125 +337,57 @@ export default function CourseView() {
 
   return (
     <div className="p-6">
-      <Button variant="ghost" className="mb-4" onClick={() => navigate(-1)}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>
+      <Button variant="ghost" className="mb-4" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content */}
         <div className="space-y-6 lg:col-span-2">
-          {/* Course Header */}
           <Card>
             <div className="aspect-video bg-muted">
-              {course.thumbnail_url ? (
-                <img
-                  src={course.thumbnail_url}
-                  alt={course.title}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center">
-                  <BookOpen className="h-16 w-16 text-muted-foreground/50" />
-                </div>
-              )}
+              {course.thumbnail_url ? <img src={course.thumbnail_url} alt={course.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><BookOpen className="h-16 w-16 text-muted-foreground/50" /></div>}
             </div>
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>
-                  {course.category && (
-                    <Badge variant="secondary" className="mb-2">
-                      {course.category.name}
-                    </Badge>
-                  )}
+                  {course.category && <Badge variant="secondary" className="mb-2">{course.category.name}</Badge>}
                   <CardTitle className="text-2xl">{course.title}</CardTitle>
                 </div>
-                {canEdit && (
-                  <Button asChild variant="outline">
-                    <Link to={`/lms/courses/${course.id}/edit`}>Edit Course</Link>
-                  </Button>
-                )}
+                {canEdit && <Button asChild variant="outline"><Link to={`/lms/courses/${course.id}/edit`}>Edit Course</Link></Button>}
               </div>
-              {course.short_description && (
-                <CardDescription className="text-base">
-                  {course.short_description}
-                </CardDescription>
-              )}
+              {course.short_description && <CardDescription className="text-base">{course.short_description}</CardDescription>}
             </CardHeader>
-            {course.description && (
-              <CardContent>
-                <p className="whitespace-pre-wrap text-muted-foreground">
-                  {course.description}
-                </p>
-              </CardContent>
-            )}
+            {course.description && <CardContent><p className="whitespace-pre-wrap text-muted-foreground">{course.description}</p></CardContent>}
           </Card>
 
-          {/* Course Content */}
           <Card>
             <CardHeader>
               <CardTitle>Course Content</CardTitle>
-              <CardDescription>
-                {sections.length} sections •{' '}
-                {sections.reduce((acc, s) => acc + s.resources.length, 0)} lessons
-              </CardDescription>
+              <CardDescription>{sections.length} sections • {totalLessons} lessons</CardDescription>
             </CardHeader>
             <CardContent>
-              {sections.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground">
-                  No content available yet
-                </p>
-              ) : (
+              {sections.length === 0 ? <p className="py-8 text-center text-muted-foreground">No content available yet</p> : (
                 <Accordion type="multiple" className="space-y-2">
                   {sections.map((section, index) => (
-                    <AccordionItem
-                      key={section.id}
-                      value={section.id}
-                      className="rounded-lg border px-4"
-                    >
+                    <AccordionItem key={section.id} value={section.id} className="rounded-lg border px-4">
                       <AccordionTrigger className="hover:no-underline">
                         <div className="flex flex-1 items-center gap-3">
-                          <span className="font-semibold">
-                            {index + 1}. {section.title}
-                          </span>
-                          <span className="ml-auto mr-4 text-sm text-muted-foreground">
-                            {section.resources.length} lessons
-                          </span>
+                          <span className="font-semibold">{index + 1}. {section.title}</span>
+                          <span className="ml-auto mr-4 text-sm text-muted-foreground">{section.resources.length} lessons</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pb-4">
                         <div className="space-y-2">
-                          {section.resources.map((resource) => (
-                            <div
-                              key={resource.id}
-                              className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                                isEnrolled
-                                  ? 'hover:bg-muted'
-                                  : 'cursor-not-allowed opacity-60'
-                              }`}
-                              onClick={() =>
-                                isEnrolled && setActiveResource(resource)
-                              }
-                            >
-                              <div className="rounded bg-primary/10 p-2">
-                                {isEnrolled ? (
-                                  getResourceIcon(resource.resource_type)
-                                ) : (
-                                  <Lock className="h-4 w-4" />
-                                )}
-                              </div>
+                          {section.resources.map((resource, rIndex) => (
+                            <div key={resource.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${isEnrolled ? 'hover:bg-muted' : 'cursor-not-allowed opacity-60'}`} onClick={() => isEnrolled && setActiveResource(resource)}>
+                              <div className="rounded bg-primary/10 p-2">{isEnrolled ? getResourceIcon(resource.resource_type) : <Lock className="h-4 w-4" />}</div>
                               <div className="flex-1">
-                                <p className="font-medium">{resource.title}</p>
-                                <p className="text-xs capitalize text-muted-foreground">
-                                  {resource.resource_type}
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">{rIndex + 1}. {resource.title}</p>
+                                  {resource.has_quiz && <Badge variant="outline" className="text-xs"><HelpCircle className="mr-1 h-3 w-3" />Quiz</Badge>}
+                                </div>
+                                <p className="text-xs capitalize text-muted-foreground">{resource.resource_type}</p>
                               </div>
-                              {resource.is_completed && (
-                                <CheckCircle className="h-5 w-5 text-green-500" />
-                              )}
-                              {isEnrolled && !resource.is_completed && (
-                                <Play className="h-5 w-5 text-muted-foreground" />
-                              )}
+                              {resource.is_completed && <CheckCircle className="h-5 w-5 text-green-500" />}
+                              {isEnrolled && !resource.is_completed && <Play className="h-5 w-5 text-muted-foreground" />}
                             </div>
                           ))}
                         </div>
@@ -489,68 +400,27 @@ export default function CourseView() {
           </Card>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
           <Card>
             <CardContent className="p-6">
               {isEnrolled ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Your Progress
-                    </span>
-                    <span className="font-semibold">
-                      {enrollment?.progress_percent || 0}%
-                    </span>
-                  </div>
-                  <Progress value={enrollment?.progress_percent || 0} />
-                  <Button asChild className="w-full">
-                    <Link to={`/lms/courses/${course.id}`}>
-                      Continue Learning
-                    </Link>
-                  </Button>
+                  <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Your Progress</span><span className="font-bold">{progressPercent}%</span></div>
+                  <Progress value={progressPercent} />
+                  <p className="text-sm text-muted-foreground">{completedLessons} of {totalLessons} lessons completed</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <Button
-                    className="w-full"
-                    onClick={handleEnroll}
-                    disabled={enrolling || course.enrollment_type !== 'open'}
-                  >
-                    {enrolling ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {course.enrollment_type === 'open'
-                      ? 'Enroll Now'
-                      : 'Enrollment Restricted'}
-                  </Button>
-                  {course.enrollment_type !== 'open' && (
-                    <p className="text-center text-sm text-muted-foreground">
-                      This course requires{' '}
-                      {course.enrollment_type === 'approval'
-                        ? 'instructor approval'
-                        : 'an enrollment key'}
-                    </p>
-                  )}
+                  <p className="text-center text-muted-foreground">Enroll to access all lessons</p>
+                  <Button className="w-full" onClick={handleEnroll} disabled={enrolling}>{enrolling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enroll Now</Button>
                 </div>
               )}
-
-              <div className="mt-6 space-y-3 border-t pt-6">
-                <div className="flex items-center gap-3 text-sm">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{enrollmentCount} students enrolled</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  <span>{sections.length} sections</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span>
-                    {sections.reduce((acc, s) => acc + s.resources.length, 0)} lessons
-                  </span>
-                </div>
-              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6 space-y-3">
+              <div className="flex items-center gap-2"><Users className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{enrollmentCount} students enrolled</span></div>
+              <div className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{totalLessons} lessons</span></div>
             </CardContent>
           </Card>
         </div>
