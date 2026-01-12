@@ -124,6 +124,74 @@ export type Database = {
         }
         Relationships: []
       }
+      course_exams: {
+        Row: {
+          course_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          instructions: string | null
+          is_published: boolean | null
+          max_attempts: number | null
+          passing_score: number
+          prevent_tab_switch: boolean | null
+          show_results: boolean | null
+          shuffle_questions: boolean | null
+          start_date: string | null
+          time_limit_minutes: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          course_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          instructions?: string | null
+          is_published?: boolean | null
+          max_attempts?: number | null
+          passing_score?: number
+          prevent_tab_switch?: boolean | null
+          show_results?: boolean | null
+          shuffle_questions?: boolean | null
+          start_date?: string | null
+          time_limit_minutes?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          course_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          instructions?: string | null
+          is_published?: boolean | null
+          max_attempts?: number | null
+          passing_score?: number
+          prevent_tab_switch?: boolean | null
+          show_results?: boolean | null
+          shuffle_questions?: boolean | null
+          start_date?: string | null
+          time_limit_minutes?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_exams_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "lms_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_packages: {
         Row: {
           created_at: string | null
@@ -315,6 +383,100 @@ export type Database = {
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "course_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_attempts: {
+        Row: {
+          answers: Json
+          completed_at: string | null
+          created_at: string | null
+          exam_id: string
+          id: string
+          passed: boolean | null
+          score: number | null
+          started_at: string | null
+          tab_switches: number | null
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string | null
+          exam_id: string
+          id?: string
+          passed?: boolean | null
+          score?: number | null
+          started_at?: string | null
+          tab_switches?: number | null
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string | null
+          exam_id?: string
+          id?: string
+          passed?: boolean | null
+          score?: number | null
+          started_at?: string | null
+          tab_switches?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_attempts_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "course_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_questions: {
+        Row: {
+          correct_answer: string
+          created_at: string | null
+          exam_id: string
+          id: string
+          options: Json | null
+          points: number | null
+          question_text: string
+          question_type: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          correct_answer: string
+          created_at?: string | null
+          exam_id: string
+          id?: string
+          options?: Json | null
+          points?: number | null
+          question_text: string
+          question_type?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string | null
+          exam_id?: string
+          id?: string
+          options?: Json | null
+          points?: number | null
+          question_text?: string
+          question_type?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_questions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "course_exams"
             referencedColumns: ["id"]
           },
         ]

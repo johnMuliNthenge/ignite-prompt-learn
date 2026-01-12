@@ -29,6 +29,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -47,8 +48,12 @@ import {
   Music,
   FileType,
   HelpCircle,
+  ClipboardList,
+  Upload,
 } from 'lucide-react';
 import QuizEditor from '@/components/lms/QuizEditor';
+import ExamEditor from '@/components/lms/ExamEditor';
+import FileUploadInput from '@/components/lms/FileUploadInput';
 
 interface Section {
   id: string;
@@ -69,6 +74,13 @@ interface Resource {
   sort_order: number;
   is_visible: boolean;
   has_quiz?: boolean;
+}
+
+interface Exam {
+  id: string;
+  title: string;
+  is_published: boolean;
+  questions_count?: number;
 }
 
 interface Course {
@@ -111,6 +123,11 @@ export default function CourseEditor() {
   // Quiz editor dialog
   const [showQuizDialog, setShowQuizDialog] = useState(false);
   const [quizResourceId, setQuizResourceId] = useState<string | null>(null);
+
+  // Exam management
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [showExamDialog, setShowExamDialog] = useState(false);
+  const [editingExamId, setEditingExamId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -173,6 +190,13 @@ export default function CourseEditor() {
       );
 
       setSections(sectionsWithResources);
+
+      // Fetch exams
+      const { data: examsData } = await supabase
+        .from('course_exams')
+        .select('id, title, is_published')
+        .eq('course_id', id);
+      setExams(examsData || []);
     } catch (error) {
       console.error('Error fetching course:', error);
       toast({
@@ -458,14 +482,27 @@ export default function CourseEditor() {
         </div>
       </div>
 
-      {/* Sections */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Course Content</CardTitle>
-            <CardDescription>
-              Organize your course into sections and add lessons (video, audio, documents)
-            </CardDescription>
+      {/* Tabs for Content and Exams */}
+      <Tabs defaultValue="content" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="content">Lessons & Content</TabsTrigger>
+          <TabsTrigger value="exams">Exams & Assignments</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content">
+          {/* Sections */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Course Content</CardTitle>
+                <CardDescription>
+                  Organize your course into sections and add lessons</CardDescription>
+              </div>
+              <Button onClick={() => openSectionDialog()}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Section
+              </Button>
+            </CardHeader>
           </div>
           <Button onClick={() => openSectionDialog()}>
             <Plus className="mr-2 h-4 w-4" />
@@ -754,7 +791,36 @@ export default function CourseEditor() {
               />
             </div>
 
-            {['video', 'audio', 'document', 'link', 'file', 'embed'].includes(resourceForm.resource_type) && (
+            {['video', 'audio', 'document'].includes(resourceForm.resource_type) && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Upload File</Label>
+                  <FileUploadInput
+                    type={resourceForm.resource_type as 'video' | 'audio' | 'document'}
+                    value={resourceForm.content_url}
+                    onChange={(url) => setResourceForm({ ...resourceForm, content_url: url })}
+                  />
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or use URL</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Content URL</Label>
+                  <Input
+                    value={resourceForm.content_url}
+                    onChange={(e) => setResourceForm({ ...resourceForm, content_url: e.target.value })}
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {['link', 'embed'].includes(resourceForm.resource_type) && (
               <div className="space-y-2">
                 <Label>
                   {resourceForm.resource_type === 'embed' ? 'Embed URL (YouTube, Vimeo, etc.)' : 'URL'}
@@ -770,12 +836,6 @@ export default function CourseEditor() {
                       : 'https://...'
                   }
                 />
-                <p className="text-xs text-muted-foreground">
-                  {resourceForm.resource_type === 'video' && 'Link to video file (MP4, WebM, etc.)'}
-                  {resourceForm.resource_type === 'audio' && 'Link to audio file (MP3, WAV, etc.)'}
-                  {resourceForm.resource_type === 'document' && 'Link to document (PDF, DOCX, etc.)'}
-                  {resourceForm.resource_type === 'embed' && 'Use embed URL, not regular YouTube link'}
-                </p>
               </div>
             )}
 
@@ -819,6 +879,31 @@ export default function CourseEditor() {
               resourceId={quizResourceId}
               onClose={() => {
                 setShowQuizDialog(false);
+                fetchCourse();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Exam Editor Dialog */}
+      <Dialog open={showExamDialog} onOpenChange={setShowExamDialog}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingExamId ? 'Edit Exam' : 'Create Exam'}</DialogTitle>
+            <DialogDescription>
+              Create an exam/assignment for this course
+            </DialogDescription>
+          </DialogHeader>
+          {id && (
+            <ExamEditor
+              courseId={id}
+              examId={editingExamId || undefined}
+              onClose={() => {
+                setShowExamDialog(false);
+                setEditingExamId(null);
+              }}
+              onSaved={() => {
                 fetchCourse();
               }}
             />
