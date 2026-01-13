@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Accordion,
   AccordionContent,
@@ -30,8 +31,11 @@ import {
   Music,
   FileType,
   HelpCircle,
+  ClipboardList,
+  AlertTriangle,
 } from 'lucide-react';
 import QuizTaker from '@/components/lms/QuizTaker';
+import ExamTaker from '@/components/lms/ExamTaker';
 
 interface Course {
   id: string;
@@ -76,6 +80,19 @@ interface Enrollment {
   role: string;
 }
 
+interface Exam {
+  id: string;
+  title: string;
+  description: string | null;
+  time_limit_minutes: number | null;
+  passing_score: number;
+  max_attempts: number | null;
+  is_published: boolean;
+  user_attempts?: number;
+  best_score?: number;
+  passed?: boolean;
+}
+
 export default function CourseView() {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin, isTeacher } = useAuth();
@@ -84,12 +101,14 @@ export default function CourseView() {
 
   const [course, setCourse] = useState<Course | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [activeResource, setActiveResource] = useState<Resource | null>(null);
   const [enrollmentCount, setEnrollmentCount] = useState(0);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [activeExam, setActiveExam] = useState<Exam | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -150,7 +169,6 @@ export default function CourseView() {
               .eq('user_id', user.id)
               .in('resource_id', (resources || []).map((r) => r.id));
 
-            // Check for quizzes and attempts
             resourcesWithProgress = await Promise.all(
               (resources || []).map(async (r) => {
                 const { data: quiz } = await supabase
@@ -187,6 +205,33 @@ export default function CourseView() {
       );
 
       setSections(sectionsWithResources);
+
+      const { data: examsData } = await supabase
+        .from('course_exams')
+        .select('*')
+        .eq('course_id', id)
+        .eq('is_published', true);
+
+      if (user && examsData) {
+        const examsWithAttempts: Exam[] = await Promise.all(
+          examsData.map(async (exam) => {
+            const { data: attempts } = await supabase
+              .from('exam_attempts')
+              .select('score, passed')
+              .eq('exam_id', exam.id)
+              .eq('user_id', user.id);
+
+            const userAttempts = attempts?.length || 0;
+            const bestScore = attempts?.reduce((max, a) => Math.max(max, a.score || 0), 0) || 0;
+            const passed = attempts?.some((a) => a.passed) || false;
+
+            return { ...exam, user_attempts: userAttempts, best_score: bestScore, passed };
+          })
+        );
+        setExams(examsWithAttempts);
+      } else {
+        setExams(examsData || []);
+      }
     } catch (error) {
       console.error('Error fetching course:', error);
       toast({ title: 'Error', description: 'Failed to load course', variant: 'destructive' });
@@ -238,7 +283,11 @@ export default function CourseView() {
     }
   };
 
-  // Calculate dynamic progress
+  const canTakeExam = (exam: Exam) => {
+    if (!exam.max_attempts) return true;
+    return (exam.user_attempts || 0) < exam.max_attempts;
+  };
+
   const totalLessons = sections.reduce((acc, s) => acc + s.resources.length, 0);
   const completedLessons = sections.reduce((acc, s) => acc + s.resources.filter(r => r.is_completed).length, 0);
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
@@ -260,7 +309,26 @@ export default function CourseView() {
     );
   }
 
-  // Quiz view
+  if (activeExam && isEnrolled) {
+    return (
+      <div className="p-6">
+        <ExamTaker
+          examId={activeExam.id}
+          onComplete={(passed, score) => {
+            toast({
+              title: passed ? 'Congratulations!' : 'Exam Completed',
+              description: `You scored ${score}%. ${passed ? 'You passed!' : `You need ${activeExam.passing_score}% to pass.`}`,
+              variant: passed ? 'default' : 'destructive',
+            });
+            setActiveExam(null);
+            fetchCourseData();
+          }}
+          onClose={() => setActiveExam(null)}
+        />
+      </div>
+    );
+  }
+
   if (showQuiz && activeResource) {
     return (
       <div className="p-6">
@@ -275,7 +343,6 @@ export default function CourseView() {
     );
   }
 
-  // Resource content view
   if (activeResource && isEnrolled) {
     return (
       <div className="p-6">
@@ -358,46 +425,113 @@ export default function CourseView() {
             {course.description && <CardContent><p className="whitespace-pre-wrap text-muted-foreground">{course.description}</p></CardContent>}
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Course Content</CardTitle>
-              <CardDescription>{sections.length} sections • {totalLessons} lessons</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {sections.length === 0 ? <p className="py-8 text-center text-muted-foreground">No content available yet</p> : (
-                <Accordion type="multiple" className="space-y-2">
-                  {sections.map((section, index) => (
-                    <AccordionItem key={section.id} value={section.id} className="rounded-lg border px-4">
-                      <AccordionTrigger className="hover:no-underline">
-                        <div className="flex flex-1 items-center gap-3">
-                          <span className="font-semibold">{index + 1}. {section.title}</span>
-                          <span className="ml-auto mr-4 text-sm text-muted-foreground">{section.resources.length} lessons</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-4">
-                        <div className="space-y-2">
-                          {section.resources.map((resource, rIndex) => (
-                            <div key={resource.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${isEnrolled ? 'hover:bg-muted' : 'cursor-not-allowed opacity-60'}`} onClick={() => isEnrolled && setActiveResource(resource)}>
-                              <div className="rounded bg-primary/10 p-2">{isEnrolled ? getResourceIcon(resource.resource_type) : <Lock className="h-4 w-4" />}</div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium">{rIndex + 1}. {resource.title}</p>
-                                  {resource.has_quiz && <Badge variant="outline" className="text-xs"><HelpCircle className="mr-1 h-3 w-3" />Quiz</Badge>}
-                                </div>
-                                <p className="text-xs capitalize text-muted-foreground">{resource.resource_type}</p>
-                              </div>
-                              {resource.is_completed && <CheckCircle className="h-5 w-5 text-green-500" />}
-                              {isEnrolled && !resource.is_completed && <Play className="h-5 w-5 text-muted-foreground" />}
+          <Tabs defaultValue="lessons" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="lessons">Lessons</TabsTrigger>
+              <TabsTrigger value="exams">Exams & Assignments</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="lessons">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Course Content</CardTitle>
+                  <CardDescription>{sections.length} sections • {totalLessons} lessons</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {sections.length === 0 ? <p className="py-8 text-center text-muted-foreground">No content available yet</p> : (
+                    <Accordion type="multiple" className="space-y-2">
+                      {sections.map((section, index) => (
+                        <AccordionItem key={section.id} value={section.id} className="rounded-lg border px-4">
+                          <AccordionTrigger className="hover:no-underline">
+                            <div className="flex flex-1 items-center gap-3">
+                              <span className="font-semibold">{index + 1}. {section.title}</span>
+                              <span className="ml-auto mr-4 text-sm text-muted-foreground">{section.resources.length} lessons</span>
                             </div>
-                          ))}
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-4">
+                            <div className="space-y-2">
+                              {section.resources.map((resource, rIndex) => (
+                                <div key={resource.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${isEnrolled ? 'hover:bg-muted' : 'cursor-not-allowed opacity-60'}`} onClick={() => isEnrolled && setActiveResource(resource)}>
+                                  <div className="rounded bg-primary/10 p-2">{isEnrolled ? getResourceIcon(resource.resource_type) : <Lock className="h-4 w-4" />}</div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium">{rIndex + 1}. {resource.title}</p>
+                                      {resource.has_quiz && <Badge variant="outline" className="text-xs"><HelpCircle className="mr-1 h-3 w-3" />Quiz</Badge>}
+                                    </div>
+                                    <p className="text-xs capitalize text-muted-foreground">{resource.resource_type}</p>
+                                  </div>
+                                  {resource.is_completed && <CheckCircle className="h-5 w-5 text-green-500" />}
+                                  {isEnrolled && !resource.is_completed && <Play className="h-5 w-5 text-muted-foreground" />}
+                                </div>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="exams">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Exams & Assignments</CardTitle>
+                  <CardDescription>Complete these exams to demonstrate your understanding</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {exams.length === 0 ? (
+                    <p className="py-8 text-center text-muted-foreground">No exams available yet</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {exams.map((exam) => (
+                        <div key={exam.id} className="flex items-center justify-between rounded-lg border p-4">
+                          <div className="flex items-center gap-4">
+                            <div className={`rounded-lg p-3 ${exam.passed ? 'bg-green-500/10' : 'bg-primary/10'}`}>
+                              <ClipboardList className={`h-6 w-6 ${exam.passed ? 'text-green-500' : 'text-primary'}`} />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">{exam.title}</h4>
+                              {exam.description && <p className="text-sm text-muted-foreground">{exam.description}</p>}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {exam.time_limit_minutes && (
+                                  <Badge variant="outline"><Clock className="mr-1 h-3 w-3" />{exam.time_limit_minutes} min</Badge>
+                                )}
+                                <Badge variant="outline">Pass: {exam.passing_score}%</Badge>
+                                {exam.max_attempts && (
+                                  <Badge variant="outline">Attempts: {exam.user_attempts || 0}/{exam.max_attempts}</Badge>
+                                )}
+                                {exam.passed && (
+                                  <Badge className="bg-green-500"><CheckCircle className="mr-1 h-3 w-3" />Passed ({exam.best_score}%)</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isEnrolled ? (
+                              canTakeExam(exam) ? (
+                                <Button onClick={() => setActiveExam(exam)}>
+                                  <Play className="mr-2 h-4 w-4" />
+                                  {exam.passed ? 'Retake' : 'Start Exam'}
+                                </Button>
+                              ) : (
+                                <Badge variant="secondary">
+                                  <AlertTriangle className="mr-1 h-3 w-3" />Max attempts reached
+                                </Badge>
+                              )
+                            ) : (
+                              <Badge variant="secondary"><Lock className="mr-1 h-3 w-3" />Enroll to take exam</Badge>
+                            )}
+                          </div>
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              )}
-            </CardContent>
-          </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
 
         <div className="space-y-6">
@@ -421,6 +555,7 @@ export default function CourseView() {
             <CardContent className="p-6 space-y-3">
               <div className="flex items-center gap-2"><Users className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{enrollmentCount} students enrolled</span></div>
               <div className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{totalLessons} lessons</span></div>
+              {exams.length > 0 && <div className="flex items-center gap-2"><ClipboardList className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{exams.length} exams</span></div>}
             </CardContent>
           </Card>
         </div>
