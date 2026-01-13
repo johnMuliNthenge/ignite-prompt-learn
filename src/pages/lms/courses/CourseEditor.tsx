@@ -496,165 +496,222 @@ export default function CourseEditor() {
               <div>
                 <CardTitle>Course Content</CardTitle>
                 <CardDescription>
-                  Organize your course into sections and add lessons</CardDescription>
+                  Organize your course into sections and add lessons
+                </CardDescription>
               </div>
               <Button onClick={() => openSectionDialog()}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Section
               </Button>
             </CardHeader>
-          </div>
-          <Button onClick={() => openSectionDialog()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Section
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {sections.length === 0 ? (
-            <div className="py-12 text-center">
-              <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">No sections yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Add sections to organize your course content
-              </p>
-              <Button onClick={() => openSectionDialog()} className="mt-4">
-                <Plus className="mr-2 h-4 w-4" />
-                Add First Section
-              </Button>
-            </div>
-          ) : (
-            <Accordion type="multiple" className="space-y-4">
-              {sections.map((section, index) => (
-                <AccordionItem
-                  key={section.id}
-                  value={section.id}
-                  className="rounded-lg border px-4"
-                >
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex flex-1 items-center gap-3">
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold">
-                        Section {index + 1}: {section.title}
-                      </span>
-                      {!section.is_visible && (
-                        <Badge variant="secondary">Hidden</Badge>
-                      )}
-                      <span className="ml-auto mr-4 text-sm text-muted-foreground">
-                        {section.resources.length} lessons
-                      </span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4">
-                    <div className="mb-4 flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openSectionDialog(section)}
-                      >
-                        <Pencil className="mr-1 h-3 w-3" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toggleSectionVisibility(section)}
-                      >
-                        {section.is_visible ? (
-                          <>
-                            <EyeOff className="mr-1 h-3 w-3" />
-                            Hide
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="mr-1 h-3 w-3" />
-                            Show
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteSection(section.id)}
-                      >
-                        <Trash2 className="mr-1 h-3 w-3 text-destructive" />
-                        Delete
-                      </Button>
-                      <div className="flex-1" />
-                      <Button size="sm" onClick={() => openResourceDialog(section.id)}>
-                        <Plus className="mr-1 h-3 w-3" />
-                        Add Lesson
-                      </Button>
-                    </div>
-
-                    {section.description && (
-                      <p className="mb-4 text-sm text-muted-foreground">
-                        {section.description}
-                      </p>
-                    )}
-
-                    <div className="space-y-2">
-                      {section.resources.map((resource, rIndex) => (
-                        <div
-                          key={resource.id}
-                          className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3"
-                        >
-                          <div className="rounded bg-background p-2">
-                            {getResourceIcon(resource.resource_type)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">
-                                {rIndex + 1}. {resource.title}
-                              </p>
-                              {resource.has_quiz && (
-                                <Badge variant="outline" className="text-xs">
-                                  <HelpCircle className="mr-1 h-3 w-3" />
-                                  Quiz
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs capitalize text-muted-foreground">
-                              {resource.resource_type}
-                            </p>
-                          </div>
+            <CardContent>
+              {sections.length === 0 ? (
+                <div className="py-12 text-center">
+                  <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                  <h3 className="mt-4 text-lg font-semibold">No sections yet</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Add sections to organize your course content
+                  </p>
+                  <Button onClick={() => openSectionDialog()} className="mt-4">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add First Section
+                  </Button>
+                </div>
+              ) : (
+                <Accordion type="multiple" className="space-y-4">
+                  {sections.map((section, index) => (
+                    <AccordionItem
+                      key={section.id}
+                      value={section.id}
+                      className="rounded-lg border px-4"
+                    >
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex flex-1 items-center gap-3">
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-semibold">
+                            Section {index + 1}: {section.title}
+                          </span>
+                          {!section.is_visible && (
+                            <Badge variant="secondary">Hidden</Badge>
+                          )}
+                          <span className="ml-auto mr-4 text-sm text-muted-foreground">
+                            {section.resources.length} lessons
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-4">
+                        <div className="mb-4 flex gap-2">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={() => openQuizEditor(resource.id)}
-                            title="Manage Quiz"
+                            onClick={() => openSectionDialog(section)}
                           >
-                            <HelpCircle className="h-4 w-4" />
+                            <Pencil className="mr-1 h-3 w-3" />
+                            Edit
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openResourceDialog(section.id, resource)}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleSectionVisibility(section)}
                           >
-                            <Pencil className="h-4 w-4" />
+                            {section.is_visible ? (
+                              <>
+                                <EyeOff className="mr-1 h-3 w-3" />
+                                Hide
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="mr-1 h-3 w-3" />
+                                Show
+                              </>
+                            )}
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteResource(resource.id)}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteSection(section.id)}
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="mr-1 h-3 w-3 text-destructive" />
+                            Delete
+                          </Button>
+                          <div className="flex-1" />
+                          <Button size="sm" onClick={() => openResourceDialog(section.id)}>
+                            <Plus className="mr-1 h-3 w-3" />
+                            Add Lesson
                           </Button>
                         </div>
-                      ))}
 
-                      {section.resources.length === 0 && (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No lessons in this section yet
-                        </p>
-                      )}
+                        {section.description && (
+                          <p className="mb-4 text-sm text-muted-foreground">
+                            {section.description}
+                          </p>
+                        )}
+
+                        <div className="space-y-2">
+                          {section.resources.map((resource, rIndex) => (
+                            <div
+                              key={resource.id}
+                              className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3"
+                            >
+                              <div className="rounded bg-background p-2">
+                                {getResourceIcon(resource.resource_type)}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">
+                                    {rIndex + 1}. {resource.title}
+                                  </p>
+                                  {resource.has_quiz && (
+                                    <Badge variant="outline" className="text-xs">
+                                      <HelpCircle className="mr-1 h-3 w-3" />
+                                      Quiz
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs capitalize text-muted-foreground">
+                                  {resource.resource_type}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openQuizEditor(resource.id)}
+                                title="Manage Quiz"
+                              >
+                                <HelpCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openResourceDialog(section.id, resource)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteResource(resource.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          ))}
+
+                          {section.resources.length === 0 && (
+                            <p className="py-4 text-center text-sm text-muted-foreground">
+                              No lessons in this section yet
+                            </p>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="exams">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Exams & Assignments</CardTitle>
+                <CardDescription>
+                  Create and manage exams for this course
+                </CardDescription>
+              </div>
+              <Button onClick={() => { setEditingExamId(null); setShowExamDialog(true); }}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Exam
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {exams.length === 0 ? (
+                <div className="py-12 text-center">
+                  <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                  <h3 className="mt-4 text-lg font-semibold">No exams yet</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Create exams to assess student learning
+                  </p>
+                  <Button onClick={() => { setEditingExamId(null); setShowExamDialog(true); }} className="mt-4">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create First Exam
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {exams.map((exam) => (
+                    <div
+                      key={exam.id}
+                      className="flex items-center justify-between rounded-lg border p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="rounded bg-primary/10 p-2">
+                          <ClipboardList className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{exam.title}</p>
+                          <Badge variant={exam.is_published ? 'default' : 'secondary'}>
+                            {exam.is_published ? 'Published' : 'Draft'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => { setEditingExamId(exam.id); setShowExamDialog(true); }}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          )}
-        </CardContent>
-      </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Section Dialog */}
       <Dialog open={showSectionDialog} onOpenChange={setShowSectionDialog}>

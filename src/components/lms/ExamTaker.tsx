@@ -47,7 +47,7 @@ interface Attempt {
 
 interface ExamTakerProps {
   examId: string;
-  onComplete: (passed: boolean) => void;
+  onComplete: (passed: boolean, score: number) => void;
   onClose: () => void;
 }
 
@@ -288,9 +288,7 @@ export default function ExamTaker({ examId, onComplete, onClose }: ExamTakerProp
       setResult({ score: scorePercent, passed, total: totalPoints });
       setStarted(false);
       
-      if (passed) {
-        onComplete(true);
-      }
+      onComplete(passed, scorePercent);
 
       toast({
         title: passed ? 'Exam Passed! 🎉' : 'Exam Not Passed',
