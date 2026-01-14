@@ -16,6 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
+  Award,
   BookOpen,
   CheckCircle,
   Clock,
@@ -36,6 +37,7 @@ import {
 } from 'lucide-react';
 import QuizTaker from '@/components/lms/QuizTaker';
 import ExamTaker from '@/components/lms/ExamTaker';
+import CourseCertificate from '@/components/lms/CourseCertificate';
 
 interface Course {
   id: string;
@@ -93,6 +95,14 @@ interface Exam {
   passed?: boolean;
 }
 
+interface Certificate {
+  id: string;
+  certificate_number: string;
+  issued_at: string;
+  completion_date: string;
+  final_score: number | null;
+}
+
 export default function CourseView() {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin, isTeacher } = useAuth();
@@ -103,12 +113,16 @@ export default function CourseView() {
   const [sections, setSections] = useState<Section[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
+  const [certificate, setCertificate] = useState<Certificate | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [generatingCertificate, setGeneratingCertificate] = useState(false);
   const [activeResource, setActiveResource] = useState<Resource | null>(null);
   const [enrollmentCount, setEnrollmentCount] = useState(0);
   const [showQuiz, setShowQuiz] = useState(false);
   const [activeExam, setActiveExam] = useState<Exam | null>(null);
+  const [showCertificate, setShowCertificate] = useState(false);
+  const [studentName, setStudentName] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -232,6 +246,27 @@ export default function CourseView() {
       } else {
         setExams(examsData || []);
       }
+
+      // Fetch certificate if exists
+      if (user) {
+        const { data: certData } = await supabase
+          .from('course_certificates')
+          .select('*')
+          .eq('course_id', id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        setCertificate(certData);
+
+        // Fetch student name
+        const { data: profileData } = await supabase
+          .from('lms_profiles')
+          .select('full_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        setStudentName(profileData?.full_name || user.email || 'Student');
+      }
     } catch (error) {
       console.error('Error fetching course:', error);
       toast({ title: 'Error', description: 'Failed to load course', variant: 'destructive' });
@@ -292,6 +327,48 @@ export default function CourseView() {
   const completedLessons = sections.reduce((acc, s) => acc + s.resources.filter(r => r.is_completed).length, 0);
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
+  // Check if course is complete (all lessons done and all exams passed)
+  const allLessonsComplete = totalLessons > 0 && completedLessons === totalLessons;
+  const allExamsPassed = exams.length === 0 || exams.every(e => e.passed);
+  const courseComplete = allLessonsComplete && allExamsPassed;
+
+  // Calculate average exam score for certificate
+  const avgExamScore = exams.length > 0
+    ? exams.reduce((acc, e) => acc + (e.best_score || 0), 0) / exams.length
+    : 100;
+
+  const generateCertificate = async () => {
+    if (!user || !course || certificate) return;
+    
+    setGeneratingCertificate(true);
+    try {
+      // Generate certificate number
+      const certNumber = `CERT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+
+      const { data, error } = await supabase
+        .from('course_certificates')
+        .insert({
+          course_id: course.id,
+          user_id: user.id,
+          certificate_number: certNumber,
+          final_score: avgExamScore,
+          completion_date: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setCertificate(data);
+      setShowCertificate(true);
+      toast({ title: 'Certificate generated!', description: 'You can now download your certificate.' });
+    } catch (error) {
+      console.error('Error generating certificate:', error);
+      toast({ title: 'Error', description: 'Failed to generate certificate', variant: 'destructive' });
+    } finally {
+      setGeneratingCertificate(false);
+    }
+  };
+
   const isEnrolled = !!enrollment;
   const canEdit = isAdmin || (isTeacher && course?.created_by === user?.id);
 
@@ -338,6 +415,23 @@ export default function CourseView() {
             if (passed) fetchCourseData();
           }}
           onClose={() => setShowQuiz(false)}
+        />
+      </div>
+    );
+  }
+
+  if (showCertificate && certificate && course) {
+    return (
+      <div className="p-6">
+        <Button variant="ghost" className="mb-4" onClick={() => setShowCertificate(false)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />Back to Course
+        </Button>
+        <CourseCertificate
+          studentName={studentName}
+          courseName={course.title}
+          completionDate={certificate.completion_date}
+          certificateNumber={certificate.certificate_number}
+          finalScore={certificate.final_score ?? undefined}
         />
       </div>
     );
@@ -542,6 +636,36 @@ export default function CourseView() {
                   <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Your Progress</span><span className="font-bold">{progressPercent}%</span></div>
                   <Progress value={progressPercent} />
                   <p className="text-sm text-muted-foreground">{completedLessons} of {totalLessons} lessons completed</p>
+                  
+                  {/* Certificate section */}
+                  {courseComplete && (
+                    <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950">
+                      <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                        <Award className="h-5 w-5" />
+                        <span className="font-semibold">Course Completed!</span>
+                      </div>
+                      {certificate ? (
+                        <Button
+                          className="mt-3 w-full"
+                          variant="outline"
+                          onClick={() => setShowCertificate(true)}
+                        >
+                          <Award className="mr-2 h-4 w-4" />
+                          View Certificate
+                        </Button>
+                      ) : (
+                        <Button
+                          className="mt-3 w-full"
+                          onClick={generateCertificate}
+                          disabled={generatingCertificate}
+                        >
+                          {generatingCertificate && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          <Award className="mr-2 h-4 w-4" />
+                          Get Certificate
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
