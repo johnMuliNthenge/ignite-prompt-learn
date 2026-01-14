@@ -38,6 +38,7 @@ import {
 import QuizTaker from '@/components/lms/QuizTaker';
 import ExamTaker from '@/components/lms/ExamTaker';
 import CourseCertificate from '@/components/lms/CourseCertificate';
+import OnlineClassList from '@/components/lms/OnlineClassList';
 
 interface Course {
   id: string;
@@ -523,6 +524,10 @@ export default function CourseView() {
             <TabsList>
               <TabsTrigger value="lessons">Lessons</TabsTrigger>
               <TabsTrigger value="exams">Exams & Assignments</TabsTrigger>
+              <TabsTrigger value="live-classes">
+                <Video className="mr-2 h-4 w-4" />
+                Live Classes
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="lessons">
@@ -622,6 +627,18 @@ export default function CourseView() {
                       ))}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="live-classes">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Live Classes</CardTitle>
+                  <CardDescription>Join scheduled online sessions with your instructor</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <OnlineClassList courseId={id!} isEnrolled={isEnrolled} />
                 </CardContent>
               </Card>
             </TabsContent>
