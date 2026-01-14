@@ -88,6 +88,47 @@ export type Database = {
           },
         ]
       }
+      course_certificates: {
+        Row: {
+          certificate_number: string
+          completion_date: string
+          course_id: string
+          created_at: string
+          final_score: number | null
+          id: string
+          issued_at: string
+          user_id: string
+        }
+        Insert: {
+          certificate_number: string
+          completion_date?: string
+          course_id: string
+          created_at?: string
+          final_score?: number | null
+          id?: string
+          issued_at?: string
+          user_id: string
+        }
+        Update: {
+          certificate_number?: string
+          completion_date?: string
+          course_id?: string
+          created_at?: string
+          final_score?: number | null
+          id?: string
+          issued_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_certificates_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "lms_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_content: {
         Row: {
           content_type: string | null
@@ -870,6 +911,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_certificate_number: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
