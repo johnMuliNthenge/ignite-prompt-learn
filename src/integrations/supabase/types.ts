@@ -47,6 +47,50 @@ export type Database = {
         }
         Relationships: []
       }
+      class_attendance: {
+        Row: {
+          class_id: string
+          created_at: string | null
+          id: string
+          marked_at: string | null
+          marked_by: string | null
+          notes: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string | null
+          id?: string
+          marked_at?: string | null
+          marked_by?: string | null
+          notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string | null
+          id?: string
+          marked_at?: string | null
+          marked_by?: string | null
+          notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_attendance_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "online_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_categories: {
         Row: {
           created_at: string | null
@@ -722,6 +766,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      online_classes: {
+        Row: {
+          course_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          meeting_link: string | null
+          scheduled_at: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          course_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_link?: string | null
+          scheduled_at: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          course_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_link?: string | null
+          scheduled_at?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_classes_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "lms_courses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

@@ -53,6 +53,7 @@ import {
 } from 'lucide-react';
 import QuizEditor from '@/components/lms/QuizEditor';
 import ExamEditor from '@/components/lms/ExamEditor';
+import OnlineClassManager from '@/components/lms/OnlineClassManager';
 import FileUploadInput from '@/components/lms/FileUploadInput';
 
 interface Section {
@@ -482,11 +483,15 @@ export default function CourseEditor() {
         </div>
       </div>
 
-      {/* Tabs for Content and Exams */}
+      {/* Tabs for Content, Exams, and Online Classes */}
       <Tabs defaultValue="content" className="space-y-4">
         <TabsList>
           <TabsTrigger value="content">Lessons & Content</TabsTrigger>
           <TabsTrigger value="exams">Exams & Assignments</TabsTrigger>
+          <TabsTrigger value="online-classes">
+            <Video className="mr-2 h-4 w-4" />
+            Online Classes
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="content">
@@ -708,6 +713,14 @@ export default function CourseEditor() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="online-classes">
+          <Card>
+            <CardContent className="pt-6">
+              <OnlineClassManager courseId={id!} />
             </CardContent>
           </Card>
         </TabsContent>
