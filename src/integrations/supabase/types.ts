@@ -566,6 +566,86 @@ export type Database = {
           },
         ]
       }
+      grading_scale_levels: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          label: string
+          max_value: number
+          min_value: number
+          points: number | null
+          scale_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          label: string
+          max_value: number
+          min_value: number
+          points?: number | null
+          scale_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          label?: string
+          max_value?: number
+          min_value?: number
+          points?: number | null
+          scale_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grading_scale_levels_scale_id_fkey"
+            columns: ["scale_id"]
+            isOneToOne: false
+            referencedRelation: "grading_scales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grading_scales: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          scale_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          scale_type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          scale_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       lesson_quizzes: {
         Row: {
           created_at: string | null
@@ -813,6 +893,172 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "lms_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poe_assignments: {
+        Row: {
+          allowed_file_types: string[] | null
+          course_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          grading_scale_id: string | null
+          id: string
+          instructions: string | null
+          is_published: boolean | null
+          max_file_size_mb: number | null
+          max_files: number | null
+          max_score: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          allowed_file_types?: string[] | null
+          course_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          grading_scale_id?: string | null
+          id?: string
+          instructions?: string | null
+          is_published?: boolean | null
+          max_file_size_mb?: number | null
+          max_files?: number | null
+          max_score?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          allowed_file_types?: string[] | null
+          course_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          grading_scale_id?: string | null
+          id?: string
+          instructions?: string | null
+          is_published?: boolean | null
+          max_file_size_mb?: number | null
+          max_files?: number | null
+          max_score?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poe_assignments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "lms_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poe_assignments_grading_scale_id_fkey"
+            columns: ["grading_scale_id"]
+            isOneToOne: false
+            referencedRelation: "grading_scales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poe_submission_files: {
+        Row: {
+          file_name: string
+          file_size: number | null
+          file_type: string
+          file_url: string
+          id: string
+          submission_id: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          file_name: string
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          id?: string
+          submission_id: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          file_name?: string
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          submission_id?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poe_submission_files_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "poe_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poe_submissions: {
+        Row: {
+          assignment_id: string
+          created_at: string | null
+          feedback: string | null
+          grade_label: string | null
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          revision_notes: string | null
+          score: number | null
+          status: string
+          submission_text: string | null
+          submitted_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string | null
+          feedback?: string | null
+          grade_label?: string | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision_notes?: string | null
+          score?: number | null
+          status?: string
+          submission_text?: string | null
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string | null
+          feedback?: string | null
+          grade_label?: string | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision_notes?: string | null
+          score?: number | null
+          status?: string
+          submission_text?: string | null
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poe_submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "poe_assignments"
             referencedColumns: ["id"]
           },
         ]

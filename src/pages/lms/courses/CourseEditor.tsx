@@ -55,6 +55,8 @@ import QuizEditor from '@/components/lms/QuizEditor';
 import ExamEditor from '@/components/lms/ExamEditor';
 import OnlineClassManager from '@/components/lms/OnlineClassManager';
 import FileUploadInput from '@/components/lms/FileUploadInput';
+import { POEAssignmentManager } from '@/components/lms/poe/POEAssignmentManager';
+import { POETeacherReview } from '@/components/lms/poe/POETeacherReview';
 
 interface Section {
   id: string;
@@ -488,6 +490,7 @@ export default function CourseEditor() {
         <TabsList>
           <TabsTrigger value="content">Lessons & Content</TabsTrigger>
           <TabsTrigger value="exams">Exams & Assignments</TabsTrigger>
+          <TabsTrigger value="poe">POE</TabsTrigger>
           <TabsTrigger value="online-classes">
             <Video className="mr-2 h-4 w-4" />
             Online Classes
