@@ -40,7 +40,8 @@ import ExamTaker from '@/components/lms/ExamTaker';
 import CourseCertificate from '@/components/lms/CourseCertificate';
 import OnlineClassList from '@/components/lms/OnlineClassList';
 import { POEStudentView } from '@/components/lms/poe/POEStudentView';
-import { FolderOpen } from 'lucide-react';
+import StudentResults from '@/components/lms/StudentResults';
+import { FolderOpen, BarChart3 } from 'lucide-react';
 
 interface Course {
   id: string;
@@ -523,7 +524,7 @@ export default function CourseView() {
           </Card>
 
           <Tabs defaultValue="lessons" className="space-y-4">
-            <TabsList>
+            <TabsList className="flex-wrap">
               <TabsTrigger value="lessons">Lessons</TabsTrigger>
               <TabsTrigger value="exams">Exams & Assignments</TabsTrigger>
               <TabsTrigger value="poe">
@@ -534,6 +535,12 @@ export default function CourseView() {
                 <Video className="mr-2 h-4 w-4" />
                 Live Classes
               </TabsTrigger>
+              {isEnrolled && (
+                <TabsTrigger value="results">
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  My Results
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="lessons">
@@ -666,6 +673,12 @@ export default function CourseView() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            {isEnrolled && (
+              <TabsContent value="results">
+                <StudentResults courseId={id!} courseName={course.title} />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
 
