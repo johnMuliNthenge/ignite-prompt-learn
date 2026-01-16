@@ -39,6 +39,8 @@ import QuizTaker from '@/components/lms/QuizTaker';
 import ExamTaker from '@/components/lms/ExamTaker';
 import CourseCertificate from '@/components/lms/CourseCertificate';
 import OnlineClassList from '@/components/lms/OnlineClassList';
+import { POEStudentView } from '@/components/lms/poe/POEStudentView';
+import { FolderOpen } from 'lucide-react';
 
 interface Course {
   id: string;
@@ -524,6 +526,10 @@ export default function CourseView() {
             <TabsList>
               <TabsTrigger value="lessons">Lessons</TabsTrigger>
               <TabsTrigger value="exams">Exams & Assignments</TabsTrigger>
+              <TabsTrigger value="poe">
+                <FolderOpen className="mr-2 h-4 w-4" />
+                POE
+              </TabsTrigger>
               <TabsTrigger value="live-classes">
                 <Video className="mr-2 h-4 w-4" />
                 Live Classes
@@ -626,6 +632,24 @@ export default function CourseView() {
                         </div>
                       ))}
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="poe">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Portfolio of Evidence</CardTitle>
+                  <CardDescription>Submit your work and evidence for assessment</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isEnrolled ? (
+                    <POEStudentView courseId={id!} />
+                  ) : (
+                    <p className="py-8 text-center text-muted-foreground">
+                      Enroll in this course to submit your portfolio of evidence
+                    </p>
                   )}
                 </CardContent>
               </Card>
