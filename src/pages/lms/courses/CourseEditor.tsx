@@ -727,6 +727,13 @@ export default function CourseEditor() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="poe">
+          <div className="space-y-6">
+            <POEAssignmentManager courseId={id!} />
+            <POETeacherReview courseId={id!} />
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Section Dialog */}
