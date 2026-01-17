@@ -13,10 +13,14 @@ import {
   PlusCircle,
   LogOut,
   Shield,
+  Menu,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NavItem {
   title: string;
@@ -85,7 +89,12 @@ const adminItems: NavItem[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { profile, role, signOut, isAdmin, isTeacher } = useAuth();
   const location = useLocation();
 
@@ -96,6 +105,7 @@ export function Sidebar() {
         <Link
           key={item.href}
           to={item.href}
+          onClick={onNavigate}
           className={cn(
             'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
             location.pathname === item.href
@@ -103,16 +113,16 @@ export function Sidebar() {
               : 'text-muted-foreground hover:bg-muted hover:text-foreground'
           )}
         >
-          <item.icon className="h-4 w-4" />
-          {item.title}
+          <item.icon className="h-4 w-4 shrink-0" />
+          <span className="truncate">{item.title}</span>
         </Link>
       ));
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-card">
+    <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-2 border-b px-6">
-        <GraduationCap className="h-8 w-8 text-primary" />
+      <div className="flex h-16 items-center gap-2 border-b px-6 shrink-0">
+        <GraduationCap className="h-8 w-8 text-primary shrink-0" />
         <span className="text-xl font-bold">LearnHub</span>
       </div>
 
@@ -142,19 +152,19 @@ export function Sidebar() {
       </ScrollArea>
 
       {/* User section */}
-      <div className="border-t p-4">
+      <div className="border-t p-4 shrink-0">
         <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
             <span className="text-sm font-medium text-primary">
               {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
             </span>
           </div>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden min-w-0">
             <p className="truncate text-sm font-medium">
               {profile?.full_name || 'User'}
             </p>
             <div className="flex items-center gap-1">
-              {isAdmin && <Shield className="h-3 w-3 text-destructive" />}
+              {isAdmin && <Shield className="h-3 w-3 text-destructive shrink-0" />}
               <p className="truncate text-xs capitalize text-muted-foreground">
                 {role || 'student'}
               </p>
@@ -171,5 +181,42 @@ export function Sidebar() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export function Sidebar({ open, onOpenChange }: SidebarProps) {
+  const isMobile = useIsMobile();
+
+  // Mobile: Use Sheet
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="left" className="w-64 p-0">
+          <SidebarContent onNavigate={() => onOpenChange?.(false)} />
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: Fixed sidebar
+  return (
+    <div className="hidden md:flex h-screen w-64 flex-col border-r bg-card shrink-0">
+      <SidebarContent />
+    </div>
+  );
+}
+
+export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
+  return (
+    <header className="flex md:hidden h-14 items-center gap-4 border-b bg-card px-4 shrink-0">
+      <Button variant="ghost" size="icon" onClick={onMenuClick}>
+        <Menu className="h-5 w-5" />
+        <span className="sr-only">Toggle menu</span>
+      </Button>
+      <div className="flex items-center gap-2">
+        <GraduationCap className="h-6 w-6 text-primary" />
+        <span className="text-lg font-bold">LearnHub</span>
+      </div>
+    </header>
   );
 }
