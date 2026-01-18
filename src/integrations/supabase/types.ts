@@ -47,6 +47,38 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_mentions: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean | null
+          mentioned_user_id: string
+          message_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          mentioned_user_id: string
+          message_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          mentioned_user_id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_mentions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "course_chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_attendance: {
         Row: {
           class_id: string
@@ -166,6 +198,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "course_certificates_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "lms_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_chat_messages: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          mentions: string[] | null
+          message: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          mentions?: string[] | null
+          message: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          mentions?: string[] | null
+          message?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_chat_messages_course_id_fkey"
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "lms_courses"
