@@ -525,26 +525,32 @@ export default function CourseView() {
           </Card>
 
           <Tabs defaultValue="lessons" className="space-y-4">
-            <TabsList className="flex-wrap">
-              <TabsTrigger value="lessons">Lessons</TabsTrigger>
-              <TabsTrigger value="exams">Exams & Assignments</TabsTrigger>
-              <TabsTrigger value="poe">
-                <FolderOpen className="mr-2 h-4 w-4" />
+            <TabsList className="h-auto flex-wrap gap-1 p-1">
+              <TabsTrigger value="lessons" className="text-xs sm:text-sm">
+                Lessons
+              </TabsTrigger>
+              <TabsTrigger value="exams" className="text-xs sm:text-sm">
+                Exams
+              </TabsTrigger>
+              <TabsTrigger value="poe" className="text-xs sm:text-sm">
+                <FolderOpen className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
                 POE
               </TabsTrigger>
-              <TabsTrigger value="live-classes">
-                <Video className="mr-2 h-4 w-4" />
-                Live Classes
+              <TabsTrigger value="live-classes" className="text-xs sm:text-sm">
+                <Video className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Live Classes</span>
+                <span className="sm:hidden">Live</span>
               </TabsTrigger>
               {isEnrolled && (
-                <TabsTrigger value="results">
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  My Results
+                <TabsTrigger value="results" className="text-xs sm:text-sm">
+                  <BarChart3 className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">My Results</span>
+                  <span className="sm:hidden">Results</span>
                 </TabsTrigger>
               )}
               {isEnrolled && (
-                <TabsTrigger value="chat">
-                  <MessageCircle className="mr-2 h-4 w-4" />
+                <TabsTrigger value="chat" className="text-xs sm:text-sm">
+                  <MessageCircle className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
                   Chat
                 </TabsTrigger>
               )}
