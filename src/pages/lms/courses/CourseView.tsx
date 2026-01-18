@@ -41,7 +41,8 @@ import CourseCertificate from '@/components/lms/CourseCertificate';
 import OnlineClassList from '@/components/lms/OnlineClassList';
 import { POEStudentView } from '@/components/lms/poe/POEStudentView';
 import StudentResults from '@/components/lms/StudentResults';
-import { FolderOpen, BarChart3 } from 'lucide-react';
+import CourseChat from '@/components/lms/CourseChat';
+import { FolderOpen, BarChart3, MessageCircle } from 'lucide-react';
 
 interface Course {
   id: string;
@@ -541,6 +542,12 @@ export default function CourseView() {
                   My Results
                 </TabsTrigger>
               )}
+              {isEnrolled && (
+                <TabsTrigger value="chat">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Chat
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="lessons">
@@ -677,6 +684,12 @@ export default function CourseView() {
             {isEnrolled && (
               <TabsContent value="results">
                 <StudentResults courseId={id!} courseName={course.title} />
+              </TabsContent>
+            )}
+
+            {isEnrolled && (
+              <TabsContent value="chat">
+                <CourseChat courseId={id!} />
               </TabsContent>
             )}
           </Tabs>
