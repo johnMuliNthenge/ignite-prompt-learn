@@ -238,7 +238,10 @@ export default function CourseChat({ courseId }: CourseChatProps) {
 
   const getFilteredUsers = () => {
     return enrolledUsers.filter((u) => {
+      // Exclude current user from mentions
       if (u.user_id === user?.id) return false;
+      // If no query (just typed @), show all enrolled users
+      if (!mentionQuery) return true;
       const name = u.full_name?.toLowerCase() || '';
       const email = u.email.toLowerCase();
       return name.includes(mentionQuery) || email.includes(mentionQuery);
