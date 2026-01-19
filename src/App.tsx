@@ -21,6 +21,8 @@ import UserManagement from "./pages/lms/admin/UserManagement";
 import CategoryManagement from "./pages/lms/admin/CategoryManagement";
 import SiteSettings from "./pages/lms/admin/SiteSettings";
 import AnalyticsDashboard from "./pages/lms/admin/AnalyticsDashboard";
+import StudentManagement from "./pages/lms/admin/StudentManagement";
+import AdministrationSettings from "./pages/lms/admin/AdministrationSettings";
 import CreateCourse from "./pages/lms/courses/CreateCourse";
 import CourseEditor from "./pages/lms/courses/CourseEditor";
 import CourseCatalog from "./pages/lms/courses/CourseCatalog";
@@ -55,9 +57,11 @@ const App = () => (
               <Route path="courses/:id/edit" element={<CourseEditor />} />
               <Route path="catalog" element={<CourseCatalog />} />
               <Route path="instructor/courses" element={<InstructorCourses />} />
+              <Route path="students" element={<StudentManagement />} />
               <Route path="admin/users" element={<UserManagement />} />
               <Route path="admin/categories" element={<CategoryManagement />} />
               <Route path="admin/analytics" element={<AnalyticsDashboard />} />
+              <Route path="admin/administration" element={<AdministrationSettings />} />
               <Route path="admin/settings" element={<SiteSettings />} />
             </Route>
 
