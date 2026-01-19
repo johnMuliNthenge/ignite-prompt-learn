@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_years: {
+        Row: {
+          created_at: string | null
+          end_date: string
+          id: string
+          is_current: boolean | null
+          name: string
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_date: string
+          id?: string
+          is_current?: boolean | null
+          name: string
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          is_current?: boolean | null
+          name?: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           action: string
@@ -1291,6 +1321,224 @@ export type Database = {
             columns: ["resource_id"]
             isOneToOne: false
             referencedRelation: "course_resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      sessions: {
+        Row: {
+          academic_year_id: string
+          created_at: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          name: string
+          session_type_id: string | null
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          academic_year_id: string
+          created_at?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          session_type_id?: string | null
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          academic_year_id?: string
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          session_type_id?: string | null
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_session_type_id_fkey"
+            columns: ["session_type_id"]
+            isOneToOne: false
+            referencedRelation: "session_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      students: {
+        Row: {
+          birth_cert_no: string | null
+          birth_date: string
+          class: string | null
+          county: string
+          created_at: string | null
+          created_by: string | null
+          email: string | null
+          financial_aid: string | null
+          gender: string
+          id: string
+          kcpe_grade: string | null
+          kcpe_index: string | null
+          kcpe_year: number | null
+          kcse_grade: string | null
+          kcse_index: string | null
+          kcse_year: number | null
+          nationality: string
+          other_name: string
+          phone: string
+          physical_address: string | null
+          postal_address: string | null
+          religion: string | null
+          sports_house: string | null
+          status: string | null
+          stay_status: string | null
+          stream: string | null
+          student_no: string | null
+          student_source: string | null
+          student_type_id: string | null
+          sub_county: string | null
+          surname: string
+          updated_at: string | null
+          upi_number: string | null
+          user_id: string | null
+        }
+        Insert: {
+          birth_cert_no?: string | null
+          birth_date: string
+          class?: string | null
+          county: string
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          financial_aid?: string | null
+          gender: string
+          id?: string
+          kcpe_grade?: string | null
+          kcpe_index?: string | null
+          kcpe_year?: number | null
+          kcse_grade?: string | null
+          kcse_index?: string | null
+          kcse_year?: number | null
+          nationality: string
+          other_name: string
+          phone: string
+          physical_address?: string | null
+          postal_address?: string | null
+          religion?: string | null
+          sports_house?: string | null
+          status?: string | null
+          stay_status?: string | null
+          stream?: string | null
+          student_no?: string | null
+          student_source?: string | null
+          student_type_id?: string | null
+          sub_county?: string | null
+          surname: string
+          updated_at?: string | null
+          upi_number?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          birth_cert_no?: string | null
+          birth_date?: string
+          class?: string | null
+          county?: string
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          financial_aid?: string | null
+          gender?: string
+          id?: string
+          kcpe_grade?: string | null
+          kcpe_index?: string | null
+          kcpe_year?: number | null
+          kcse_grade?: string | null
+          kcse_index?: string | null
+          kcse_year?: number | null
+          nationality?: string
+          other_name?: string
+          phone?: string
+          physical_address?: string | null
+          postal_address?: string | null
+          religion?: string | null
+          sports_house?: string | null
+          status?: string | null
+          stay_status?: string | null
+          stream?: string | null
+          student_no?: string | null
+          student_source?: string | null
+          student_type_id?: string | null
+          sub_county?: string | null
+          surname?: string
+          updated_at?: string | null
+          upi_number?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_student_type_id_fkey"
+            columns: ["student_type_id"]
+            isOneToOne: false
+            referencedRelation: "student_types"
             referencedColumns: ["id"]
           },
         ]

@@ -15,6 +15,8 @@ import {
   Shield,
   Menu,
   X,
+  UserCheck,
+  Cog,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -60,6 +62,12 @@ const teacherItems: NavItem[] = [
     icon: FolderOpen,
     roles: ['admin', 'teacher'],
   },
+  {
+    title: 'Student Management',
+    href: '/lms/students',
+    icon: UserCheck,
+    roles: ['admin', 'teacher'],
+  },
 ];
 
 const adminItems: NavItem[] = [
@@ -79,6 +87,12 @@ const adminItems: NavItem[] = [
     title: 'Analytics',
     href: '/lms/admin/analytics',
     icon: BarChart3,
+    roles: ['admin'],
+  },
+  {
+    title: 'Administration',
+    href: '/lms/admin/administration',
+    icon: Cog,
     roles: ['admin'],
   },
   {
