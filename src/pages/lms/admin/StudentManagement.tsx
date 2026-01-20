@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { LMSLayout } from '@/components/lms/LMSLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,9 +29,9 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, UserPlus, Users } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Search, Edit, Trash2, UserPlus, Users, GraduationCap, Key, BookOpen } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -60,17 +59,31 @@ interface Student {
   kcse_index: string | null;
   kcse_year: number | null;
   kcse_grade: string | null;
-  class: string | null;
+  class_id: string | null;
   stay_status: string | null;
   status: string | null;
   stream: string | null;
   sports_house: string | null;
+  user_id: string | null;
   created_at: string;
+  classes?: { name: string } | null;
 }
 
 interface StudentType {
   id: string;
   name: string;
+}
+
+interface ClassData {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+interface Course {
+  id: string;
+  title: string;
+  status: string;
 }
 
 const initialFormState = {
@@ -97,7 +110,7 @@ const initialFormState = {
   kcse_index: '',
   kcse_year: '',
   kcse_grade: '',
-  class: '',
+  class_id: '',
   stay_status: 'Non-Resident',
   stream: '',
   sports_house: '',
@@ -108,12 +121,20 @@ export default function StudentManagement() {
   const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [formData, setFormData] = useState(initialFormState);
+  
+  // Enrollment dialog state
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [enrollingStudent, setEnrollingStudent] = useState<Student | null>(null);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [enrollLoading, setEnrollLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAdmin && !isTeacher) {
@@ -124,13 +145,18 @@ export default function StudentManagement() {
   useEffect(() => {
     fetchStudents();
     fetchStudentTypes();
+    fetchClasses();
+    fetchCourses();
   }, []);
 
   const fetchStudents = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('students')
-      .select('*')
+      .select(`
+        *,
+        classes(name)
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -147,6 +173,24 @@ export default function StudentManagement() {
       .select('id, name')
       .eq('is_active', true);
     setStudentTypes(data || []);
+  };
+
+  const fetchClasses = async () => {
+    const { data } = await supabase
+      .from('classes')
+      .select('id, name, is_active')
+      .eq('is_active', true)
+      .order('name');
+    setClasses(data || []);
+  };
+
+  const fetchCourses = async () => {
+    const { data } = await supabase
+      .from('lms_courses')
+      .select('id, title, status')
+      .eq('status', 'published')
+      .order('title');
+    setCourses(data || []);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,7 +220,7 @@ export default function StudentManagement() {
       kcse_index: formData.kcse_index || null,
       kcse_year: formData.kcse_year ? parseInt(formData.kcse_year) : null,
       kcse_grade: formData.kcse_grade || null,
-      class: formData.class || null,
+      class_id: formData.class_id || null,
       stay_status: formData.stay_status || null,
       stream: formData.stream || null,
       sports_house: formData.sports_house || null,
@@ -237,7 +281,7 @@ export default function StudentManagement() {
       kcse_index: student.kcse_index || '',
       kcse_year: student.kcse_year?.toString() || '',
       kcse_grade: student.kcse_grade || '',
-      class: student.class || '',
+      class_id: student.class_id || '',
       stay_status: student.stay_status || 'Non-Resident',
       stream: student.stream || '',
       sports_house: student.sports_house || '',
@@ -263,6 +307,117 @@ export default function StudentManagement() {
     }
   };
 
+  const handleCreateLogin = async (student: Student) => {
+    if (!student.email) {
+      toast.error('Student must have an email to create login credentials');
+      return;
+    }
+
+    if (student.user_id) {
+      toast.error('Student already has login credentials');
+      return;
+    }
+
+    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`;
+    
+    try {
+      // Note: In production, you'd use an edge function to create users
+      // For now, we'll show a message about the expected flow
+      toast.info(
+        `To create login for ${student.email}, use the admin user management or have them sign up directly. Temp password would be: ${tempPassword}`,
+        { duration: 10000 }
+      );
+    } catch (error) {
+      toast.error('Failed to create login credentials');
+    }
+  };
+
+  const openEnrollDialog = async (student: Student) => {
+    if (!student.user_id) {
+      toast.error('Student must have login credentials before enrolling in courses');
+      return;
+    }
+    
+    setEnrollingStudent(student);
+    setSelectedCourses([]);
+    
+    // Fetch student's current enrollments
+    const { data: enrollments } = await supabase
+      .from('lms_enrollments')
+      .select('course_id')
+      .eq('user_id', student.user_id);
+    
+    if (enrollments) {
+      setSelectedCourses(enrollments.map(e => e.course_id));
+    }
+    
+    setEnrollDialogOpen(true);
+  };
+
+  const handleEnrollStudent = async () => {
+    if (!enrollingStudent?.user_id) return;
+    
+    setEnrollLoading(true);
+    
+    try {
+      // Get current enrollments
+      const { data: currentEnrollments } = await supabase
+        .from('lms_enrollments')
+        .select('course_id')
+        .eq('user_id', enrollingStudent.user_id);
+      
+      const currentCourseIds = currentEnrollments?.map(e => e.course_id) || [];
+      
+      // Courses to add
+      const toAdd = selectedCourses.filter(id => !currentCourseIds.includes(id));
+      
+      // Courses to remove
+      const toRemove = currentCourseIds.filter(id => !selectedCourses.includes(id));
+      
+      // Add new enrollments
+      if (toAdd.length > 0) {
+        const { error: addError } = await supabase
+          .from('lms_enrollments')
+          .insert(toAdd.map(courseId => ({
+            course_id: courseId,
+            user_id: enrollingStudent.user_id,
+            role: 'student',
+            status: 'active',
+          })));
+        
+        if (addError) throw addError;
+      }
+      
+      // Remove enrollments
+      if (toRemove.length > 0) {
+        const { error: removeError } = await supabase
+          .from('lms_enrollments')
+          .delete()
+          .eq('user_id', enrollingStudent.user_id)
+          .in('course_id', toRemove);
+        
+        if (removeError) throw removeError;
+      }
+      
+      toast.success('Student enrollments updated successfully');
+      setEnrollDialogOpen(false);
+      setEnrollingStudent(null);
+    } catch (error) {
+      console.error('Error updating enrollments:', error);
+      toast.error('Failed to update enrollments');
+    } finally {
+      setEnrollLoading(false);
+    }
+  };
+
+  const toggleCourseSelection = (courseId: string) => {
+    setSelectedCourses(prev => 
+      prev.includes(courseId)
+        ? prev.filter(id => id !== courseId)
+        : [...prev, courseId]
+    );
+  };
+
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       student.other_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -279,13 +434,13 @@ export default function StudentManagement() {
   const getStatusBadge = (status: string | null) => {
     switch (status) {
       case 'Active':
-        return <Badge className="bg-green-500">Active</Badge>;
+        return <Badge className="bg-primary">Active</Badge>;
       case 'Inactive':
         return <Badge variant="secondary">Inactive</Badge>;
       case 'Suspended':
         return <Badge variant="destructive">Suspended</Badge>;
       case 'Graduated':
-        return <Badge className="bg-blue-500">Graduated</Badge>;
+        return <Badge className="bg-secondary">Graduated</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -297,7 +452,7 @@ export default function StudentManagement() {
           <div>
             <h1 className="text-2xl font-bold">Student Management</h1>
             <p className="text-muted-foreground">
-              Manage student records and information
+              Manage student records and course enrollments
             </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -503,12 +658,22 @@ export default function StudentManagement() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="class">Class</Label>
-                    <Input
-                      id="class"
-                      value={formData.class}
-                      onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                    />
+                    <Label htmlFor="class_id">Class</Label>
+                    <Select
+                      value={formData.class_id}
+                      onValueChange={(value) => setFormData({ ...formData, class_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="stream">Stream</Label>
@@ -620,6 +785,54 @@ export default function StudentManagement() {
           </Dialog>
         </div>
 
+        {/* Enrollment Dialog */}
+        <Dialog open={enrollDialogOpen} onOpenChange={setEnrollDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Enroll Student in Courses
+              </DialogTitle>
+            </DialogHeader>
+            {enrollingStudent && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Enrolling: <span className="font-medium text-foreground">{enrollingStudent.other_name} {enrollingStudent.surname}</span>
+                </p>
+                <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
+                  {courses.length === 0 ? (
+                    <p className="p-4 text-center text-muted-foreground">No published courses available</p>
+                  ) : (
+                    courses.map((course) => (
+                      <div
+                        key={course.id}
+                        className="flex items-center gap-3 p-3 hover:bg-muted/50 cursor-pointer"
+                        onClick={() => toggleCourseSelection(course.id)}
+                      >
+                        <Checkbox
+                          checked={selectedCourses.includes(course.id)}
+                          onCheckedChange={() => toggleCourseSelection(course.id)}
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{course.title}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setEnrollDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleEnrollStudent} disabled={enrollLoading}>
+                    {enrollLoading ? 'Saving...' : 'Save Enrollments'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
@@ -642,7 +855,7 @@ export default function StudentManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold text-green-600">
+              <span className="text-2xl font-bold text-primary">
                 {students.filter((s) => s.status === 'Active').length}
               </span>
             </CardContent>
@@ -650,13 +863,16 @@ export default function StudentManagement() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Resident
+                With Login
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-2xl font-bold">
-                {students.filter((s) => s.stay_status === 'Resident').length}
-              </span>
+              <div className="flex items-center gap-2">
+                <Key className="h-5 w-5 text-muted-foreground" />
+                <span className="text-2xl font-bold">
+                  {students.filter((s) => s.user_id).length}
+                </span>
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -714,7 +930,7 @@ export default function StudentManagement() {
                     <TableHead>Gender</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Class</TableHead>
-                    <TableHead>Stay Status</TableHead>
+                    <TableHead>Login</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -752,25 +968,54 @@ export default function StudentManagement() {
                         </TableCell>
                         <TableCell>{student.gender}</TableCell>
                         <TableCell>{student.phone}</TableCell>
-                        <TableCell>{student.class || '-'}</TableCell>
+                        <TableCell>{student.classes?.name || '-'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{student.stay_status}</Badge>
+                          {student.user_id ? (
+                            <Badge variant="outline" className="text-primary border-primary">
+                              <Key className="mr-1 h-3 w-3" />
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">No Login</Badge>
+                          )}
                         </TableCell>
                         <TableCell>{getStatusBadge(student.status)}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1">
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="ghost"
                               onClick={() => handleEdit(student)}
+                              title="Edit student"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
+                            {student.user_id ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openEnrollDialog(student)}
+                                title="Manage enrollments"
+                              >
+                                <GraduationCap className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleCreateLogin(student)}
+                                title="Create login"
+                                disabled={!student.email}
+                              >
+                                <Key className="h-4 w-4" />
+                              </Button>
+                            )}
                             {isAdmin && (
                               <Button
                                 size="sm"
-                                variant="destructive"
+                                variant="ghost"
                                 onClick={() => handleDelete(student.id)}
+                                className="text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
