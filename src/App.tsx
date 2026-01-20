@@ -23,6 +23,7 @@ import SiteSettings from "./pages/lms/admin/SiteSettings";
 import AnalyticsDashboard from "./pages/lms/admin/AnalyticsDashboard";
 import StudentManagement from "./pages/lms/admin/StudentManagement";
 import AdministrationSettings from "./pages/lms/admin/AdministrationSettings";
+import ClassManagement from "./pages/lms/admin/ClassManagement";
 import CreateCourse from "./pages/lms/courses/CreateCourse";
 import CourseEditor from "./pages/lms/courses/CourseEditor";
 import CourseCatalog from "./pages/lms/courses/CourseCatalog";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="catalog" element={<CourseCatalog />} />
               <Route path="instructor/courses" element={<InstructorCourses />} />
               <Route path="students" element={<StudentManagement />} />
+              <Route path="students/classes" element={<ClassManagement />} />
               <Route path="admin/users" element={<UserManagement />} />
               <Route path="admin/categories" element={<CategoryManagement />} />
               <Route path="admin/analytics" element={<AnalyticsDashboard />} />
