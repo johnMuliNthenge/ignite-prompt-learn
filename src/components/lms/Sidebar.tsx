@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -14,21 +14,29 @@ import {
   LogOut,
   Shield,
   Menu,
-  X,
   UserCheck,
   Cog,
+  ChevronDown,
+  ChevronRight,
+  School,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ElementType;
   roles?: ('admin' | 'teacher' | 'student')[];
+  subItems?: NavItem[];
 }
 
 const navItems: NavItem[] = [
@@ -67,6 +75,20 @@ const teacherItems: NavItem[] = [
     href: '/lms/students',
     icon: UserCheck,
     roles: ['admin', 'teacher'],
+    subItems: [
+      {
+        title: 'All Students',
+        href: '/lms/students',
+        icon: Users,
+        roles: ['admin', 'teacher'],
+      },
+      {
+        title: 'Classes',
+        href: '/lms/students/classes',
+        icon: School,
+        roles: ['admin', 'teacher'],
+      },
+    ],
   },
 ];
 
@@ -111,26 +133,102 @@ interface SidebarProps {
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { profile, role, signOut, isAdmin, isTeacher } = useAuth();
   const location = useLocation();
+  const [openMenus, setOpenMenus] = useState<string[]>([]);
+
+  const toggleMenu = (title: string) => {
+    setOpenMenus((prev) =>
+      prev.includes(title)
+        ? prev.filter((t) => t !== title)
+        : [...prev, title]
+    );
+  };
+
+  const isActiveRoute = (href: string, subItems?: NavItem[]) => {
+    if (location.pathname === href) return true;
+    if (subItems) {
+      return subItems.some((sub) => location.pathname === sub.href);
+    }
+    return false;
+  };
+
+  const renderNavItem = (item: NavItem) => {
+    const hasSubItems = item.subItems && item.subItems.length > 0;
+    const isOpen = openMenus.includes(item.title);
+    const isActive = isActiveRoute(item.href, item.subItems);
+
+    if (hasSubItems) {
+      return (
+        <Collapsible
+          key={item.title}
+          open={isOpen || isActive}
+          onOpenChange={() => toggleMenu(item.title)}
+        >
+          <CollapsibleTrigger asChild>
+            <button
+              className={cn(
+                'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                isActive
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{item.title}</span>
+              </div>
+              {isOpen || isActive ? (
+                <ChevronDown className="h-4 w-4 shrink-0" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0" />
+              )}
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pl-4 pt-1 space-y-1">
+            {item.subItems!
+              .filter((sub) => !sub.roles || (role && sub.roles.includes(role)))
+              .map((subItem) => (
+                <Link
+                  key={subItem.href}
+                  to={subItem.href}
+                  onClick={onNavigate}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                    location.pathname === subItem.href
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <subItem.icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{subItem.title}</span>
+                </Link>
+              ))}
+          </CollapsibleContent>
+        </Collapsible>
+      );
+    }
+
+    return (
+      <Link
+        key={item.href}
+        to={item.href}
+        onClick={onNavigate}
+        className={cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+          location.pathname === item.href
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+        )}
+      >
+        <item.icon className="h-4 w-4 shrink-0" />
+        <span className="truncate">{item.title}</span>
+      </Link>
+    );
+  };
 
   const renderNavItems = (items: NavItem[]) =>
     items
       .filter((item) => !item.roles || (role && item.roles.includes(role)))
-      .map((item) => (
-        <Link
-          key={item.href}
-          to={item.href}
-          onClick={onNavigate}
-          className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-            location.pathname === item.href
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          )}
-        >
-          <item.icon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{item.title}</span>
-        </Link>
-      ));
+      .map((item) => renderNavItem(item));
 
   return (
     <div className="flex h-full flex-col">

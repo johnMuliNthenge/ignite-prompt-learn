@@ -153,6 +153,60 @@ export type Database = {
           },
         ]
       }
+      classes: {
+        Row: {
+          academic_year_id: string | null
+          capacity: number | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          session_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          academic_year_id?: string | null
+          capacity?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          session_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          academic_year_id?: string | null
+          capacity?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          session_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_categories: {
         Row: {
           created_at: string | null
@@ -1429,6 +1483,7 @@ export type Database = {
           birth_cert_no: string | null
           birth_date: string
           class: string | null
+          class_id: string | null
           county: string
           created_at: string | null
           created_by: string | null
@@ -1465,6 +1520,7 @@ export type Database = {
           birth_cert_no?: string | null
           birth_date: string
           class?: string | null
+          class_id?: string | null
           county: string
           created_at?: string | null
           created_by?: string | null
@@ -1501,6 +1557,7 @@ export type Database = {
           birth_cert_no?: string | null
           birth_date?: string
           class?: string | null
+          class_id?: string | null
           county?: string
           created_at?: string | null
           created_by?: string | null
@@ -1534,6 +1591,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "students_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "students_student_type_id_fkey"
             columns: ["student_type_id"]
