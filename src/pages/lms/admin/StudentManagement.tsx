@@ -342,10 +342,18 @@ export default function StudentManagement() {
       }
 
       toast.dismiss(loadingToast);
-      toast.success(
-        `Account created! Temporary password: ${data.tempPassword}`,
-        { duration: 15000 }
-      );
+      
+      if (data.isExisting) {
+        toast.success(
+          `Existing account linked! Student can login with their existing password.`,
+          { duration: 10000 }
+        );
+      } else {
+        toast.success(
+          `Account created! Temporary password: ${data.tempPassword}`,
+          { duration: 15000 }
+        );
+      }
       
       // Refresh students to show updated user_id
       fetchStudents();
