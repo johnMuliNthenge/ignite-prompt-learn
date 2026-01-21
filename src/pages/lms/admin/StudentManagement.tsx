@@ -318,16 +318,40 @@ export default function StudentManagement() {
       return;
     }
 
-    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`;
+    const loadingToast = toast.loading('Creating login credentials...');
     
     try {
-      // Note: In production, you'd use an edge function to create users
-      // For now, we'll show a message about the expected flow
-      toast.info(
-        `To create login for ${student.email}, use the admin user management or have them sign up directly. Temp password would be: ${tempPassword}`,
-        { duration: 10000 }
+      const { data, error } = await supabase.functions.invoke('create-student-user', {
+        body: {
+          studentId: student.id,
+          email: student.email,
+          fullName: `${student.other_name} ${student.surname}`,
+        },
+      });
+
+      if (error) {
+        toast.dismiss(loadingToast);
+        toast.error(`Failed to create login: ${error.message}`);
+        return;
+      }
+
+      if (data?.error) {
+        toast.dismiss(loadingToast);
+        toast.error(`Failed to create login: ${data.error}`);
+        return;
+      }
+
+      toast.dismiss(loadingToast);
+      toast.success(
+        `Account created! Temporary password: ${data.tempPassword}`,
+        { duration: 15000 }
       );
+      
+      // Refresh students to show updated user_id
+      fetchStudents();
     } catch (error) {
+      toast.dismiss(loadingToast);
+      console.error('Error creating login:', error);
       toast.error('Failed to create login credentials');
     }
   };
