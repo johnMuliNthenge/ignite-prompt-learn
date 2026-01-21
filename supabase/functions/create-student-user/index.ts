@@ -77,37 +77,55 @@ Deno.serve(async (req) => {
 
     console.log(`Creating user account for student: ${studentId}, email: ${email}`);
 
-    // Create the user account
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        full_name: fullName || email.split('@')[0],
-        is_student: true,
-      },
-    });
+    // Check if user already exists with this email
+    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
 
-    if (createError) {
-      console.error('Failed to create user:', createError);
-      return new Response(JSON.stringify({ error: createError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    let userId: string;
+    let password: string = tempPassword;
+    let isExisting = false;
+
+    if (existingUser) {
+      // User already exists - link them to student record
+      console.log(`User already exists with email ${email}, linking to student record`);
+      userId = existingUser.id;
+      isExisting = true;
+    } else {
+      // Create the user account
+      const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          full_name: fullName || email.split('@')[0],
+          is_student: true,
+        },
       });
-    }
 
-    console.log(`User created successfully: ${newUser.user.id}`);
+      if (createError) {
+        console.error('Failed to create user:', createError);
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      userId = newUser.user.id;
+      console.log(`User created successfully: ${userId}`);
+    }
 
     // Link the user to the student record
     const { error: linkError } = await adminClient
       .from('students')
-      .update({ user_id: newUser.user.id })
+      .update({ user_id: userId })
       .eq('id', studentId);
 
     if (linkError) {
       console.error('Failed to link user to student:', linkError);
-      // Try to clean up the created user
-      await adminClient.auth.admin.deleteUser(newUser.user.id);
+      // Only clean up if we created a new user
+      if (!isExisting) {
+        await adminClient.auth.admin.deleteUser(userId);
+      }
       return new Response(JSON.stringify({ error: 'Failed to link user to student record' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -116,12 +134,17 @@ Deno.serve(async (req) => {
 
     console.log(`User linked to student record: ${studentId}`);
 
+    const message = isExisting 
+      ? `Existing account linked for ${email}. Student can login with their existing password.`
+      : `Account created for ${email}. Temporary password: ${password}`;
+
     return new Response(
       JSON.stringify({
         success: true,
-        userId: newUser.user.id,
-        tempPassword,
-        message: `Account created for ${email}. Temporary password: ${tempPassword}`,
+        userId,
+        tempPassword: isExisting ? null : password,
+        isExisting,
+        message,
       }),
       {
         status: 200,
