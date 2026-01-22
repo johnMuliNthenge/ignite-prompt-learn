@@ -44,6 +44,62 @@ export type Database = {
         }
         Relationships: []
       }
+      account_groups: {
+        Row: {
+          account_type: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          account_type: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      account_sub_groups: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          group_id: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          group_id?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          group_id?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_sub_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "account_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_logs: {
         Row: {
           action: string
@@ -76,6 +132,271 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      bank_accounts: {
+        Row: {
+          account_id: string | null
+          account_name: string
+          account_number: string
+          bank_name: string
+          branch: string | null
+          created_at: string | null
+          current_balance: number | null
+          id: string
+          is_active: boolean | null
+          opening_balance: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          account_name: string
+          account_number: string
+          bank_name: string
+          branch?: string | null
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string
+          is_active?: boolean | null
+          opening_balance?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          branch?: string | null
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string
+          is_active?: boolean | null
+          opening_balance?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_lines: {
+        Row: {
+          account_id: string | null
+          actual_amount: number | null
+          budget_id: string | null
+          budgeted_amount: number
+          created_at: string | null
+          description: string | null
+          id: string
+          variance: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          actual_amount?: number | null
+          budget_id?: string | null
+          budgeted_amount?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          variance?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          actual_amount?: number | null
+          budget_id?: string | null
+          budgeted_amount?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          variance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_lines_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          fiscal_year_id: string | null
+          id: string
+          name: string
+          status: string | null
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          name: string
+          status?: string | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          name?: string
+          status?: string | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_fiscal_year_id_fkey"
+            columns: ["fiscal_year_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_accounts: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          current_balance: number | null
+          id: string
+          imprest_limit: number | null
+          is_active: boolean | null
+          is_petty_cash: boolean | null
+          name: string
+          opening_balance: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string
+          imprest_limit?: number | null
+          is_active?: boolean | null
+          is_petty_cash?: boolean | null
+          name: string
+          opening_balance?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string
+          imprest_limit?: number | null
+          is_active?: boolean | null
+          is_petty_cash?: boolean | null
+          name?: string
+          opening_balance?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chart_of_accounts: {
+        Row: {
+          account_code: string
+          account_name: string
+          account_type: string
+          created_at: string | null
+          description: string | null
+          group_id: string | null
+          id: string
+          is_active: boolean | null
+          is_system: boolean | null
+          normal_balance: string | null
+          parent_id: string | null
+          sub_group_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_code: string
+          account_name: string
+          account_type: string
+          created_at?: string | null
+          description?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_system?: boolean | null
+          normal_balance?: string | null
+          parent_id?: string | null
+          sub_group_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_code?: string
+          account_name?: string
+          account_type?: string
+          created_at?: string | null
+          description?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_system?: boolean | null
+          normal_balance?: string | null
+          parent_id?: string | null
+          sub_group_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "account_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_of_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_of_accounts_sub_group_id_fkey"
+            columns: ["sub_group_id"]
+            isOneToOne: false
+            referencedRelation: "account_sub_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_mentions: {
         Row: {
@@ -570,6 +891,36 @@ export type Database = {
           },
         ]
       }
+      currencies: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          is_base: boolean | null
+          name: string
+          symbol: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_base?: boolean | null
+          name: string
+          symbol: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_base?: boolean | null
+          name?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
       enrollments: {
         Row: {
           access_link_active: boolean | null
@@ -720,6 +1071,598 @@ export type Database = {
           },
         ]
       }
+      exchange_rates: {
+        Row: {
+          created_at: string | null
+          effective_date: string
+          from_currency_id: string | null
+          id: string
+          rate: number
+          to_currency_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          effective_date: string
+          from_currency_id?: string | null
+          id?: string
+          rate: number
+          to_currency_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          effective_date?: string
+          from_currency_id?: string | null
+          id?: string
+          rate?: number
+          to_currency_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exchange_rates_from_currency_id_fkey"
+            columns: ["from_currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exchange_rates_to_currency_id_fkey"
+            columns: ["to_currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_accounts: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_cancellations: {
+        Row: {
+          amount: number
+          approved_by: string | null
+          cancellation_date: string
+          cancelled_by: string | null
+          created_at: string | null
+          id: string
+          invoice_id: string | null
+          journal_entry_id: string | null
+          reason: string
+          status: string | null
+          student_id: string | null
+        }
+        Insert: {
+          amount: number
+          approved_by?: string | null
+          cancellation_date: string
+          cancelled_by?: string | null
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          reason: string
+          status?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_by?: string | null
+          cancellation_date?: string
+          cancelled_by?: string | null
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          reason?: string
+          status?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_cancellations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fee_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_cancellations_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_cancellations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_invoice_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          fee_account_id: string | null
+          id: string
+          invoice_id: string | null
+          quantity: number | null
+          tax_amount: number | null
+          tax_type_id: string | null
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          fee_account_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          quantity?: number | null
+          tax_amount?: number | null
+          tax_type_id?: string | null
+          total: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          fee_account_id?: string | null
+          id?: string
+          invoice_id?: string | null
+          quantity?: number | null
+          tax_amount?: number | null
+          tax_type_id?: string | null
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_invoice_items_fee_account_id_fkey"
+            columns: ["fee_account_id"]
+            isOneToOne: false
+            referencedRelation: "fee_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fee_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoice_items_tax_type_id_fkey"
+            columns: ["tax_type_id"]
+            isOneToOne: false
+            referencedRelation: "tax_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_invoices: {
+        Row: {
+          academic_year_id: string | null
+          amount_paid: number | null
+          balance_due: number
+          created_at: string | null
+          created_by: string | null
+          due_date: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          journal_entry_id: string | null
+          notes: string | null
+          session_id: string | null
+          status: string | null
+          student_id: string | null
+          subtotal: number
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          academic_year_id?: string | null
+          amount_paid?: number | null
+          balance_due?: number
+          created_at?: string | null
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          session_id?: string | null
+          status?: string | null
+          student_id?: string | null
+          subtotal?: number
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Update: {
+          academic_year_id?: string | null
+          amount_paid?: number | null
+          balance_due?: number
+          created_at?: string | null
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          session_id?: string | null
+          status?: string | null
+          student_id?: string | null
+          subtotal?: number
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_invoices_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoices_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoices_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_invoices_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_payments: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          cash_account_id: string | null
+          created_at: string | null
+          id: string
+          invoice_id: string | null
+          journal_entry_id: string | null
+          notes: string | null
+          payment_date: string
+          payment_mode_id: string | null
+          receipt_number: string
+          received_by: string | null
+          reference_number: string | null
+          status: string | null
+          student_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account_id?: string | null
+          cash_account_id?: string | null
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          notes?: string | null
+          payment_date: string
+          payment_mode_id?: string | null
+          receipt_number: string
+          received_by?: string | null
+          reference_number?: string | null
+          status?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          cash_account_id?: string | null
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          journal_entry_id?: string | null
+          notes?: string | null
+          payment_date?: string
+          payment_mode_id?: string | null
+          receipt_number?: string
+          received_by?: string | null
+          reference_number?: string | null
+          status?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_payments_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_payments_cash_account_id_fkey"
+            columns: ["cash_account_id"]
+            isOneToOne: false
+            referencedRelation: "cash_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fee_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_payments_payment_mode_id_fkey"
+            columns: ["payment_mode_id"]
+            isOneToOne: false
+            referencedRelation: "payment_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_payments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_policies: {
+        Row: {
+          academic_year_id: string | null
+          amount: number
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          fee_account_id: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          session_type_id: string | null
+          student_type_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          academic_year_id?: string | null
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          fee_account_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          session_type_id?: string | null
+          student_type_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          academic_year_id?: string | null
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          fee_account_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          session_type_id?: string | null
+          student_type_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_policies_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_policies_fee_account_id_fkey"
+            columns: ["fee_account_id"]
+            isOneToOne: false
+            referencedRelation: "fee_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_policies_session_type_id_fkey"
+            columns: ["session_type_id"]
+            isOneToOne: false
+            referencedRelation: "session_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_policies_student_type_id_fkey"
+            columns: ["student_type_id"]
+            isOneToOne: false
+            referencedRelation: "student_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_years: {
+        Row: {
+          created_at: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          is_closed: boolean | null
+          name: string
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          is_closed?: boolean | null
+          name: string
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          is_closed?: boolean | null
+          name?: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      general_ledger: {
+        Row: {
+          account_id: string
+          balance: number | null
+          created_at: string | null
+          credit: number | null
+          debit: number | null
+          description: string | null
+          fiscal_year_id: string | null
+          id: string
+          journal_entry_id: string | null
+          journal_line_id: string | null
+          student_id: string | null
+          transaction_date: string
+          vendor_id: string | null
+        }
+        Insert: {
+          account_id: string
+          balance?: number | null
+          created_at?: string | null
+          credit?: number | null
+          debit?: number | null
+          description?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          journal_line_id?: string | null
+          student_id?: string | null
+          transaction_date: string
+          vendor_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          balance?: number | null
+          created_at?: string | null
+          credit?: number | null
+          debit?: number | null
+          description?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          journal_line_id?: string | null
+          student_id?: string | null
+          transaction_date?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "general_ledger_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "general_ledger_fiscal_year_id_fkey"
+            columns: ["fiscal_year_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "general_ledger_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "general_ledger_journal_line_id_fkey"
+            columns: ["journal_line_id"]
+            isOneToOne: false
+            referencedRelation: "journal_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "general_ledger_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "general_ledger_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grading_scale_levels: {
         Row: {
           color: string | null
@@ -799,6 +1742,171 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      imprest_limits: {
+        Row: {
+          cash_account_id: string | null
+          created_at: string | null
+          created_by: string | null
+          effective_date: string
+          id: string
+          is_active: boolean | null
+          limit_amount: number
+        }
+        Insert: {
+          cash_account_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          effective_date: string
+          id?: string
+          is_active?: boolean | null
+          limit_amount: number
+        }
+        Update: {
+          cash_account_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          effective_date?: string
+          id?: string
+          is_active?: boolean | null
+          limit_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imprest_limits_cash_account_id_fkey"
+            columns: ["cash_account_id"]
+            isOneToOne: false
+            referencedRelation: "cash_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          entry_number: string
+          entry_type: string | null
+          fiscal_year_id: string | null
+          id: string
+          narration: string
+          posted_at: string | null
+          prepared_by: string | null
+          reference: string | null
+          status: string | null
+          total_credit: number
+          total_debit: number
+          transaction_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          entry_number: string
+          entry_type?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          narration: string
+          posted_at?: string | null
+          prepared_by?: string | null
+          reference?: string | null
+          status?: string | null
+          total_credit?: number
+          total_debit?: number
+          transaction_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          entry_number?: string
+          entry_type?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          narration?: string
+          posted_at?: string | null
+          prepared_by?: string | null
+          reference?: string | null
+          status?: string | null
+          total_credit?: number
+          total_debit?: number
+          transaction_date?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_fiscal_year_id_fkey"
+            columns: ["fiscal_year_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          created_at: string | null
+          credit: number | null
+          debit: number | null
+          description: string | null
+          id: string
+          journal_entry_id: string | null
+          student_id: string | null
+          vendor_id: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string | null
+          credit?: number | null
+          debit?: number | null
+          description?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          student_id?: string | null
+          vendor_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string | null
+          credit?: number | null
+          debit?: number | null
+          description?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          student_id?: string | null
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lesson_quizzes: {
         Row: {
@@ -1050,6 +2158,273 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payable_items: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          description: string
+          id: string
+          payable_id: string | null
+          quantity: number | null
+          tax_amount: number | null
+          tax_type_id: string | null
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          payable_id?: string | null
+          quantity?: number | null
+          tax_amount?: number | null
+          tax_type_id?: string | null
+          total: number
+          unit_price: number
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          payable_id?: string | null
+          quantity?: number | null
+          tax_amount?: number | null
+          tax_type_id?: string | null
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payable_items_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payable_items_payable_id_fkey"
+            columns: ["payable_id"]
+            isOneToOne: false
+            referencedRelation: "payables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payable_items_tax_type_id_fkey"
+            columns: ["tax_type_id"]
+            isOneToOne: false
+            referencedRelation: "tax_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payable_payments: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          cash_account_id: string | null
+          created_at: string | null
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          paid_by: string | null
+          payable_id: string | null
+          payment_date: string
+          payment_mode_id: string | null
+          payment_number: string
+          reference_number: string | null
+          status: string | null
+          updated_at: string | null
+          vendor_id: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account_id?: string | null
+          cash_account_id?: string | null
+          created_at?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          paid_by?: string | null
+          payable_id?: string | null
+          payment_date: string
+          payment_mode_id?: string | null
+          payment_number: string
+          reference_number?: string | null
+          status?: string | null
+          updated_at?: string | null
+          vendor_id?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          cash_account_id?: string | null
+          created_at?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          paid_by?: string | null
+          payable_id?: string | null
+          payment_date?: string
+          payment_mode_id?: string | null
+          payment_number?: string
+          reference_number?: string | null
+          status?: string | null
+          updated_at?: string | null
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payable_payments_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payable_payments_cash_account_id_fkey"
+            columns: ["cash_account_id"]
+            isOneToOne: false
+            referencedRelation: "cash_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payable_payments_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payable_payments_payable_id_fkey"
+            columns: ["payable_id"]
+            isOneToOne: false
+            referencedRelation: "payables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payable_payments_payment_mode_id_fkey"
+            columns: ["payment_mode_id"]
+            isOneToOne: false
+            referencedRelation: "payment_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payable_payments_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payables: {
+        Row: {
+          amount_paid: number | null
+          balance_due: number
+          bill_date: string
+          bill_number: string
+          created_at: string | null
+          created_by: string | null
+          due_date: string | null
+          fiscal_year_id: string | null
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          status: string | null
+          subtotal: number
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string | null
+          vendor_id: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          balance_due?: number
+          bill_date: string
+          bill_number: string
+          created_at?: string | null
+          created_by?: string | null
+          due_date?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string | null
+          subtotal?: number
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string | null
+          vendor_id?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          balance_due?: number
+          bill_date?: string
+          bill_number?: string
+          created_at?: string | null
+          created_by?: string | null
+          due_date?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          status?: string | null
+          subtotal?: number
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string | null
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payables_fiscal_year_id_fkey"
+            columns: ["fiscal_year_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payables_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payables_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_modes: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
       }
       poe_assignments: {
         Row: {
@@ -1454,6 +2829,48 @@ export type Database = {
           },
         ]
       }
+      student_ledger: {
+        Row: {
+          account_id: string | null
+          balance: number | null
+          created_at: string | null
+          id: string
+          student_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          balance?: number | null
+          created_at?: string | null
+          id?: string
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          balance?: number | null
+          created_at?: string | null
+          id?: string
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_ledger_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_ledger_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_types: {
         Row: {
           created_at: string | null
@@ -1607,6 +3024,33 @@ export type Database = {
           },
         ]
       }
+      tax_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          rate: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          rate: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          rate?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1628,12 +3072,89 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      vendors: {
+        Row: {
+          address: string | null
+          contact_person: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string | null
+          tax_id: string | null
+          updated_at: string | null
+          vendor_type_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+          tax_id?: string | null
+          updated_at?: string | null
+          vendor_type_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+          tax_id?: string | null
+          updated_at?: string | null
+          vendor_type_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendors_vendor_type_id_fkey"
+            columns: ["vendor_type_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       generate_certificate_number: { Args: never; Returns: string }
+      generate_invoice_number: { Args: never; Returns: string }
+      generate_journal_number: { Args: never; Returns: string }
+      generate_receipt_number: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

@@ -19,6 +19,23 @@ import {
   ChevronDown,
   ChevronRight,
   School,
+  DollarSign,
+  Receipt,
+  CreditCard,
+  FileText,
+  Wallet,
+  Building2,
+  Calculator,
+  PieChart,
+  BookMarked,
+  Landmark,
+  Coins,
+  ClipboardList,
+  FileSpreadsheet,
+  TrendingUp,
+  BarChart2,
+  ScrollText,
+  Banknote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -39,6 +56,13 @@ interface NavItem {
   subItems?: NavItem[];
 }
 
+interface NavModule {
+  title: string;
+  icon: React.ElementType;
+  roles?: ('admin' | 'teacher' | 'student')[];
+  items: NavItem[];
+}
+
 const navItems: NavItem[] = [
   {
     title: 'Dashboard',
@@ -57,73 +81,283 @@ const navItems: NavItem[] = [
   },
 ];
 
-const teacherItems: NavItem[] = [
-  {
-    title: 'Create Course',
-    href: '/lms/courses/create',
-    icon: PlusCircle,
-    roles: ['admin', 'teacher'],
-  },
-  {
-    title: 'My Created Courses',
-    href: '/lms/instructor/courses',
-    icon: FolderOpen,
-    roles: ['admin', 'teacher'],
-  },
-  {
-    title: 'Student Management',
-    href: '/lms/students',
-    icon: UserCheck,
-    roles: ['admin', 'teacher'],
-    subItems: [
-      {
-        title: 'All Students',
-        href: '/lms/students',
-        icon: Users,
-        roles: ['admin', 'teacher'],
-      },
-      {
-        title: 'Classes',
-        href: '/lms/students/classes',
-        icon: School,
-        roles: ['admin', 'teacher'],
-      },
-    ],
-  },
-];
+// Instructor Module
+const instructorModule: NavModule = {
+  title: 'Instructor',
+  icon: UserCheck,
+  roles: ['admin', 'teacher'],
+  items: [
+    {
+      title: 'Create Course',
+      href: '/lms/courses/create',
+      icon: PlusCircle,
+    },
+    {
+      title: 'My Created Courses',
+      href: '/lms/instructor/courses',
+      icon: FolderOpen,
+    },
+    {
+      title: 'Student Management',
+      href: '/lms/students',
+      icon: Users,
+      subItems: [
+        {
+          title: 'All Students',
+          href: '/lms/students',
+          icon: Users,
+        },
+        {
+          title: 'Classes',
+          href: '/lms/students/classes',
+          icon: School,
+        },
+      ],
+    },
+  ],
+};
 
-const adminItems: NavItem[] = [
-  {
-    title: 'User Management',
-    href: '/lms/admin/users',
-    icon: Users,
-    roles: ['admin'],
-  },
-  {
-    title: 'Categories',
-    href: '/lms/admin/categories',
-    icon: FolderOpen,
-    roles: ['admin'],
-  },
-  {
-    title: 'Analytics',
-    href: '/lms/admin/analytics',
-    icon: BarChart3,
-    roles: ['admin'],
-  },
-  {
-    title: 'Administration',
-    href: '/lms/admin/administration',
-    icon: Cog,
-    roles: ['admin'],
-  },
-  {
-    title: 'Site Settings',
-    href: '/lms/admin/settings',
-    icon: Settings,
-    roles: ['admin'],
-  },
-];
+// Administration Module
+const administrationModule: NavModule = {
+  title: 'Administration',
+  icon: Shield,
+  roles: ['admin'],
+  items: [
+    {
+      title: 'User Management',
+      href: '/lms/admin/users',
+      icon: Users,
+    },
+    {
+      title: 'Categories',
+      href: '/lms/admin/categories',
+      icon: FolderOpen,
+    },
+    {
+      title: 'Analytics',
+      href: '/lms/admin/analytics',
+      icon: BarChart3,
+    },
+    {
+      title: 'Administration',
+      href: '/lms/admin/administration',
+      icon: Cog,
+    },
+    {
+      title: 'Site Settings',
+      href: '/lms/admin/settings',
+      icon: Settings,
+    },
+  ],
+};
+
+// Finance Module with all submodules
+const financeModule: NavModule = {
+  title: 'Finance',
+  icon: DollarSign,
+  roles: ['admin'],
+  items: [
+    {
+      title: 'Student Fees Status',
+      href: '/lms/finance/fees-status',
+      icon: Receipt,
+    },
+    {
+      title: 'Summarized Fee Statement',
+      href: '/lms/finance/fee-statement',
+      icon: FileText,
+    },
+    {
+      title: 'Student Finance',
+      href: '/lms/finance/student-finance',
+      icon: Wallet,
+    },
+    {
+      title: 'Receivables',
+      href: '/lms/finance/receivables',
+      icon: CreditCard,
+    },
+    {
+      title: 'Budget',
+      href: '/lms/finance/budget',
+      icon: Calculator,
+    },
+    {
+      title: 'Cash and Bank Management',
+      href: '/lms/finance/cash-bank',
+      icon: Landmark,
+    },
+    {
+      title: 'Payables',
+      href: '/lms/finance/payables',
+      icon: Banknote,
+    },
+    {
+      title: 'Cancellations',
+      href: '/lms/finance/cancellations',
+      icon: FileText,
+    },
+    {
+      title: 'Journal Entries',
+      href: '/lms/finance/journals',
+      icon: BookMarked,
+    },
+    {
+      title: 'Utilities',
+      href: '/lms/finance/utilities',
+      icon: Settings,
+      subItems: [
+        {
+          title: 'Chart of Accounts',
+          href: '/lms/finance/utilities/chart-of-accounts',
+          icon: ClipboardList,
+        },
+        {
+          title: 'Fee Accounts',
+          href: '/lms/finance/utilities/fee-accounts',
+          icon: Coins,
+        },
+        {
+          title: 'Groups',
+          href: '/lms/finance/utilities/groups',
+          icon: FolderOpen,
+        },
+        {
+          title: 'Sub Groups',
+          href: '/lms/finance/utilities/sub-groups',
+          icon: FolderOpen,
+        },
+        {
+          title: 'Fiscal Years',
+          href: '/lms/finance/utilities/fiscal-years',
+          icon: Calculator,
+        },
+        {
+          title: 'Currencies',
+          href: '/lms/finance/utilities/currencies',
+          icon: Coins,
+        },
+        {
+          title: 'Exchange Rates',
+          href: '/lms/finance/utilities/exchange-rates',
+          icon: TrendingUp,
+        },
+        {
+          title: 'Payment Modes',
+          href: '/lms/finance/utilities/payment-modes',
+          icon: CreditCard,
+        },
+        {
+          title: 'Tax Types',
+          href: '/lms/finance/utilities/tax-types',
+          icon: Receipt,
+        },
+        {
+          title: 'Fee Policies',
+          href: '/lms/finance/utilities/fee-policies',
+          icon: FileText,
+        },
+        {
+          title: 'Vendor Types',
+          href: '/lms/finance/utilities/vendor-types',
+          icon: Building2,
+        },
+        {
+          title: 'Ledger',
+          href: '/lms/finance/utilities/ledger',
+          icon: BookMarked,
+        },
+        {
+          title: 'Imprest Limit Setup',
+          href: '/lms/finance/utilities/imprest-limits',
+          icon: Wallet,
+        },
+      ],
+    },
+    {
+      title: 'Reports',
+      href: '/lms/finance/reports',
+      icon: BarChart2,
+      subItems: [
+        {
+          title: 'General Ledger',
+          href: '/lms/finance/reports/general-ledger',
+          icon: BookMarked,
+        },
+        {
+          title: 'Trial Balance',
+          href: '/lms/finance/reports/trial-balance',
+          icon: Calculator,
+        },
+        {
+          title: 'Statement of Financial Performance',
+          href: '/lms/finance/reports/financial-performance',
+          icon: TrendingUp,
+        },
+        {
+          title: 'Profit and Loss Account',
+          href: '/lms/finance/reports/profit-loss',
+          icon: PieChart,
+        },
+        {
+          title: 'Statement of Financial Position',
+          href: '/lms/finance/reports/financial-position',
+          icon: FileSpreadsheet,
+        },
+        {
+          title: 'Annual Statement of Financial Position',
+          href: '/lms/finance/reports/annual-position',
+          icon: FileSpreadsheet,
+        },
+        {
+          title: 'Quarterly Statement of Financial Performance',
+          href: '/lms/finance/reports/quarterly-performance',
+          icon: BarChart2,
+        },
+        {
+          title: 'Quarterly Cashflow Statement',
+          href: '/lms/finance/reports/quarterly-cashflow',
+          icon: TrendingUp,
+        },
+        {
+          title: 'Notes to Financial Statements',
+          href: '/lms/finance/reports/notes',
+          icon: ScrollText,
+        },
+        {
+          title: 'Cash Book',
+          href: '/lms/finance/reports/cash-book',
+          icon: BookOpen,
+        },
+        {
+          title: 'Petty Cash Report',
+          href: '/lms/finance/reports/petty-cash',
+          icon: Wallet,
+        },
+        {
+          title: 'Supplier Statements',
+          href: '/lms/finance/reports/supplier-statements',
+          icon: FileText,
+        },
+        {
+          title: 'Tax Schedules',
+          href: '/lms/finance/reports/tax-schedules',
+          icon: Receipt,
+        },
+        {
+          title: 'Fee Reminder',
+          href: '/lms/finance/reports/fee-reminder',
+          icon: Receipt,
+        },
+        {
+          title: 'Student Schedules',
+          href: '/lms/finance/reports/student-schedules',
+          icon: Users,
+        },
+      ],
+    },
+  ],
+};
 
 interface SidebarProps {
   open?: boolean;
@@ -134,6 +368,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { profile, role, signOut, isAdmin, isTeacher } = useAuth();
   const location = useLocation();
   const [openMenus, setOpenMenus] = useState<string[]>([]);
+  const [openModules, setOpenModules] = useState<string[]>([]);
 
   const toggleMenu = (title: string) => {
     setOpenMenus((prev) =>
@@ -143,15 +378,27 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     );
   };
 
+  const toggleModule = (title: string) => {
+    setOpenModules((prev) =>
+      prev.includes(title)
+        ? prev.filter((t) => t !== title)
+        : [...prev, title]
+    );
+  };
+
   const isActiveRoute = (href: string, subItems?: NavItem[]) => {
     if (location.pathname === href) return true;
     if (subItems) {
-      return subItems.some((sub) => location.pathname === sub.href);
+      return subItems.some((sub) => isActiveRoute(sub.href, sub.subItems));
     }
     return false;
   };
 
-  const renderNavItem = (item: NavItem) => {
+  const isModuleActive = (module: NavModule) => {
+    return module.items.some((item) => isActiveRoute(item.href, item.subItems));
+  };
+
+  const renderNavItem = (item: NavItem, depth: number = 0) => {
     const hasSubItems = item.subItems && item.subItems.length > 0;
     const isOpen = openMenus.includes(item.title);
     const isActive = isActiveRoute(item.href, item.subItems);
@@ -169,7 +416,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                 isActive
                   ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                depth > 0 && 'text-xs'
               )}
             >
               <div className="flex items-center gap-3">
@@ -186,22 +434,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <CollapsibleContent className="pl-4 pt-1 space-y-1">
             {item.subItems!
               .filter((sub) => !sub.roles || (role && sub.roles.includes(role)))
-              .map((subItem) => (
-                <Link
-                  key={subItem.href}
-                  to={subItem.href}
-                  onClick={onNavigate}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                    location.pathname === subItem.href
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )}
-                >
-                  <subItem.icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{subItem.title}</span>
-                </Link>
-              ))}
+              .map((subItem) => renderNavItem(subItem, depth + 1))}
           </CollapsibleContent>
         </Collapsible>
       );
@@ -216,12 +449,52 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
           location.pathname === item.href
             ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          depth > 0 && 'text-xs'
         )}
       >
         <item.icon className="h-4 w-4 shrink-0" />
         <span className="truncate">{item.title}</span>
       </Link>
+    );
+  };
+
+  const renderModule = (module: NavModule) => {
+    const isOpen = openModules.includes(module.title);
+    const isActive = isModuleActive(module);
+
+    return (
+      <Collapsible
+        key={module.title}
+        open={isOpen || isActive}
+        onOpenChange={() => toggleModule(module.title)}
+      >
+        <CollapsibleTrigger asChild>
+          <button
+            className={cn(
+              'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-muted/50 text-foreground'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <module.icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{module.title}</span>
+            </div>
+            {isOpen || isActive ? (
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0" />
+            )}
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pl-2 pt-1 space-y-1">
+          {module.items
+            .filter((item) => !item.roles || (role && item.roles.includes(role)))
+            .map((item) => renderNavItem(item))}
+        </CollapsibleContent>
+      </Collapsible>
     );
   };
 
@@ -242,23 +515,27 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <ScrollArea className="flex-1 px-4 py-4">
         <div className="space-y-1">{renderNavItems(navItems)}</div>
 
+        {/* Instructor Module */}
         {(isAdmin || isTeacher) && (
           <>
             <Separator className="my-4" />
-            <p className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground">
-              Instructor
-            </p>
-            <div className="space-y-1">{renderNavItems(teacherItems)}</div>
+            {renderModule(instructorModule)}
           </>
         )}
 
+        {/* Administration Module */}
         {isAdmin && (
           <>
             <Separator className="my-4" />
-            <p className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground">
-              Administration
-            </p>
-            <div className="space-y-1">{renderNavItems(adminItems)}</div>
+            {renderModule(administrationModule)}
+          </>
+        )}
+
+        {/* Finance Module */}
+        {isAdmin && (
+          <>
+            <Separator className="my-4" />
+            {renderModule(financeModule)}
           </>
         )}
       </ScrollArea>
