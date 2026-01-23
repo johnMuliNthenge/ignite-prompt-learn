@@ -48,8 +48,9 @@ interface Invoice {
 
 interface Student {
   id: string;
-  student_no: string;
-  full_name: string;
+  student_no: string | null;
+  other_name: string;
+  surname: string;
 }
 
 interface FeeAccount {
@@ -105,7 +106,7 @@ export default function Receivables() {
         amount_paid,
         balance_due,
         status,
-        students(student_no, full_name)
+        students(student_no, other_name, surname)
       `)
       .order('invoice_date', { ascending: false });
 
@@ -119,7 +120,7 @@ export default function Receivables() {
       id: inv.id,
       invoice_number: inv.invoice_number,
       student_id: inv.student_id,
-      student_name: inv.students?.full_name || 'Unknown',
+      student_name: inv.students ? `${inv.students.other_name} ${inv.students.surname}` : 'Unknown',
       student_no: inv.students?.student_no || '',
       invoice_date: inv.invoice_date,
       due_date: inv.due_date,
@@ -135,15 +136,15 @@ export default function Receivables() {
   const fetchStudents = async () => {
     const { data, error } = await supabase
       .from('students')
-      .select('id, student_no, full_name')
-      .order('full_name');
+      .select('id, student_no, other_name, surname')
+      .order('surname');
 
     if (error) {
       console.error('Error fetching students:', error);
       return;
     }
 
-    setStudents((data as Student[]) || []);
+    setStudents(data || []);
   };
 
   const fetchFeeAccounts = async () => {
@@ -343,7 +344,7 @@ export default function Receivables() {
                   <SelectContent>
                     {students.map((student) => (
                       <SelectItem key={student.id} value={student.id}>
-                        {student.student_no} - {student.full_name}
+                        {student.student_no} - {student.other_name} {student.surname}
                       </SelectItem>
                     ))}
                   </SelectContent>
