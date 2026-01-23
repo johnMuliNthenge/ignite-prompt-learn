@@ -31,6 +31,23 @@ import CourseView from "./pages/lms/courses/CourseView";
 import MyCourses from "./pages/lms/courses/MyCourses";
 import InstructorCourses from "./pages/lms/instructor/InstructorCourses";
 
+// Finance pages
+import FinanceDashboard from "./pages/lms/finance/FinanceDashboard";
+import StudentFeesStatus from "./pages/lms/finance/StudentFeesStatus";
+import Receivables from "./pages/lms/finance/Receivables";
+import Payables from "./pages/lms/finance/Payables";
+import Budget from "./pages/lms/finance/Budget";
+import CashBankManagement from "./pages/lms/finance/CashBankManagement";
+import Cancellations from "./pages/lms/finance/Cancellations";
+import JournalEntries from "./pages/lms/finance/JournalEntries";
+import ChartOfAccounts from "./pages/lms/finance/utilities/ChartOfAccounts";
+import GeneralLedger from "./pages/lms/finance/reports/GeneralLedger";
+import TrialBalance from "./pages/lms/finance/reports/TrialBalance";
+import FinancialPerformance from "./pages/lms/finance/reports/FinancialPerformance";
+import FinancialPosition from "./pages/lms/finance/reports/FinancialPosition";
+import CashBook from "./pages/lms/finance/reports/CashBook";
+import StudentSchedules from "./pages/lms/finance/reports/StudentSchedules";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -65,6 +82,23 @@ const App = () => (
               <Route path="admin/analytics" element={<AnalyticsDashboard />} />
               <Route path="admin/administration" element={<AdministrationSettings />} />
               <Route path="admin/settings" element={<SiteSettings />} />
+              
+              {/* Finance Routes */}
+              <Route path="finance" element={<FinanceDashboard />} />
+              <Route path="finance/fees-status" element={<StudentFeesStatus />} />
+              <Route path="finance/receivables" element={<Receivables />} />
+              <Route path="finance/payables" element={<Payables />} />
+              <Route path="finance/budget" element={<Budget />} />
+              <Route path="finance/cash-bank" element={<CashBankManagement />} />
+              <Route path="finance/cancellations" element={<Cancellations />} />
+              <Route path="finance/journal-entries" element={<JournalEntries />} />
+              <Route path="finance/chart-of-accounts" element={<ChartOfAccounts />} />
+              <Route path="finance/reports/general-ledger" element={<GeneralLedger />} />
+              <Route path="finance/reports/trial-balance" element={<TrialBalance />} />
+              <Route path="finance/reports/financial-performance" element={<FinancialPerformance />} />
+              <Route path="finance/reports/financial-position" element={<FinancialPosition />} />
+              <Route path="finance/reports/cash-book" element={<CashBook />} />
+              <Route path="finance/reports/student-schedules" element={<StudentSchedules />} />
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
