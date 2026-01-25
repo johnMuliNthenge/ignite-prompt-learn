@@ -46,11 +46,12 @@ export default function StudentFeesStatus() {
         .select(`
           id,
           student_no,
-          full_name,
+          other_name,
+          surname,
           email,
           classes(name)
         `)
-        .order('full_name');
+        .order('surname');
 
       if (studentsError) throw studentsError;
 
@@ -82,8 +83,8 @@ export default function StudentFeesStatus() {
         return {
           id: student.id,
           student_no: student.student_no,
-          full_name: student.full_name,
-          email: student.email,
+          full_name: `${student.other_name || ''} ${student.surname || ''}`.trim(),
+          email: student.email || '',
           class_name: student.classes?.name || null,
           total_invoiced: totalInvoiced,
           total_paid: totalPaid,
