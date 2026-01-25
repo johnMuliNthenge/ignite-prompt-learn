@@ -34,18 +34,43 @@ import InstructorCourses from "./pages/lms/instructor/InstructorCourses";
 // Finance pages
 import FinanceDashboard from "./pages/lms/finance/FinanceDashboard";
 import StudentFeesStatus from "./pages/lms/finance/StudentFeesStatus";
+import SummarizedFeeStatement from "./pages/lms/finance/SummarizedFeeStatement";
+import StudentFinance from "./pages/lms/finance/StudentFinance";
 import Receivables from "./pages/lms/finance/Receivables";
 import Payables from "./pages/lms/finance/Payables";
 import Budget from "./pages/lms/finance/Budget";
 import CashBankManagement from "./pages/lms/finance/CashBankManagement";
 import Cancellations from "./pages/lms/finance/Cancellations";
 import JournalEntries from "./pages/lms/finance/JournalEntries";
+// Finance Utilities
 import ChartOfAccounts from "./pages/lms/finance/utilities/ChartOfAccounts";
+import FeeAccounts from "./pages/lms/finance/utilities/FeeAccounts";
+import Groups from "./pages/lms/finance/utilities/Groups";
+import SubGroups from "./pages/lms/finance/utilities/SubGroups";
+import FiscalYears from "./pages/lms/finance/utilities/FiscalYears";
+import Currencies from "./pages/lms/finance/utilities/Currencies";
+import ExchangeRates from "./pages/lms/finance/utilities/ExchangeRates";
+import PaymentModes from "./pages/lms/finance/utilities/PaymentModes";
+import TaxTypes from "./pages/lms/finance/utilities/TaxTypes";
+import FeePolicies from "./pages/lms/finance/utilities/FeePolicies";
+import VendorTypes from "./pages/lms/finance/utilities/VendorTypes";
+import Ledger from "./pages/lms/finance/utilities/Ledger";
+import ImprestLimits from "./pages/lms/finance/utilities/ImprestLimits";
+// Finance Reports
 import GeneralLedger from "./pages/lms/finance/reports/GeneralLedger";
 import TrialBalance from "./pages/lms/finance/reports/TrialBalance";
 import FinancialPerformance from "./pages/lms/finance/reports/FinancialPerformance";
+import ProfitLoss from "./pages/lms/finance/reports/ProfitLoss";
 import FinancialPosition from "./pages/lms/finance/reports/FinancialPosition";
+import AnnualPosition from "./pages/lms/finance/reports/AnnualPosition";
+import QuarterlyPerformance from "./pages/lms/finance/reports/QuarterlyPerformance";
+import QuarterlyCashflow from "./pages/lms/finance/reports/QuarterlyCashflow";
+import FinancialNotes from "./pages/lms/finance/reports/FinancialNotes";
 import CashBook from "./pages/lms/finance/reports/CashBook";
+import PettyCashReport from "./pages/lms/finance/reports/PettyCashReport";
+import SupplierStatements from "./pages/lms/finance/reports/SupplierStatements";
+import TaxSchedules from "./pages/lms/finance/reports/TaxSchedules";
+import FeeReminder from "./pages/lms/finance/reports/FeeReminder";
 import StudentSchedules from "./pages/lms/finance/reports/StudentSchedules";
 
 const queryClient = new QueryClient();
@@ -86,18 +111,43 @@ const App = () => (
               {/* Finance Routes */}
               <Route path="finance" element={<FinanceDashboard />} />
               <Route path="finance/fees-status" element={<StudentFeesStatus />} />
+              <Route path="finance/fee-statement" element={<SummarizedFeeStatement />} />
+              <Route path="finance/student-finance" element={<StudentFinance />} />
               <Route path="finance/receivables" element={<Receivables />} />
               <Route path="finance/payables" element={<Payables />} />
               <Route path="finance/budget" element={<Budget />} />
               <Route path="finance/cash-bank" element={<CashBankManagement />} />
               <Route path="finance/cancellations" element={<Cancellations />} />
-              <Route path="finance/journal-entries" element={<JournalEntries />} />
-              <Route path="finance/chart-of-accounts" element={<ChartOfAccounts />} />
+              <Route path="finance/journals" element={<JournalEntries />} />
+              {/* Finance Utilities */}
+              <Route path="finance/utilities/chart-of-accounts" element={<ChartOfAccounts />} />
+              <Route path="finance/utilities/fee-accounts" element={<FeeAccounts />} />
+              <Route path="finance/utilities/groups" element={<Groups />} />
+              <Route path="finance/utilities/sub-groups" element={<SubGroups />} />
+              <Route path="finance/utilities/fiscal-years" element={<FiscalYears />} />
+              <Route path="finance/utilities/currencies" element={<Currencies />} />
+              <Route path="finance/utilities/exchange-rates" element={<ExchangeRates />} />
+              <Route path="finance/utilities/payment-modes" element={<PaymentModes />} />
+              <Route path="finance/utilities/tax-types" element={<TaxTypes />} />
+              <Route path="finance/utilities/fee-policies" element={<FeePolicies />} />
+              <Route path="finance/utilities/vendor-types" element={<VendorTypes />} />
+              <Route path="finance/utilities/ledger" element={<Ledger />} />
+              <Route path="finance/utilities/imprest-limits" element={<ImprestLimits />} />
+              {/* Finance Reports */}
               <Route path="finance/reports/general-ledger" element={<GeneralLedger />} />
               <Route path="finance/reports/trial-balance" element={<TrialBalance />} />
               <Route path="finance/reports/financial-performance" element={<FinancialPerformance />} />
+              <Route path="finance/reports/profit-loss" element={<ProfitLoss />} />
               <Route path="finance/reports/financial-position" element={<FinancialPosition />} />
+              <Route path="finance/reports/annual-position" element={<AnnualPosition />} />
+              <Route path="finance/reports/quarterly-performance" element={<QuarterlyPerformance />} />
+              <Route path="finance/reports/quarterly-cashflow" element={<QuarterlyCashflow />} />
+              <Route path="finance/reports/notes" element={<FinancialNotes />} />
               <Route path="finance/reports/cash-book" element={<CashBook />} />
+              <Route path="finance/reports/petty-cash" element={<PettyCashReport />} />
+              <Route path="finance/reports/supplier-statements" element={<SupplierStatements />} />
+              <Route path="finance/reports/tax-schedules" element={<TaxSchedules />} />
+              <Route path="finance/reports/fee-reminder" element={<FeeReminder />} />
               <Route path="finance/reports/student-schedules" element={<StudentSchedules />} />
             </Route>
 
