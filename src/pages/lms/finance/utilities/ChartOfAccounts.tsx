@@ -361,10 +361,10 @@ export default function ChartOfAccounts() {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Child of (Parent Account)</Label>
-                <Select value={formData.parent_id} onValueChange={(v) => setFormData({...formData, parent_id: v})}>
+                <Select value={formData.parent_id || "none"} onValueChange={(v) => setFormData({...formData, parent_id: v === "none" ? "" : v})}>
                   <SelectTrigger><SelectValue placeholder="Select parent account" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Parent</SelectItem>
+                    <SelectItem value="none">No Parent</SelectItem>
                     {parentAccounts.map(a => 
                       <SelectItem key={a.id} value={a.id}>
                         {a.account_code} - {a.account_name}
