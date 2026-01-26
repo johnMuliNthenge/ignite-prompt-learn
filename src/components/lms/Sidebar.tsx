@@ -18,6 +18,7 @@ import {
   Cog,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   School,
   DollarSign,
   Receipt,
@@ -36,6 +37,22 @@ import {
   BarChart2,
   ScrollText,
   Banknote,
+  UserPlus,
+  Calendar,
+  Clock,
+  Award,
+  Briefcase,
+  Building,
+  Network,
+  FileCheck,
+  CalendarDays,
+  ClipboardCheck,
+  Star,
+  AlertTriangle,
+  UserCog,
+  TreeDeciduous,
+  Layers,
+  BadgeCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -47,6 +64,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface NavItem {
   title: string;
@@ -359,12 +377,270 @@ const financeModule: NavModule = {
   ],
 };
 
+// Human Resource Module
+const hrModule: NavModule = {
+  title: 'Human Resource',
+  icon: Briefcase,
+  roles: ['admin'],
+  items: [
+    {
+      title: 'HR Dashboard',
+      href: '/lms/hr/dashboard',
+      icon: LayoutDashboard,
+    },
+    {
+      title: 'Employees',
+      href: '/lms/hr/employees',
+      icon: Users,
+      subItems: [
+        {
+          title: 'All Employees',
+          href: '/lms/hr/employees',
+          icon: Users,
+        },
+        {
+          title: 'Add Employee',
+          href: '/lms/hr/employees/add',
+          icon: UserPlus,
+        },
+        {
+          title: 'Bulk Upload',
+          href: '/lms/hr/employees/bulk-upload',
+          icon: FileSpreadsheet,
+        },
+        {
+          title: 'Documents',
+          href: '/lms/hr/employees/documents',
+          icon: FileCheck,
+        },
+      ],
+    },
+    {
+      title: 'Leave Management',
+      href: '/lms/hr/leave',
+      icon: CalendarDays,
+      subItems: [
+        {
+          title: 'Leave Applications',
+          href: '/lms/hr/leave/applications',
+          icon: ClipboardCheck,
+        },
+        {
+          title: 'Leave Balances',
+          href: '/lms/hr/leave/balances',
+          icon: Calculator,
+        },
+        {
+          title: 'Leave Calendar',
+          href: '/lms/hr/leave/calendar',
+          icon: Calendar,
+        },
+        {
+          title: 'Leave Configuration',
+          href: '/lms/hr/leave/config',
+          icon: Settings,
+          subItems: [
+            {
+              title: 'Leave Types',
+              href: '/lms/hr/leave/config/types',
+              icon: Layers,
+            },
+            {
+              title: 'Leave Groups',
+              href: '/lms/hr/leave/config/groups',
+              icon: FolderOpen,
+            },
+            {
+              title: 'Leave Periods',
+              href: '/lms/hr/leave/config/periods',
+              icon: Calendar,
+            },
+            {
+              title: 'Work Weeks',
+              href: '/lms/hr/leave/config/work-weeks',
+              icon: CalendarDays,
+            },
+            {
+              title: 'Holidays',
+              href: '/lms/hr/leave/config/holidays',
+              icon: TreeDeciduous,
+            },
+            {
+              title: 'Reserved Periods',
+              href: '/lms/hr/leave/config/reserved',
+              icon: Calendar,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      title: 'Attendance',
+      href: '/lms/hr/attendance',
+      icon: Clock,
+      subItems: [
+        {
+          title: 'Daily Attendance',
+          href: '/lms/hr/attendance/daily',
+          icon: ClipboardCheck,
+        },
+        {
+          title: 'Overtime',
+          href: '/lms/hr/attendance/overtime',
+          icon: Clock,
+        },
+        {
+          title: 'Time Off In Lieu',
+          href: '/lms/hr/attendance/toil',
+          icon: Calendar,
+        },
+      ],
+    },
+    {
+      title: 'Performance',
+      href: '/lms/hr/performance',
+      icon: Award,
+      subItems: [
+        {
+          title: 'Performance Reviews',
+          href: '/lms/hr/performance/reviews',
+          icon: Star,
+        },
+        {
+          title: 'Evaluation Periods',
+          href: '/lms/hr/performance/periods',
+          icon: Calendar,
+        },
+        {
+          title: 'Rating Scales',
+          href: '/lms/hr/performance/scales',
+          icon: BarChart2,
+        },
+      ],
+    },
+    {
+      title: 'Disciplinary',
+      href: '/lms/hr/disciplinary',
+      icon: AlertTriangle,
+    },
+    {
+      title: 'Organization',
+      href: '/lms/hr/organization',
+      icon: Network,
+      subItems: [
+        {
+          title: 'Structure',
+          href: '/lms/hr/organization/structure',
+          icon: Building,
+        },
+        {
+          title: 'Departments',
+          href: '/lms/hr/organization/departments',
+          icon: Building2,
+        },
+      ],
+    },
+    {
+      title: 'HR Utilities',
+      href: '/lms/hr/utilities',
+      icon: Settings,
+      subItems: [
+        {
+          title: 'Designations',
+          href: '/lms/hr/utilities/designations',
+          icon: BadgeCheck,
+        },
+        {
+          title: 'Ranks',
+          href: '/lms/hr/utilities/ranks',
+          icon: Award,
+        },
+        {
+          title: 'Employment Terms',
+          href: '/lms/hr/utilities/employment-terms',
+          icon: FileText,
+        },
+        {
+          title: 'Employee Categories',
+          href: '/lms/hr/utilities/categories',
+          icon: FolderOpen,
+        },
+        {
+          title: 'Casual Categories',
+          href: '/lms/hr/utilities/casual-categories',
+          icon: UserCog,
+        },
+        {
+          title: 'Skills',
+          href: '/lms/hr/utilities/skills',
+          icon: Star,
+        },
+        {
+          title: 'Skill Types',
+          href: '/lms/hr/utilities/skill-types',
+          icon: Layers,
+        },
+        {
+          title: 'Insurance Types',
+          href: '/lms/hr/utilities/insurance-types',
+          icon: Shield,
+        },
+      ],
+    },
+    {
+      title: 'HR Reports',
+      href: '/lms/hr/reports',
+      icon: BarChart2,
+      subItems: [
+        {
+          title: 'Headcount Report',
+          href: '/lms/hr/reports/headcount',
+          icon: Users,
+        },
+        {
+          title: 'Leave Liability',
+          href: '/lms/hr/reports/leave-liability',
+          icon: Calculator,
+        },
+        {
+          title: 'Absenteeism Report',
+          href: '/lms/hr/reports/absenteeism',
+          icon: Clock,
+        },
+        {
+          title: 'Turnover Report',
+          href: '/lms/hr/reports/turnover',
+          icon: TrendingUp,
+        },
+        {
+          title: 'Contract Expiry',
+          href: '/lms/hr/reports/contract-expiry',
+          icon: FileText,
+        },
+        {
+          title: 'Probation Tracking',
+          href: '/lms/hr/reports/probation',
+          icon: ClipboardCheck,
+        },
+      ],
+    },
+  ],
+};
+
 interface SidebarProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ 
+  onNavigate, 
+  collapsed = false 
+}: { 
+  onNavigate?: () => void;
+  collapsed?: boolean;
+}) {
   const { profile, role, signOut, isAdmin, isTeacher } = useAuth();
   const location = useLocation();
   const [openMenus, setOpenMenus] = useState<string[]>([]);
@@ -402,6 +678,30 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     const hasSubItems = item.subItems && item.subItems.length > 0;
     const isOpen = openMenus.includes(item.title);
     const isActive = isActiveRoute(item.href, item.subItems);
+
+    if (collapsed && depth === 0) {
+      return (
+        <Tooltip key={item.title}>
+          <TooltipTrigger asChild>
+            <Link
+              to={hasSubItems ? item.subItems![0].href : item.href}
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center justify-center rounded-lg p-2 transition-colors',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>{item.title}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
 
     if (hasSubItems) {
       return (
@@ -463,6 +763,29 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     const isOpen = openModules.includes(module.title);
     const isActive = isModuleActive(module);
 
+    if (collapsed) {
+      return (
+        <Tooltip key={module.title}>
+          <TooltipTrigger asChild>
+            <Link
+              to={module.items[0]?.href || '#'}
+              className={cn(
+                'flex items-center justify-center rounded-lg p-2 transition-colors',
+                isActive
+                  ? 'bg-muted/50 text-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <module.icon className="h-5 w-5" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>{module.title}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
     return (
       <Collapsible
         key={module.title}
@@ -506,20 +829,27 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-2 border-b px-6 shrink-0">
+      <div className={cn(
+        "flex h-16 items-center gap-2 border-b shrink-0",
+        collapsed ? "justify-center px-2" : "px-6"
+      )}>
         <GraduationCap className="h-8 w-8 text-primary shrink-0" />
-        <span className="text-xl font-bold">LearnHub</span>
+        {!collapsed && <span className="text-xl font-bold">LearnHub</span>}
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-4 py-4">
-        <div className="space-y-1">{renderNavItems(navItems)}</div>
+      <ScrollArea className="flex-1 px-2 py-4">
+        <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
+          {renderNavItems(navItems)}
+        </div>
 
         {/* Instructor Module */}
         {(isAdmin || isTeacher) && (
           <>
             <Separator className="my-4" />
-            {renderModule(instructorModule)}
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(instructorModule)}
+            </div>
           </>
         )}
 
@@ -527,7 +857,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         {isAdmin && (
           <>
             <Separator className="my-4" />
-            {renderModule(administrationModule)}
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(administrationModule)}
+            </div>
           </>
         )}
 
@@ -535,45 +867,75 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         {isAdmin && (
           <>
             <Separator className="my-4" />
-            {renderModule(financeModule)}
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(financeModule)}
+            </div>
+          </>
+        )}
+
+        {/* HR Module */}
+        {isAdmin && (
+          <>
+            <Separator className="my-4" />
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(hrModule)}
+            </div>
           </>
         )}
       </ScrollArea>
 
       {/* User section */}
       <div className="border-t p-4 shrink-0">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
-            <span className="text-sm font-medium text-primary">
-              {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
-            </span>
-          </div>
-          <div className="flex-1 overflow-hidden min-w-0">
-            <p className="truncate text-sm font-medium">
-              {profile?.full_name || 'User'}
-            </p>
-            <div className="flex items-center gap-1">
-              {isAdmin && <Shield className="h-3 w-3 text-destructive shrink-0" />}
-              <p className="truncate text-xs capitalize text-muted-foreground">
-                {role || 'student'}
-              </p>
+        {collapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 mx-auto cursor-pointer">
+                <span className="text-sm font-medium text-primary">
+                  {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>{profile?.full_name || 'User'}</p>
+              <p className="text-xs text-muted-foreground capitalize">{role || 'student'}</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <>
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                <span className="text-sm font-medium text-primary">
+                  {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
+                </span>
+              </div>
+              <div className="flex-1 overflow-hidden min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {profile?.full_name || 'User'}
+                </p>
+                <div className="flex items-center gap-1">
+                  {isAdmin && <Shield className="h-3 w-3 text-destructive shrink-0" />}
+                  <p className="truncate text-xs capitalize text-muted-foreground">
+                    {role || 'student'}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          className="w-full justify-start"
-          onClick={signOut}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign Out
-        </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={signOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-export function Sidebar({ open, onOpenChange }: SidebarProps) {
+export function Sidebar({ open, onOpenChange, collapsed, onCollapsedChange }: SidebarProps) {
   const isMobile = useIsMobile();
 
   // Mobile: Use Sheet
@@ -587,10 +949,27 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
     );
   }
 
-  // Desktop: Fixed sidebar
+  // Desktop: Fixed sidebar with collapse toggle
   return (
-    <div className="hidden md:flex h-screen w-64 flex-col border-r bg-card shrink-0">
-      <SidebarContent />
+    <div className={cn(
+      "hidden md:flex h-screen flex-col border-r bg-card shrink-0 transition-all duration-300 relative",
+      collapsed ? "w-16" : "w-64"
+    )}>
+      <SidebarContent collapsed={collapsed} />
+      
+      {/* Collapse Toggle Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background shadow-md hover:bg-muted"
+        onClick={() => onCollapsedChange?.(!collapsed)}
+      >
+        {collapsed ? (
+          <ChevronRight className="h-3 w-3" />
+        ) : (
+          <ChevronLeft className="h-3 w-3" />
+        )}
+      </Button>
     </div>
   );
 }

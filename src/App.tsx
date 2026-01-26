@@ -73,6 +73,19 @@ import TaxSchedules from "./pages/lms/finance/reports/TaxSchedules";
 import FeeReminder from "./pages/lms/finance/reports/FeeReminder";
 import StudentSchedules from "./pages/lms/finance/reports/StudentSchedules";
 
+// HR pages
+import HRDashboard from "./pages/lms/hr/HRDashboard";
+import EmployeeList from "./pages/lms/hr/employees/EmployeeList";
+import AddEmployee from "./pages/lms/hr/employees/AddEmployee";
+import Designations from "./pages/lms/hr/utilities/Designations";
+import Ranks from "./pages/lms/hr/utilities/Ranks";
+import EmploymentTerms from "./pages/lms/hr/utilities/EmploymentTerms";
+import EmployeeCategories from "./pages/lms/hr/utilities/EmployeeCategories";
+import Departments from "./pages/lms/hr/utilities/Departments";
+import LeaveApplications from "./pages/lms/hr/leave/LeaveApplications";
+import LeaveTypes from "./pages/lms/hr/leave/LeaveTypes";
+import DailyAttendance from "./pages/lms/hr/attendance/DailyAttendance";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -149,6 +162,19 @@ const App = () => (
               <Route path="finance/reports/tax-schedules" element={<TaxSchedules />} />
               <Route path="finance/reports/fee-reminder" element={<FeeReminder />} />
               <Route path="finance/reports/student-schedules" element={<StudentSchedules />} />
+              
+              {/* HR Routes */}
+              <Route path="hr/dashboard" element={<HRDashboard />} />
+              <Route path="hr/employees" element={<EmployeeList />} />
+              <Route path="hr/employees/add" element={<AddEmployee />} />
+              <Route path="hr/utilities/designations" element={<Designations />} />
+              <Route path="hr/utilities/ranks" element={<Ranks />} />
+              <Route path="hr/utilities/employment-terms" element={<EmploymentTerms />} />
+              <Route path="hr/utilities/categories" element={<EmployeeCategories />} />
+              <Route path="hr/organization/departments" element={<Departments />} />
+              <Route path="hr/leave/applications" element={<LeaveApplications />} />
+              <Route path="hr/leave/config/types" element={<LeaveTypes />} />
+              <Route path="hr/attendance/daily" element={<DailyAttendance />} />
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
