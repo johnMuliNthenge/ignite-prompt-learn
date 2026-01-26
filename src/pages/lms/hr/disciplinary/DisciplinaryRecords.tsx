@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, AlertTriangle, Eye } from "lucide-react";
+import { Plus, Edit, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 export default function DisciplinaryRecords() {
@@ -21,11 +21,10 @@ export default function DisciplinaryRecords() {
   const [formData, setFormData] = useState({
     employee_id: '',
     incident_date: '',
-    incident_type: 'warning',
+    type: 'warning',
     description: '',
     action_taken: '',
     outcome: '',
-    status: 'open',
   });
 
   const { data: employees } = useQuery({
@@ -72,7 +71,7 @@ export default function DisciplinaryRecords() {
   const handleClose = () => {
     setOpen(false);
     setEditingItem(null);
-    setFormData({ employee_id: '', incident_date: '', incident_type: 'warning', description: '', action_taken: '', outcome: '', status: 'open' });
+    setFormData({ employee_id: '', incident_date: '', type: 'warning', description: '', action_taken: '', outcome: '' });
   };
 
   const handleEdit = (item: any) => {
@@ -80,19 +79,18 @@ export default function DisciplinaryRecords() {
     setFormData({
       employee_id: item.employee_id,
       incident_date: item.incident_date,
-      incident_type: item.incident_type,
+      type: item.type,
       description: item.description || '',
       action_taken: item.action_taken || '',
       outcome: item.outcome || '',
-      status: item.status,
     });
     setOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.employee_id || !formData.incident_date || !formData.incident_type) {
-      toast({ title: "Employee, date and type are required", variant: "destructive" });
+    if (!formData.employee_id || !formData.incident_date || !formData.type || !formData.description) {
+      toast({ title: "Employee, date, type and description are required", variant: "destructive" });
       return;
     }
     saveMutation.mutate(formData);
@@ -105,14 +103,6 @@ export default function DisciplinaryRecords() {
       case 'final_warning': return 'bg-yellow-100 text-yellow-800';
       case 'written_warning': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'closed': return 'bg-green-100 text-green-800';
-      case 'appealed': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-yellow-100 text-yellow-800';
     }
   };
 
@@ -152,34 +142,21 @@ export default function DisciplinaryRecords() {
                     <Input type="date" value={formData.incident_date} onChange={(e) => setFormData({ ...formData, incident_date: e.target.value })} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Type *</Label>
-                    <Select value={formData.incident_type} onValueChange={(v) => setFormData({ ...formData, incident_type: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="verbal_warning">Verbal Warning</SelectItem>
-                        <SelectItem value="written_warning">Written Warning</SelectItem>
-                        <SelectItem value="final_warning">Final Warning</SelectItem>
-                        <SelectItem value="suspension">Suspension</SelectItem>
-                        <SelectItem value="termination">Termination</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                        <SelectItem value="appealed">Appealed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Type *</Label>
+                  <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="verbal_warning">Verbal Warning</SelectItem>
+                      <SelectItem value="written_warning">Written Warning</SelectItem>
+                      <SelectItem value="final_warning">Final Warning</SelectItem>
+                      <SelectItem value="suspension">Suspension</SelectItem>
+                      <SelectItem value="termination">Termination</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <Label>Description *</Label>
                   <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Describe the incident" />
                 </div>
                 <div className="space-y-2">
@@ -220,7 +197,7 @@ export default function DisciplinaryRecords() {
                   <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Finalized</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -230,18 +207,18 @@ export default function DisciplinaryRecords() {
                     <TableCell className="font-medium">{record.employee?.first_name} {record.employee?.last_name}</TableCell>
                     <TableCell>{format(new Date(record.incident_date), 'PP')}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${getTypeColor(record.incident_type)}`}>
-                        {record.incident_type.replace('_', ' ')}
+                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${getTypeColor(record.type)}`}>
+                        {record.type.replace('_', ' ')}
                       </span>
                     </TableCell>
                     <TableCell className="max-w-xs truncate">{record.description || '-'}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusColor(record.status)}`}>
-                        {record.status}
+                      <span className={`px-2 py-1 rounded-full text-xs ${record.is_finalized ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        {record.is_finalized ? 'Yes' : 'No'}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(record)}><Edit className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(record)} disabled={record.is_finalized}><Edit className="h-4 w-4" /></Button>
                     </TableCell>
                   </TableRow>
                 ))}

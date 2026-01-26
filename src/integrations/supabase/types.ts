@@ -2009,6 +2009,53 @@ export type Database = {
           },
         ]
       }
+      hr_documents: {
+        Row: {
+          created_at: string | null
+          document_name: string
+          document_type: string
+          employee_id: string | null
+          expiry_date: string | null
+          file_url: string | null
+          id: string
+          notes: string | null
+          updated_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_name: string
+          document_type: string
+          employee_id?: string | null
+          expiry_date?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_name?: string
+          document_type?: string
+          employee_id?: string | null
+          expiry_date?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_categories: {
         Row: {
           code: string
@@ -2238,6 +2285,7 @@ export type Database = {
           email: string | null
           employee_category_id: string | null
           employee_no: string
+          employment_status: string | null
           employment_term_id: string | null
           first_name: string
           gender: string | null
@@ -2270,6 +2318,7 @@ export type Database = {
           email?: string | null
           employee_category_id?: string | null
           employee_no: string
+          employment_status?: string | null
           employment_term_id?: string | null
           first_name: string
           gender?: string | null
@@ -2302,6 +2351,7 @@ export type Database = {
           email?: string | null
           employee_category_id?: string | null
           employee_no?: string
+          employment_status?: string | null
           employment_term_id?: string | null
           first_name?: string
           gender?: string | null
@@ -2745,6 +2795,7 @@ export type Database = {
           carry_forward_limit: number | null
           code: string
           created_at: string | null
+          default_days: number | null
           gender_restriction: string | null
           id: string
           is_active: boolean | null
@@ -2759,6 +2810,7 @@ export type Database = {
           carry_forward_limit?: number | null
           code: string
           created_at?: string | null
+          default_days?: number | null
           gender_restriction?: string | null
           id?: string
           is_active?: boolean | null
@@ -2773,6 +2825,7 @@ export type Database = {
           carry_forward_limit?: number | null
           code?: string
           created_at?: string | null
+          default_days?: number | null
           gender_restriction?: string | null
           id?: string
           is_active?: boolean | null

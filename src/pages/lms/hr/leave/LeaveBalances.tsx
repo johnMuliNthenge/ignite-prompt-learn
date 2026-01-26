@@ -15,14 +15,13 @@ export default function LeaveBalances() {
       const { data: employees, error: empError } = await supabase
         .from('hr_employees')
         .select('id, first_name, last_name, employee_no')
-        .eq('employment_status', 'active')
         .order('first_name');
       
       if (empError) throw empError;
 
       const { data: leaveTypes, error: ltError } = await supabase
         .from('hr_leave_types')
-        .select('id, name, default_days')
+        .select('id, name, default_days, is_active')
         .eq('is_active', true);
       
       if (ltError) throw ltError;
@@ -44,7 +43,7 @@ export default function LeaveBalances() {
           leaveBalances: {}
         };
 
-        leaveTypes?.forEach((lt) => {
+        leaveTypes?.forEach((lt: any) => {
           const taken = applications
             ?.filter(a => a.employee_id === emp.id && a.leave_type_id === lt.id)
             .reduce((sum, a) => sum + (a.days_requested || 0), 0) || 0;
@@ -65,7 +64,7 @@ export default function LeaveBalances() {
 
   const filteredEmployees = balances?.employees.filter((emp: any) =>
     emp.name.toLowerCase().includes(search.toLowerCase()) ||
-    emp.employee_no.toLowerCase().includes(search.toLowerCase())
+    emp.employee_no?.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
   return (

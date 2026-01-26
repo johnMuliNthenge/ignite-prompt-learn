@@ -90,7 +90,7 @@ export default function BulkUpload() {
           date_of_birth: row.date_of_birth || null,
           national_id: row.national_id || null,
           date_of_hire: row.date_of_hire || new Date().toISOString().split('T')[0],
-        });
+        } as any);
 
         if (error) throw error;
         success++;
@@ -204,7 +204,7 @@ export default function BulkUpload() {
                             {row.error}
                           </span>
                         ) : (
-                          <span className="text-green-600 flex items-center gap-1">
+                          <span className="text-primary flex items-center gap-1">
                             <CheckCircle className="h-4 w-4" />
                             Ready
                           </span>

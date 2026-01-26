@@ -29,7 +29,7 @@ export default function Overtime() {
   const { data: employees } = useQuery({
     queryKey: ['hr-employees-simple'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('hr_employees').select('id, first_name, last_name, employee_no').eq('employment_status', 'active').order('first_name');
+      const { data, error } = await supabase.from('hr_employees').select('id, first_name, last_name, employee_no').order('first_name');
       if (error) throw error;
       return data || [];
     }

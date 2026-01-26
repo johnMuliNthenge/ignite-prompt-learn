@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Eye, Star } from "lucide-react";
+import { Plus, Edit, Star } from "lucide-react";
 import { format } from "date-fns";
 
 export default function PerformanceReviews() {
@@ -24,7 +24,7 @@ export default function PerformanceReviews() {
     reviewer_id: '',
     overall_rating: '',
     strengths: '',
-    areas_for_improvement: '',
+    improvements: '',
     goals: '',
     comments: '',
     status: 'draft',
@@ -33,20 +33,13 @@ export default function PerformanceReviews() {
   const { data: employees } = useQuery({
     queryKey: ['hr-employees-simple'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('hr_employees').select('id, first_name, last_name, employee_no').eq('employment_status', 'active').order('first_name');
+      const { data, error } = await supabase.from('hr_employees').select('id, first_name, last_name, employee_no').order('first_name');
       if (error) throw error;
       return data || [];
     }
   });
 
-  const { data: periods } = useQuery({
-    queryKey: ['hr-performance-periods'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('hr_performance_periods').select('*').eq('is_active', true).order('start_date', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    }
-  });
+  const periods: any[] = [];
 
   const { data: reviews, isLoading } = useQuery({
     queryKey: ['hr-performance-reviews'],
@@ -56,8 +49,7 @@ export default function PerformanceReviews() {
         .select(`
           *,
           employee:hr_employees!hr_performance_reviews_employee_id_fkey(first_name, last_name),
-          reviewer:hr_employees!hr_performance_reviews_reviewer_id_fkey(first_name, last_name),
-          period:hr_performance_periods(name)
+          period:hr_evaluation_periods(name)
         `)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -68,8 +60,15 @@ export default function PerformanceReviews() {
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
       const payload = {
-        ...data,
+        employee_id: data.employee_id,
+        period_id: data.period_id || null,
+        reviewer_id: data.reviewer_id || null,
         overall_rating: data.overall_rating ? parseFloat(data.overall_rating) : null,
+        strengths: data.strengths,
+        improvements: data.improvements,
+        goals: data.goals,
+        comments: data.comments,
+        status: data.status,
       };
       if (editingItem) {
         const { error } = await supabase.from('hr_performance_reviews').update(payload).eq('id', editingItem.id);
@@ -92,7 +91,7 @@ export default function PerformanceReviews() {
   const handleClose = () => {
     setOpen(false);
     setEditingItem(null);
-    setFormData({ employee_id: '', period_id: '', reviewer_id: '', overall_rating: '', strengths: '', areas_for_improvement: '', goals: '', comments: '', status: 'draft' });
+    setFormData({ employee_id: '', period_id: '', reviewer_id: '', overall_rating: '', strengths: '', improvements: '', goals: '', comments: '', status: 'draft' });
   };
 
   const handleEdit = (item: any) => {
@@ -103,7 +102,7 @@ export default function PerformanceReviews() {
       reviewer_id: item.reviewer_id || '',
       overall_rating: item.overall_rating?.toString() || '',
       strengths: item.strengths || '',
-      areas_for_improvement: item.areas_for_improvement || '',
+      improvements: item.improvements || '',
       goals: item.goals || '',
       comments: item.comments || '',
       status: item.status,
@@ -194,7 +193,7 @@ export default function PerformanceReviews() {
                 </div>
                 <div className="space-y-2">
                   <Label>Areas for Improvement</Label>
-                  <Textarea value={formData.areas_for_improvement} onChange={(e) => setFormData({ ...formData, areas_for_improvement: e.target.value })} />
+                  <Textarea value={formData.improvements} onChange={(e) => setFormData({ ...formData, improvements: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Goals for Next Period</Label>
@@ -243,7 +242,6 @@ export default function PerformanceReviews() {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Period</TableHead>
-                  <TableHead>Reviewer</TableHead>
                   <TableHead>Rating</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
@@ -255,11 +253,10 @@ export default function PerformanceReviews() {
                   <TableRow key={review.id}>
                     <TableCell className="font-medium">{review.employee?.first_name} {review.employee?.last_name}</TableCell>
                     <TableCell>{review.period?.name || '-'}</TableCell>
-                    <TableCell>{review.reviewer ? `${review.reviewer.first_name} ${review.reviewer.last_name}` : '-'}</TableCell>
                     <TableCell>
                       {review.overall_rating ? (
                         <span className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <Star className="h-4 w-4 fill-primary text-primary" />
                           {review.overall_rating.toFixed(1)}
                         </span>
                       ) : '-'}

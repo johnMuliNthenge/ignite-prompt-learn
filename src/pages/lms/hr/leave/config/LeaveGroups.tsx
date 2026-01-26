@@ -18,6 +18,7 @@ export default function LeaveGroups() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
+    code: '',
     description: '',
     is_active: true,
   });
@@ -65,13 +66,14 @@ export default function LeaveGroups() {
   const handleClose = () => {
     setOpen(false);
     setEditingItem(null);
-    setFormData({ name: '', description: '', is_active: true });
+    setFormData({ name: '', code: '', description: '', is_active: true });
   };
 
   const handleEdit = (item: any) => {
     setEditingItem(item);
     setFormData({
       name: item.name,
+      code: item.code || '',
       description: item.description || '',
       is_active: item.is_active,
     });
@@ -80,8 +82,8 @@ export default function LeaveGroups() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) {
-      toast({ title: "Name is required", variant: "destructive" });
+    if (!formData.name || !formData.code) {
+      toast({ title: "Name and code are required", variant: "destructive" });
       return;
     }
     saveMutation.mutate(formData);
@@ -106,6 +108,10 @@ export default function LeaveGroups() {
                 <DialogTitle>{editingItem ? 'Edit' : 'Add'} Leave Group</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="code">Code *</Label>
+                  <Input id="code" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="e.g., LG001" />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
                   <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
@@ -138,6 +144,7 @@ export default function LeaveGroups() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Status</TableHead>
@@ -147,6 +154,7 @@ export default function LeaveGroups() {
               <TableBody>
                 {items?.map((item: any) => (
                   <TableRow key={item.id}>
+                    <TableCell>{item.code || '-'}</TableCell>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.description || '-'}</TableCell>
                     <TableCell>
