@@ -16,7 +16,7 @@ export default function Skills() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', is_active: true });
+  const [formData, setFormData] = useState({ name: '', code: '', description: '', is_active: true });
 
   const { data: items, isLoading } = useQuery({
     queryKey: ['hr-skills'],
@@ -58,9 +58,9 @@ export default function Skills() {
     }
   });
 
-  const handleClose = () => { setOpen(false); setEditingItem(null); setFormData({ name: '', description: '', is_active: true }); };
-  const handleEdit = (item: any) => { setEditingItem(item); setFormData({ name: item.name, description: item.description || '', is_active: item.is_active }); setOpen(true); };
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!formData.name) { toast({ title: "Name required", variant: "destructive" }); return; } saveMutation.mutate(formData); };
+  const handleClose = () => { setOpen(false); setEditingItem(null); setFormData({ name: '', code: '', description: '', is_active: true }); };
+  const handleEdit = (item: any) => { setEditingItem(item); setFormData({ name: item.name, code: item.code || '', description: item.description || '', is_active: item.is_active }); setOpen(true); };
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!formData.name || !formData.code) { toast({ title: "Name and code required", variant: "destructive" }); return; } saveMutation.mutate(formData); };
 
   return (
     <div className="p-6 space-y-6">
@@ -72,6 +72,7 @@ export default function Skills() {
             <form onSubmit={handleSubmit}>
               <DialogHeader><DialogTitle>{editingItem ? 'Edit' : 'Add'} Skill</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4">
+                <div className="space-y-2"><Label>Code *</Label><Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="e.g., SK001" /></div>
                 <div className="space-y-2"><Label>Name *</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
                 <div className="space-y-2"><Label>Description</Label><Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
                 <div className="flex items-center space-x-2"><Switch checked={formData.is_active} onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })} /><Label>Active</Label></div>
@@ -83,8 +84,8 @@ export default function Skills() {
       </div>
       <Card><CardContent className="pt-6">
         {isLoading ? <div className="text-center py-8 text-muted-foreground">Loading...</div> : items?.length === 0 ? <div className="text-center py-8 text-muted-foreground">No skills found</div> : (
-          <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Description</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-            <TableBody>{items?.map((item: any) => (<TableRow key={item.id}><TableCell className="font-medium">{item.name}</TableCell><TableCell>{item.description || '-'}</TableCell><TableCell><span className={`px-2 py-1 rounded-full text-xs ${item.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{item.is_active ? 'Active' : 'Inactive'}</span></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => handleEdit(item)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(item.id)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody>
+          <Table><TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Description</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+            <TableBody>{items?.map((item: any) => (<TableRow key={item.id}><TableCell>{item.code || '-'}</TableCell><TableCell className="font-medium">{item.name}</TableCell><TableCell>{item.description || '-'}</TableCell><TableCell><span className={`px-2 py-1 rounded-full text-xs ${item.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{item.is_active ? 'Active' : 'Inactive'}</span></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => handleEdit(item)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(item.id)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody>
           </Table>
         )}
       </CardContent></Card>

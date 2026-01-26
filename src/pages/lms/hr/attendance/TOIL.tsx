@@ -21,16 +21,16 @@ export default function TOIL() {
   const [formData, setFormData] = useState({
     employee_id: '',
     earned_date: '',
-    hours_earned: '',
-    hours_used: '0',
-    reason: '',
-    status: 'available',
+    hours: '',
+    used_hours: '0',
+    notes: '',
+    status: 'active',
   });
 
   const { data: employees } = useQuery({
     queryKey: ['hr-employees-simple'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('hr_employees').select('id, first_name, last_name, employee_no').eq('employment_status', 'active').order('first_name');
+      const { data, error } = await supabase.from('hr_employees').select('id, first_name, last_name, employee_no').order('first_name');
       if (error) throw error;
       return data || [];
     }
@@ -51,10 +51,13 @@ export default function TOIL() {
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
       const payload = { 
-        ...data, 
-        hours_earned: parseFloat(data.hours_earned),
-        hours_used: parseFloat(data.hours_used) || 0,
-      };
+        employee_id: data.employee_id,
+        earned_date: data.earned_date,
+        hours: parseFloat(data.hours),
+        used_hours: parseFloat(data.used_hours) || 0,
+        notes: data.notes,
+        status: data.status,
+      } as any;
       if (editingItem) {
         const { error } = await supabase.from('hr_toil').update(payload).eq('id', editingItem.id);
         if (error) throw error;
@@ -87,7 +90,7 @@ export default function TOIL() {
   const handleClose = () => {
     setOpen(false);
     setEditingItem(null);
-    setFormData({ employee_id: '', earned_date: '', hours_earned: '', hours_used: '0', reason: '', status: 'available' });
+    setFormData({ employee_id: '', earned_date: '', hours: '', used_hours: '0', notes: '', status: 'active' });
   };
 
   const handleEdit = (item: any) => {
@@ -95,9 +98,9 @@ export default function TOIL() {
     setFormData({
       employee_id: item.employee_id,
       earned_date: item.earned_date,
-      hours_earned: item.hours_earned.toString(),
-      hours_used: item.hours_used?.toString() || '0',
-      reason: item.reason || '',
+      hours: item.hours.toString(),
+      used_hours: item.used_hours?.toString() || '0',
+      notes: item.notes || '',
       status: item.status,
     });
     setOpen(true);
@@ -105,7 +108,7 @@ export default function TOIL() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.employee_id || !formData.hours_earned || !formData.earned_date) {
+    if (!formData.employee_id || !formData.hours || !formData.earned_date) {
       toast({ title: "Employee, date and hours are required", variant: "destructive" });
       return;
     }
@@ -157,23 +160,23 @@ export default function TOIL() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Hours Earned *</Label>
-                    <Input type="number" step="0.5" min="0.5" value={formData.hours_earned} onChange={(e) => setFormData({ ...formData, hours_earned: e.target.value })} />
+                    <Input type="number" step="0.5" min="0.5" value={formData.hours} onChange={(e) => setFormData({ ...formData, hours: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Hours Used</Label>
-                    <Input type="number" step="0.5" min="0" value={formData.hours_used} onChange={(e) => setFormData({ ...formData, hours_used: e.target.value })} />
+                    <Input type="number" step="0.5" min="0" value={formData.used_hours} onChange={(e) => setFormData({ ...formData, used_hours: e.target.value })} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Reason</Label>
-                  <Textarea value={formData.reason} onChange={(e) => setFormData({ ...formData, reason: e.target.value })} placeholder="Reason for TOIL" />
+                  <Label>Notes</Label>
+                  <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Notes for TOIL" />
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="used">Used</SelectItem>
                       <SelectItem value="expired">Expired</SelectItem>
                     </SelectContent>
@@ -219,9 +222,9 @@ export default function TOIL() {
                   <TableRow key={item.id}>
                     <TableCell>{item.employee?.first_name} {item.employee?.last_name}</TableCell>
                     <TableCell>{format(new Date(item.earned_date), 'PP')}</TableCell>
-                    <TableCell>{item.hours_earned} hrs</TableCell>
-                    <TableCell>{item.hours_used || 0} hrs</TableCell>
-                    <TableCell className="font-medium">{(item.hours_earned - (item.hours_used || 0)).toFixed(1)} hrs</TableCell>
+                    <TableCell>{item.hours} hrs</TableCell>
+                    <TableCell>{item.used_hours || 0} hrs</TableCell>
+                    <TableCell className="font-medium">{(item.hours - (item.used_hours || 0)).toFixed(1)} hrs</TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusColor(item.status)}`}>
                         {item.status}

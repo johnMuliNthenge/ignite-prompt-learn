@@ -18,7 +18,7 @@ export default function Documents() {
   const [open, setOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [documentType, setDocumentType] = useState<string>('contract');
-  const [file, setFile] = useState<File | null>(null);
+  const [documentName, setDocumentName] = useState<string>('');
   const [expiryDate, setExpiryDate] = useState<string>('');
 
   const { data: employees } = useQuery({
@@ -50,33 +50,20 @@ export default function Documents() {
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      if (!file || !selectedEmployee) throw new Error('Missing file or employee');
-      
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${selectedEmployee}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('hr-documents')
-        .upload(fileName, file);
-      
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('hr-documents')
-        .getPublicUrl(fileName);
+      if (!documentName || !selectedEmployee) throw new Error('Missing document name or employee');
 
       const { error } = await supabase.from('hr_documents').insert({
         employee_id: selectedEmployee,
         document_type: documentType,
-        document_name: file.name,
-        file_url: publicUrl,
+        document_name: documentName,
+        file_url: null,
         expiry_date: expiryDate || null,
-      });
+      } as any);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Document uploaded successfully" });
+      toast({ title: "Document added successfully" });
       queryClient.invalidateQueries({ queryKey: ['hr-documents'] });
       handleClose();
     },
@@ -100,7 +87,7 @@ export default function Documents() {
     setOpen(false);
     setSelectedEmployee('');
     setDocumentType('contract');
-    setFile(null);
+    setDocumentName('');
     setExpiryDate('');
   };
 
@@ -125,12 +112,12 @@ export default function Documents() {
           <DialogTrigger asChild>
             <Button>
               <Upload className="mr-2 h-4 w-4" />
-              Upload Document
+              Add Document
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Upload Document</DialogTitle>
+              <DialogTitle>Add Document</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
@@ -164,10 +151,11 @@ export default function Documents() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>File *</Label>
+                <Label>Document Name *</Label>
                 <Input
-                  type="file"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  value={documentName}
+                  onChange={(e) => setDocumentName(e.target.value)}
+                  placeholder="e.g., Employment Contract 2024"
                 />
               </div>
               <div className="space-y-2">
@@ -183,9 +171,9 @@ export default function Documents() {
               <Button variant="outline" onClick={handleClose}>Cancel</Button>
               <Button 
                 onClick={() => uploadMutation.mutate()} 
-                disabled={!file || !selectedEmployee || uploadMutation.isPending}
+                disabled={!documentName || !selectedEmployee || uploadMutation.isPending}
               >
-                {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+                {uploadMutation.isPending ? 'Adding...' : 'Add'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -207,9 +195,9 @@ export default function Documents() {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Document Type</TableHead>
-                  <TableHead>File Name</TableHead>
+                  <TableHead>Document Name</TableHead>
                   <TableHead>Expiry Date</TableHead>
-                  <TableHead>Uploaded</TableHead>
+                  <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -229,16 +217,20 @@ export default function Documents() {
                     </TableCell>
                     <TableCell>{format(new Date(doc.created_at), 'PP')}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" asChild>
-                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                          <Eye className="h-4 w-4" />
-                        </a>
-                      </Button>
-                      <Button variant="ghost" size="icon" asChild>
-                        <a href={doc.file_url} download>
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </Button>
+                      {doc.file_url && (
+                        <>
+                          <Button variant="ghost" size="icon" asChild>
+                            <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                              <Eye className="h-4 w-4" />
+                            </a>
+                          </Button>
+                          <Button variant="ghost" size="icon" asChild>
+                            <a href={doc.file_url} download>
+                              <Download className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        </>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(doc.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
