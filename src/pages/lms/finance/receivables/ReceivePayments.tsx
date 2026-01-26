@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -47,6 +47,18 @@ interface BankAccount {
   bank_name: string;
 }
 
+interface PaymentReceipt {
+  receipt_number: string;
+  payment_date: string;
+  student_name: string;
+  student_no: string;
+  amount: number;
+  payment_mode: string;
+  reference_number: string;
+  vote_heads: { name: string; amount: number }[];
+  notes: string;
+}
+
 export default function ReceivePayments() {
   const { isAdmin, user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
@@ -58,6 +70,9 @@ export default function ReceivePayments() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<PaymentReceipt | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const [paymentData, setPaymentData] = useState({
     amount: '',
@@ -66,7 +81,7 @@ export default function ReceivePayments() {
     reference_number: '',
     notes: '',
     payment_date: format(new Date(), 'yyyy-MM-dd'),
-    invoice_id: '', // Optional - allocate to specific invoice
+    invoice_id: '',
   });
 
   useEffect(() => {
@@ -86,7 +101,6 @@ export default function ReceivePayments() {
   };
 
   const fetchStudentsWithBalance = async () => {
-    // Fetch students with their outstanding balances
     const { data: studentsData, error: studentsError } = await supabase
       .from('students')
       .select('id, student_no, other_name, surname')
@@ -97,7 +111,6 @@ export default function ReceivePayments() {
       return;
     }
 
-    // Get balances from invoices
     const { data: invoicesData, error: invoicesError } = await supabase
       .from('fee_invoices')
       .select('student_id, balance_due')
@@ -207,7 +220,9 @@ export default function ReceivePayments() {
 
       if (paymentError) throw paymentError;
 
-      // If specific invoice selected, update it
+      // Get vote heads from invoice items
+      const voteHeads: { name: string; amount: number }[] = [];
+      
       if (paymentData.invoice_id) {
         const invoice = invoices.find(i => i.id === paymentData.invoice_id);
         if (invoice) {
@@ -222,6 +237,19 @@ export default function ReceivePayments() {
               status: newStatus,
             })
             .eq('id', paymentData.invoice_id);
+
+          // Fetch invoice items for vote head
+          const { data: items } = await supabase
+            .from('fee_invoice_items')
+            .select('description, total, fee_accounts(name)')
+            .eq('invoice_id', paymentData.invoice_id);
+          
+          (items || []).forEach((item: any) => {
+            voteHeads.push({
+              name: item.fee_accounts?.name || item.description,
+              amount: Number(item.total),
+            });
+          });
         }
       } else {
         // Auto-allocate to oldest invoices first (FIFO)
@@ -242,12 +270,47 @@ export default function ReceivePayments() {
             })
             .eq('id', invoice.id);
 
+          // Fetch invoice items for vote heads
+          const { data: items } = await supabase
+            .from('fee_invoice_items')
+            .select('description, total, fee_accounts(name)')
+            .eq('invoice_id', invoice.id);
+          
+          (items || []).forEach((item: any) => {
+            const existingVH = voteHeads.find(vh => vh.name === (item.fee_accounts?.name || item.description));
+            if (existingVH) {
+              existingVH.amount += Number(item.total);
+            } else {
+              voteHeads.push({
+                name: item.fee_accounts?.name || item.description,
+                amount: Number(item.total),
+              });
+            }
+          });
+
           remainingAmount -= paymentToInvoice;
         }
       }
 
+      // Get payment mode name
+      const paymentMode = paymentModes.find(pm => pm.id === paymentData.payment_mode_id);
+
+      // Prepare receipt data for printing
+      setReceiptData({
+        receipt_number: receiptNumber,
+        payment_date: paymentData.payment_date,
+        student_name: `${selectedStudent.other_name} ${selectedStudent.surname}`,
+        student_no: selectedStudent.student_no,
+        amount: amount,
+        payment_mode: paymentMode?.name || '',
+        reference_number: paymentData.reference_number || '',
+        vote_heads: voteHeads.length > 0 ? voteHeads : [{ name: 'School Fees', amount: amount }],
+        notes: paymentData.notes || '',
+      });
+
       toast.success(`Payment of KES ${amount.toLocaleString()} received. Receipt: ${receiptNumber}`);
       setPaymentDialogOpen(false);
+      setPrintDialogOpen(true);
       resetPaymentForm();
       fetchStudentsWithBalance();
     } catch (error: any) {
@@ -256,6 +319,41 @@ export default function ReceivePayments() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePrintReceipt = () => {
+    const printContent = printRef.current;
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Receipt - ${receiptData?.receipt_number}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+          .header h1 { margin: 0; font-size: 18px; }
+          .header p { margin: 5px 0; font-size: 12px; }
+          .receipt-no { text-align: center; font-weight: bold; margin: 15px 0; font-size: 14px; }
+          .info-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 12px; }
+          .vote-heads { margin: 15px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; }
+          .vote-head-row { display: flex; justify-content: space-between; margin: 5px 0; font-size: 12px; }
+          .total-row { display: flex; justify-content: space-between; margin-top: 15px; font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 10px; }
+          .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #666; }
+          @media print { body { padding: 10px; } }
+        </style>
+      </head>
+      <body>
+        ${printContent.innerHTML}
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const resetPaymentForm = () => {
@@ -360,7 +458,7 @@ export default function ReceivePayments() {
                   <TableRow key={student.id}>
                     <TableCell className="font-mono">{student.student_no}</TableCell>
                     <TableCell className="font-medium">{student.other_name} {student.surname}</TableCell>
-                    <TableCell className="text-right font-bold text-red-600">
+                    <TableCell className="text-right font-bold text-destructive">
                       {formatCurrency(student.total_balance)}
                     </TableCell>
                     <TableCell>
@@ -388,7 +486,7 @@ export default function ReceivePayments() {
               <div className="p-4 bg-muted rounded-lg">
                 <p className="font-medium">{selectedStudent.other_name} {selectedStudent.surname}</p>
                 <p className="text-sm text-muted-foreground">ID: {selectedStudent.student_no}</p>
-                <p className="text-lg font-bold text-red-600 mt-2">
+                <p className="text-lg font-bold text-destructive mt-2">
                   Outstanding: {formatCurrency(selectedStudent.total_balance)}
                 </p>
               </div>
@@ -425,9 +523,10 @@ export default function ReceivePayments() {
 
               <div className="space-y-2">
                 <Label>Bank Account (if applicable)</Label>
-                <Select value={paymentData.bank_account_id} onValueChange={(v) => setPaymentData({ ...paymentData, bank_account_id: v })}>
+                <Select value={paymentData.bank_account_id || "none"} onValueChange={(v) => setPaymentData({ ...paymentData, bank_account_id: v === "none" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">No Bank Account</SelectItem>
                     {bankAccounts.map((ba) => (
                       <SelectItem key={ba.id} value={ba.id}>{ba.bank_name} - {ba.account_name}</SelectItem>
                     ))}
@@ -447,10 +546,10 @@ export default function ReceivePayments() {
               {invoices.length > 0 && (
                 <div className="space-y-2">
                   <Label>Allocate to Invoice (optional)</Label>
-                  <Select value={paymentData.invoice_id} onValueChange={(v) => setPaymentData({ ...paymentData, invoice_id: v })}>
+                  <Select value={paymentData.invoice_id || "auto"} onValueChange={(v) => setPaymentData({ ...paymentData, invoice_id: v === "auto" ? "" : v })}>
                     <SelectTrigger><SelectValue placeholder="Auto-allocate (FIFO)" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Auto-allocate (FIFO)</SelectItem>
+                      <SelectItem value="auto">Auto-allocate (FIFO)</SelectItem>
                       {invoices.map((inv) => (
                         <SelectItem key={inv.id} value={inv.id}>
                           {inv.invoice_number} - {formatCurrency(inv.balance_due)}
@@ -478,6 +577,92 @@ export default function ReceivePayments() {
                 </Button>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Receipt Dialog */}
+      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Payment Receipt</DialogTitle>
+          </DialogHeader>
+          
+          {receiptData && (
+            <>
+              <div ref={printRef} className="p-4 border rounded-lg bg-white">
+                <div className="header text-center border-b-2 border-foreground pb-3 mb-4">
+                  <h1 className="text-xl font-bold">OFFICIAL RECEIPT</h1>
+                  <p className="text-sm text-muted-foreground">School Management System</p>
+                </div>
+                
+                <div className="text-center font-bold text-lg mb-4">
+                  Receipt No: {receiptData.receipt_number}
+                </div>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span>{format(new Date(receiptData.payment_date), 'dd MMMM yyyy')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Student:</span>
+                    <span>{receiptData.student_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Student No:</span>
+                    <span>{receiptData.student_no}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Payment Mode:</span>
+                    <span>{receiptData.payment_mode}</span>
+                  </div>
+                  {receiptData.reference_number && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Reference:</span>
+                      <span>{receiptData.reference_number}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="my-4 py-3 border-y border-dashed">
+                  <p className="font-semibold mb-2">Vote Heads Paid For:</p>
+                  {receiptData.vote_heads.map((vh, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span>{vh.name}</span>
+                      <span>{formatCurrency(vh.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between font-bold text-lg border-t-2 border-foreground pt-3">
+                  <span>TOTAL PAID:</span>
+                  <span>{formatCurrency(receiptData.amount)}</span>
+                </div>
+
+                {receiptData.notes && (
+                  <div className="mt-3 text-sm">
+                    <span className="text-muted-foreground">Notes: </span>
+                    {receiptData.notes}
+                  </div>
+                )}
+
+                <div className="mt-6 text-center text-xs text-muted-foreground">
+                  <p>Thank you for your payment!</p>
+                  <p>This is a computer-generated receipt.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handlePrintReceipt} className="flex-1">
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Receipt
+                </Button>
+                <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
