@@ -707,7 +707,7 @@ function SidebarContent({
       return (
         <Collapsible
           key={item.title}
-          open={isOpen || isActive}
+          open={isOpen}
           onOpenChange={() => toggleMenu(item.title)}
         >
           <CollapsibleTrigger asChild>
@@ -724,7 +724,7 @@ function SidebarContent({
                 <item.icon className="h-4 w-4 shrink-0" />
                 <span className="truncate">{item.title}</span>
               </div>
-              {isOpen || isActive ? (
+              {isOpen ? (
                 <ChevronDown className="h-4 w-4 shrink-0" />
               ) : (
                 <ChevronRight className="h-4 w-4 shrink-0" />
@@ -789,7 +789,7 @@ function SidebarContent({
     return (
       <Collapsible
         key={module.title}
-        open={isOpen || isActive}
+        open={isOpen}
         onOpenChange={() => toggleModule(module.title)}
       >
         <CollapsibleTrigger asChild>
@@ -805,7 +805,7 @@ function SidebarContent({
               <module.icon className="h-4 w-4 shrink-0" />
               <span className="truncate">{module.title}</span>
             </div>
-            {isOpen || isActive ? (
+            {isOpen ? (
               <ChevronDown className="h-4 w-4 shrink-0" />
             ) : (
               <ChevronRight className="h-4 w-4 shrink-0" />
