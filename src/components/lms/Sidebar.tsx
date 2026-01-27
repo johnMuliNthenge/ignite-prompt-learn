@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -70,6 +71,7 @@ interface NavItem {
   title: string;
   href: string;
   icon: React.ElementType;
+  moduleCode?: string;
   roles?: ('admin' | 'teacher' | 'student')[];
   subItems?: NavItem[];
 }
@@ -77,6 +79,7 @@ interface NavItem {
 interface NavModule {
   title: string;
   icon: React.ElementType;
+  moduleCode: string;
   roles?: ('admin' | 'teacher' | 'student')[];
   items: NavItem[];
 }
@@ -86,16 +89,19 @@ const navItems: NavItem[] = [
     title: 'Dashboard',
     href: '/lms/dashboard',
     icon: LayoutDashboard,
+    moduleCode: 'dashboard',
   },
   {
     title: 'My Courses',
     href: '/lms/courses',
     icon: BookOpen,
+    moduleCode: 'courses',
   },
   {
     title: 'Course Catalog',
     href: '/lms/catalog',
     icon: GraduationCap,
+    moduleCode: 'catalog',
   },
 ];
 
@@ -103,32 +109,38 @@ const navItems: NavItem[] = [
 const instructorModule: NavModule = {
   title: 'Instructor',
   icon: UserCheck,
+  moduleCode: 'instructor',
   roles: ['admin', 'teacher'],
   items: [
     {
       title: 'Create Course',
       href: '/lms/courses/create',
       icon: PlusCircle,
+      moduleCode: 'instructor.create_course',
     },
     {
       title: 'My Created Courses',
       href: '/lms/instructor/courses',
       icon: FolderOpen,
+      moduleCode: 'instructor.my_courses',
     },
     {
       title: 'Student Management',
       href: '/lms/students',
       icon: Users,
+      moduleCode: 'instructor.students',
       subItems: [
         {
           title: 'All Students',
           href: '/lms/students',
           icon: Users,
+          moduleCode: 'instructor.students',
         },
         {
           title: 'Classes',
           href: '/lms/students/classes',
           icon: School,
+          moduleCode: 'instructor.classes',
         },
       ],
     },
@@ -139,27 +151,32 @@ const instructorModule: NavModule = {
 const administrationModule: NavModule = {
   title: 'Administration',
   icon: Shield,
+  moduleCode: 'admin',
   roles: ['admin'],
   items: [
     {
       title: 'User Management',
       href: '/lms/admin/users',
       icon: Users,
+      moduleCode: 'admin.users',
     },
     {
       title: 'Roles & Permissions',
       href: '/lms/admin/roles',
       icon: Shield,
+      moduleCode: 'admin.roles',
       subItems: [
         {
           title: 'Manage Roles',
           href: '/lms/admin/roles',
           icon: Shield,
+          moduleCode: 'admin.roles',
         },
         {
           title: 'User Role Assignment',
           href: '/lms/admin/user-roles',
           icon: UserCog,
+          moduleCode: 'admin.user_roles',
         },
       ],
     },
@@ -167,21 +184,25 @@ const administrationModule: NavModule = {
       title: 'Categories',
       href: '/lms/admin/categories',
       icon: FolderOpen,
+      moduleCode: 'admin.categories',
     },
     {
       title: 'Analytics',
       href: '/lms/admin/analytics',
       icon: BarChart3,
+      moduleCode: 'admin.analytics',
     },
     {
       title: 'Administration',
       href: '/lms/admin/administration',
       icon: Cog,
+      moduleCode: 'admin.administration',
     },
     {
       title: 'Site Settings',
       href: '/lms/admin/settings',
       icon: Settings,
+      moduleCode: 'admin.settings',
     },
   ],
 };
@@ -190,6 +211,7 @@ const administrationModule: NavModule = {
 const financeModule: NavModule = {
   title: 'Finance',
   icon: DollarSign,
+  moduleCode: 'finance',
   roles: ['admin'],
   items: [
     {
@@ -398,6 +420,7 @@ const financeModule: NavModule = {
 const hrModule: NavModule = {
   title: 'Human Resource',
   icon: Briefcase,
+  moduleCode: 'hr',
   roles: ['admin'],
   items: [
     {
@@ -658,7 +681,8 @@ function SidebarContent({
   onNavigate?: () => void;
   collapsed?: boolean;
 }) {
-  const { profile, role, signOut, isAdmin, isTeacher } = useAuth();
+  const { profile, role, signOut, isAdmin, isTeacher, appRole } = useAuth();
+  const { canView, loading: permissionsLoading } = usePermissions();
   const location = useLocation();
   const [openMenus, setOpenMenus] = useState<string[]>([]);
   const [openModules, setOpenModules] = useState<string[]>([]);
@@ -689,6 +713,42 @@ function SidebarContent({
 
   const isModuleActive = (module: NavModule) => {
     return module.items.some((item) => isActiveRoute(item.href, item.subItems));
+  };
+
+  // Check if user can view an item based on moduleCode
+  const canViewItem = (item: NavItem): boolean => {
+    // If no moduleCode, allow based on legacy role check
+    if (!item.moduleCode) {
+      return !item.roles || (role !== null && item.roles.includes(role));
+    }
+    // Check permission using the new RBAC system
+    return canView(item.moduleCode);
+  };
+
+  // Check if user can view a module
+  const canViewModule = (module: NavModule): boolean => {
+    // Check permission using the new RBAC system
+    if (canView(module.moduleCode)) return true;
+    // Fallback to legacy role check
+    return !module.roles || (role !== null && module.roles.includes(role));
+  };
+
+  // Filter items that user can view
+  const filterItems = (items: NavItem[]): NavItem[] => {
+    return items.filter(item => {
+      // Check if this item is viewable
+      if (!canViewItem(item)) return false;
+      return true;
+    }).map(item => {
+      // Filter sub-items recursively
+      if (item.subItems) {
+        return {
+          ...item,
+          subItems: filterItems(item.subItems)
+        };
+      }
+      return item;
+    });
   };
 
   const renderNavItem = (item: NavItem, depth: number = 0) => {
@@ -749,9 +809,7 @@ function SidebarContent({
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pl-4 pt-1 space-y-1">
-            {item.subItems!
-              .filter((sub) => !sub.roles || (role && sub.roles.includes(role)))
-              .map((subItem) => renderNavItem(subItem, depth + 1))}
+            {filterItems(item.subItems!).map((subItem) => renderNavItem(subItem, depth + 1))}
           </CollapsibleContent>
         </Collapsible>
       );
@@ -830,18 +888,14 @@ function SidebarContent({
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent className="pl-2 pt-1 space-y-1">
-          {module.items
-            .filter((item) => !item.roles || (role && item.roles.includes(role)))
-            .map((item) => renderNavItem(item))}
+          {filterItems(module.items).map((item) => renderNavItem(item))}
         </CollapsibleContent>
       </Collapsible>
     );
   };
 
   const renderNavItems = (items: NavItem[]) =>
-    items
-      .filter((item) => !item.roles || (role && item.roles.includes(role)))
-      .map((item) => renderNavItem(item));
+    filterItems(items).map((item) => renderNavItem(item));
 
   return (
     <div className="flex h-full flex-col">
@@ -861,7 +915,7 @@ function SidebarContent({
         </div>
 
         {/* Instructor Module */}
-        {(isAdmin || isTeacher) && (
+        {canViewModule(instructorModule) && (
           <>
             <Separator className="my-4" />
             <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
@@ -871,7 +925,7 @@ function SidebarContent({
         )}
 
         {/* Administration Module */}
-        {isAdmin && (
+        {canViewModule(administrationModule) && (
           <>
             <Separator className="my-4" />
             <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
@@ -881,7 +935,7 @@ function SidebarContent({
         )}
 
         {/* Finance Module */}
-        {isAdmin && (
+        {canViewModule(financeModule) && (
           <>
             <Separator className="my-4" />
             <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
@@ -891,7 +945,7 @@ function SidebarContent({
         )}
 
         {/* HR Module */}
-        {isAdmin && (
+        {canViewModule(hrModule) && (
           <>
             <Separator className="my-4" />
             <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
@@ -914,7 +968,7 @@ function SidebarContent({
             </TooltipTrigger>
             <TooltipContent side="right">
               <p>{profile?.full_name || 'User'}</p>
-              <p className="text-xs text-muted-foreground capitalize">{role || 'student'}</p>
+              <p className="text-xs text-muted-foreground">{appRole?.name || role || 'No role'}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -931,8 +985,8 @@ function SidebarContent({
                 </p>
                 <div className="flex items-center gap-1">
                   {isAdmin && <Shield className="h-3 w-3 text-destructive shrink-0" />}
-                  <p className="truncate text-xs capitalize text-muted-foreground">
-                    {role || 'student'}
+                  <p className="truncate text-xs text-muted-foreground">
+                    {appRole?.name || role || 'No role'}
                   </p>
                 </div>
               </div>
