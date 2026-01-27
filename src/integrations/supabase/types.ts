@@ -133,6 +133,72 @@ export type Database = {
         }
         Relationships: []
       }
+      app_modules: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          parent_code: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          parent_code?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          parent_code?: string | null
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      app_roles: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_system: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_system?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_system?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_id: string | null
@@ -4307,6 +4373,44 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          action: Database["public"]["Enums"]["permission_action"]
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_allowed: boolean | null
+          module_code: string
+          role_id: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["permission_action"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_allowed?: boolean | null
+          module_code: string
+          role_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["permission_action"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_allowed?: boolean | null
+          module_code?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "app_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_types: {
         Row: {
           created_at: string | null
@@ -4606,24 +4710,35 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          app_role_id: string | null
           created_at: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          app_role_id?: string | null
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          app_role_id?: string | null
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_app_role_id_fkey"
+            columns: ["app_role_id"]
+            isOneToOne: false
+            referencedRelation: "app_roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vendor_types: {
         Row: {
@@ -4708,6 +4823,14 @@ export type Database = {
       generate_invoice_number: { Args: never; Returns: string }
       generate_journal_number: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
+      get_user_app_role: { Args: { _user_id: string }; Returns: string }
+      get_user_permissions: {
+        Args: { _user_id: string }
+        Returns: {
+          action: Database["public"]["Enums"]["permission_action"]
+          module_code: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -4723,6 +4846,14 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string[]
       }
+      user_has_permission: {
+        Args: {
+          _action: Database["public"]["Enums"]["permission_action"]
+          _module_code: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "teacher" | "student"
@@ -4736,6 +4867,7 @@ export type Database = {
         | "retired"
         | "deceased"
       leave_status: "pending" | "approved" | "rejected" | "cancelled"
+      permission_action: "view" | "add" | "edit" | "delete" | "change_status"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4875,6 +5007,7 @@ export const Constants = {
         "deceased",
       ],
       leave_status: ["pending", "approved", "rejected", "cancelled"],
+      permission_action: ["view", "add", "edit", "delete", "change_status"],
     },
   },
 } as const

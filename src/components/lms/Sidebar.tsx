@@ -147,6 +147,23 @@ const administrationModule: NavModule = {
       icon: Users,
     },
     {
+      title: 'Roles & Permissions',
+      href: '/lms/admin/roles',
+      icon: Shield,
+      subItems: [
+        {
+          title: 'Manage Roles',
+          href: '/lms/admin/roles',
+          icon: Shield,
+        },
+        {
+          title: 'User Role Assignment',
+          href: '/lms/admin/user-roles',
+          icon: UserCog,
+        },
+      ],
+    },
+    {
       title: 'Categories',
       href: '/lms/admin/categories',
       icon: FolderOpen,
