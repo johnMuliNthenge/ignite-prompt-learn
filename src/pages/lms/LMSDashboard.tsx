@@ -40,7 +40,7 @@ interface Stats {
 }
 
 export default function LMSDashboard() {
-  const { profile, role, isAdmin, isTeacher } = useAuth();
+  const { profile, role, appRole, isAdmin, isTeacher } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalCourses: 0,
@@ -131,16 +131,27 @@ export default function LMSDashboard() {
     <div className="p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">
-          Welcome back, {profile?.full_name?.split(' ')[0] || 'Learner'}!
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          {isAdmin
-            ? 'Manage your learning platform'
-            : isTeacher
-            ? 'Create and manage your courses'
-            : 'Continue your learning journey'}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">
+              Welcome back, {profile?.full_name?.split(' ')[0] || 'Learner'}!
+            </h1>
+            <p className="mt-1 text-muted-foreground">
+              {isAdmin
+                ? 'Manage your learning platform'
+                : isTeacher
+                ? 'Create and manage your courses'
+                : 'Continue your learning journey'}
+            </p>
+          </div>
+          {appRole && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="px-3 py-1 text-sm font-medium">
+                Role: {appRole.name}
+              </Badge>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
