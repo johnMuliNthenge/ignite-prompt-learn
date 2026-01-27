@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +16,9 @@ import {
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
+
+const MODULE_CODE = 'finance.utilities';
 
 interface ExchangeRate {
   id: string;
@@ -35,7 +37,7 @@ interface Currency {
 }
 
 export default function ExchangeRates() {
-  const { isAdmin } = useAuth();
+  const { canAdd, canDelete } = useModulePermissions(MODULE_CODE);
   const [rates, setRates] = useState<ExchangeRate[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,99 +99,101 @@ export default function ExchangeRates() {
     fetchData();
   };
 
-  if (!isAdmin) {
-    return <div className="p-6"><p className="text-muted-foreground">Access denied.</p></div>;
-  }
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Exchange Rates</h1>
-          <p className="text-muted-foreground">Manage currency exchange rates</p>
+    <ProtectedPage moduleCode={MODULE_CODE} title="Exchange Rates">
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Exchange Rates</h1>
+            <p className="text-muted-foreground">Manage currency exchange rates</p>
+          </div>
+          <ActionButton moduleCode={MODULE_CODE} action="add">
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setFormData({ from_currency_id: '', to_currency_id: '', rate: '', effective_date: format(new Date(), 'yyyy-MM-dd') }); }}>
+              <DialogTrigger asChild>
+                <Button><Plus className="mr-2 h-4 w-4" /> Add Exchange Rate</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Exchange Rate</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>From Currency *</Label>
+                      <Select value={formData.from_currency_id} onValueChange={(v) => setFormData({ ...formData, from_currency_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {currencies.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>To Currency *</Label>
+                      <Select value={formData.to_currency_id} onValueChange={(v) => setFormData({ ...formData, to_currency_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {currencies.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Rate *</Label>
+                      <Input type="number" step="0.0001" value={formData.rate} onChange={(e) => setFormData({ ...formData, rate: e.target.value })} placeholder="1.0000" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Effective Date *</Label>
+                      <Input type="date" value={formData.effective_date} onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })} />
+                    </div>
+                  </div>
+                  <Button onClick={handleSubmit} className="w-full">Create</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </ActionButton>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setFormData({ from_currency_id: '', to_currency_id: '', rate: '', effective_date: format(new Date(), 'yyyy-MM-dd') }); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Exchange Rate</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Exchange Rate</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>From Currency *</Label>
-                  <Select value={formData.from_currency_id} onValueChange={(v) => setFormData({ ...formData, from_currency_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>To Currency *</Label>
-                  <Select value={formData.to_currency_id} onValueChange={(v) => setFormData({ ...formData, to_currency_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Rate *</Label>
-                  <Input type="number" step="0.0001" value={formData.rate} onChange={(e) => setFormData({ ...formData, rate: e.target.value })} placeholder="1.0000" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Effective Date *</Label>
-                  <Input type="date" value={formData.effective_date} onChange={(e) => setFormData({ ...formData, effective_date: e.target.value })} />
-                </div>
-              </div>
-              <Button onClick={handleSubmit} className="w-full">Create</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      <Card>
-        <CardHeader><CardTitle>Exchange Rates History</CardTitle></CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead className="text-right">Rate</TableHead>
-                  <TableHead>Effective Date</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rates.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No exchange rates found</TableCell></TableRow>
-                ) : (
-                  rates.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-mono">{item.from_currency || '-'}</TableCell>
-                      <TableCell className="font-mono">{item.to_currency || '-'}</TableCell>
-                      <TableCell className="text-right font-mono">{Number(item.rate).toFixed(4)}</TableCell>
-                      <TableCell>{format(new Date(item.effective_date), 'dd MMM yyyy')}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4" /></Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        <Card>
+          <CardHeader><CardTitle>Exchange Rates History</CardTitle></CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>From</TableHead>
+                    <TableHead>To</TableHead>
+                    <TableHead className="text-right">Rate</TableHead>
+                    <TableHead>Effective Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rates.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No exchange rates found</TableCell></TableRow>
+                  ) : (
+                    rates.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-mono">{item.from_currency || '-'}</TableCell>
+                        <TableCell className="font-mono">{item.to_currency || '-'}</TableCell>
+                        <TableCell className="text-right font-mono">{Number(item.rate).toFixed(4)}</TableCell>
+                        <TableCell>{format(new Date(item.effective_date), 'dd MMM yyyy')}</TableCell>
+                        <TableCell>
+                          <ActionButton moduleCode={MODULE_CODE} action="delete">
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </ActionButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </ProtectedPage>
   );
 }
