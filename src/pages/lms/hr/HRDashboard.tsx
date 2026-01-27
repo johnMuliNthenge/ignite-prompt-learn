@@ -2,6 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, UserCheck, CalendarDays, Clock, AlertTriangle, TrendingUp } from "lucide-react";
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
+
+const MODULE_CODE = 'hr.dashboard';
 
 export default function HRDashboard() {
   const { data: stats } = useQuery({
@@ -57,6 +60,7 @@ export default function HRDashboard() {
   });
 
   return (
+    <ProtectedPage moduleCode={MODULE_CODE} title="HR Dashboard">
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">HR Dashboard</h1>
@@ -174,5 +178,6 @@ export default function HRDashboard() {
         </Card>
       </div>
     </div>
+    </ProtectedPage>
   );
 }

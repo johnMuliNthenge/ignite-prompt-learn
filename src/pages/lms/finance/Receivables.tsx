@@ -31,6 +31,9 @@ import {
 import { Search, Plus, Eye, DollarSign, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
+
+const MODULE_CODE = 'finance.receivables';
 
 interface Invoice {
   id: string;
@@ -59,7 +62,8 @@ interface FeeAccount {
 }
 
 export default function Receivables() {
-  const { isAdmin, user } = useAuth();
+  const { user } = useAuth();
+  const { canAdd, canEdit } = useModulePermissions(MODULE_CODE);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [feeAccounts, setFeeAccounts] = useState<FeeAccount[]>([]);
@@ -305,32 +309,26 @@ export default function Receivables() {
       inv.student_no.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!isAdmin) {
-    return (
-      <div className="p-6">
-        <p className="text-muted-foreground">You don't have access to this page.</p>
-      </div>
-    );
-  }
-
   return (
+    <ProtectedPage moduleCode={MODULE_CODE} title="Receivables">
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Receivables</h1>
           <p className="text-muted-foreground">Manage student fee invoices and payments</p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Invoice
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Invoice</DialogTitle>
-            </DialogHeader>
+        <ActionButton moduleCode={MODULE_CODE} action="add">
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Invoice
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Invoice</DialogTitle>
+              </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Student *</Label>
@@ -400,6 +398,7 @@ export default function Receivables() {
             </div>
           </DialogContent>
         </Dialog>
+        </ActionButton>
       </div>
 
       <Card>
@@ -525,5 +524,6 @@ export default function Receivables() {
         </DialogContent>
       </Dialog>
     </div>
+    </ProtectedPage>
   );
 }

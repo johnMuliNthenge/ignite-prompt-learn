@@ -31,6 +31,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Search, Plus, Edit, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
+
+const MODULE_CODE = 'finance.budget';
 
 interface Budget {
   id: string;
@@ -49,7 +52,8 @@ interface FiscalYear {
 }
 
 export default function Budget() {
-  const { isAdmin, user } = useAuth();
+  const { user } = useAuth();
+  const { canAdd, canEdit, canDelete } = useModulePermissions(MODULE_CODE);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,32 +186,26 @@ export default function Budget() {
       (b.fiscal_year_name && b.fiscal_year_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  if (!isAdmin) {
-    return (
-      <div className="p-6">
-        <p className="text-muted-foreground">You don't have access to this page.</p>
-      </div>
-    );
-  }
-
   return (
+    <ProtectedPage moduleCode={MODULE_CODE} title="Budget Management">
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Budget Management</h1>
           <p className="text-muted-foreground">Create and manage institutional budgets</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Budget
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Budget</DialogTitle>
-            </DialogHeader>
+        <ActionButton moduleCode={MODULE_CODE} action="add">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Budget
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Budget</DialogTitle>
+              </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Budget Name *</Label>
@@ -259,6 +257,7 @@ export default function Budget() {
             </div>
           </DialogContent>
         </Dialog>
+        </ActionButton>
       </div>
 
       <Card>
@@ -317,12 +316,16 @@ export default function Budget() {
                       <TableCell>{getStatusBadge(budget.status)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button variant="ghost" size="icon" title="Edit">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Delete">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <ActionButton moduleCode={MODULE_CODE} action="edit">
+                            <Button variant="ghost" size="icon" title="Edit">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </ActionButton>
+                          <ActionButton moduleCode={MODULE_CODE} action="delete">
+                            <Button variant="ghost" size="icon" title="Delete">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </ActionButton>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -334,5 +337,6 @@ export default function Budget() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedPage>
   );
 }

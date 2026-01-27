@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,6 +11,9 @@ import {
   Loader2,
   BarChart3,
 } from 'lucide-react';
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
+
+const MODULE_CODE = 'admin.analytics';
 
 interface AnalyticsData {
   totalUsers: number;
@@ -26,18 +27,12 @@ interface AnalyticsData {
 }
 
 export default function AnalyticsDashboard() {
-  const { isAdmin } = useAuth();
-  const navigate = useNavigate();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAdmin) {
-      navigate('/lms/dashboard');
-      return;
-    }
     fetchAnalytics();
-  }, [isAdmin, navigate]);
+  }, []);
 
   const fetchAnalytics = async () => {
     try {
@@ -101,6 +96,7 @@ export default function AnalyticsDashboard() {
   }
 
   return (
+    <ProtectedPage moduleCode={MODULE_CODE} title="Analytics Dashboard">
     <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
@@ -240,5 +236,6 @@ export default function AnalyticsDashboard() {
         </Card>
       </div>
     </div>
+    </ProtectedPage>
   );
 }
