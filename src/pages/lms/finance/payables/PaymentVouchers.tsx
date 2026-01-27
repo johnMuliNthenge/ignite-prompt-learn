@@ -19,6 +19,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Search, Plus, Eye, CheckCircle, XCircle, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
+
+const MODULE_CODE = 'finance.payables';
 
 interface PaymentVoucher {
   id: string;
@@ -46,7 +49,8 @@ interface PaymentMode {
 }
 
 export default function PaymentVouchers() {
-  const { isAdmin, user } = useAuth();
+  const { user } = useAuth();
+  const { canAdd, canEdit, canChangeStatus } = useModulePermissions(MODULE_CODE);
   const [vouchers, setVouchers] = useState<PaymentVoucher[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
@@ -155,17 +159,15 @@ export default function PaymentVouchers() {
     return <Badge className={colors[status] || 'bg-gray-500'}>{status}</Badge>;
   };
 
-  if (!isAdmin) {
-    return <div className="p-6"><p className="text-muted-foreground">Access denied</p></div>;
-  }
-
   return (
+    <ProtectedPage moduleCode={MODULE_CODE} title="Payment Vouchers">
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Payment Vouchers</h1>
           <p className="text-muted-foreground">Create and manage payment vouchers for vendor payments</p>
         </div>
+        <ActionButton moduleCode={MODULE_CODE} action="add">
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Create Voucher</Button>
@@ -234,6 +236,7 @@ export default function PaymentVouchers() {
             </div>
           </DialogContent>
         </Dialog>
+        </ActionButton>
       </div>
 
       <Card>
@@ -296,5 +299,6 @@ export default function PaymentVouchers() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedPage>
   );
 }

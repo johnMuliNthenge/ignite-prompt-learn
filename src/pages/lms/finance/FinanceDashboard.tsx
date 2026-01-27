@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -13,6 +12,9 @@ import {
   Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProtectedPage } from '@/components/auth/ProtectedPage';
+
+const MODULE_CODE = 'finance.dashboard';
 
 interface FinanceStats {
   totalReceivables: number;
@@ -24,7 +26,6 @@ interface FinanceStats {
 }
 
 export default function FinanceDashboard() {
-  const { isAdmin } = useAuth();
   const [stats, setStats] = useState<FinanceStats>({
     totalReceivables: 0,
     totalPayables: 0,
@@ -96,15 +97,8 @@ export default function FinanceDashboard() {
     }).format(amount);
   };
 
-  if (!isAdmin) {
-    return (
-      <div className="p-6">
-        <p className="text-muted-foreground">You don't have access to this page.</p>
-      </div>
-    );
-  }
-
   return (
+    <ProtectedPage moduleCode={MODULE_CODE} title="Finance Dashboard">
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Finance Dashboard</h1>
@@ -181,5 +175,6 @@ export default function FinanceDashboard() {
         </Card>
       </div>
     </div>
+    </ProtectedPage>
   );
 }

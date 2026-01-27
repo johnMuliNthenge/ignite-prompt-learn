@@ -32,6 +32,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Search, Plus, Eye, Check, X, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
 
 interface JournalEntry {
   id: string;
@@ -60,8 +61,11 @@ interface Account {
   account_type: string;
 }
 
+const MODULE_CODE = 'finance.journal';
+
 export default function JournalEntries() {
-  const { isAdmin, user } = useAuth();
+  const { user } = useAuth();
+  const { canAdd, canEdit, canChangeStatus } = useModulePermissions(MODULE_CODE);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -315,28 +319,22 @@ export default function JournalEntries() {
       entry.narration.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!isAdmin) {
-    return (
-      <div className="p-6">
-        <p className="text-muted-foreground">You don't have access to this page.</p>
-      </div>
-    );
-  }
-
   return (
+    <ProtectedPage moduleCode={MODULE_CODE} title="Journal Entries">
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Journal Entries</h1>
           <p className="text-muted-foreground">Record and manage accounting journal entries</p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Journal Entry
-            </Button>
-          </DialogTrigger>
+        <ActionButton moduleCode={MODULE_CODE} action="add">
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Journal Entry
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Journal Entry</DialogTitle>
@@ -477,6 +475,7 @@ export default function JournalEntries() {
             </div>
           </DialogContent>
         </Dialog>
+        </ActionButton>
       </div>
 
       <Card>
@@ -566,5 +565,6 @@ export default function JournalEntries() {
         </CardContent>
       </Card>
     </div>
+    </ProtectedPage>
   );
 }
