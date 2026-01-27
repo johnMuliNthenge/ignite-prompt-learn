@@ -15,11 +15,17 @@ interface Profile {
   is_active: boolean;
 }
 
+interface AppRoleInfo {
+  name: string;
+  description: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   role: AppRole | null;
+  appRole: AppRoleInfo | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
@@ -36,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [appRole, setAppRole] = useState<AppRoleInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -51,7 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchRole = async (userId: string) => {
-    const { data } = await supabase
+    // Fetch legacy role
+    const { data: legacyRole } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
@@ -59,8 +67,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .limit(1)
       .single();
     
-    if (data) {
-      setRole(data.role as AppRole);
+    if (legacyRole) {
+      setRole(legacyRole.role as AppRole);
+    }
+
+    // Fetch app role from new RBAC system
+    const { data: appRoleData } = await supabase
+      .from('user_roles')
+      .select(`
+        app_role_id,
+        app_roles:app_role_id (
+          name,
+          description
+        )
+      `)
+      .eq('user_id', userId)
+      .not('app_role_id', 'is', null)
+      .limit(1)
+      .single();
+    
+    if (appRoleData?.app_roles) {
+      const roleInfo = appRoleData.app_roles as unknown as AppRoleInfo;
+      setAppRole({
+        name: roleInfo.name,
+        description: roleInfo.description
+      });
     }
   };
 
@@ -80,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setProfile(null);
           setRole(null);
+          setAppRole(null);
         }
         setLoading(false);
       }
@@ -125,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setProfile(null);
     setRole(null);
+    setAppRole(null);
   };
 
   const value: AuthContextType = {
@@ -132,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     profile,
     role,
+    appRole,
     loading,
     signIn,
     signUp,
