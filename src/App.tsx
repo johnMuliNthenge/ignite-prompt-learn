@@ -24,6 +24,8 @@ import AnalyticsDashboard from "./pages/lms/admin/AnalyticsDashboard";
 import StudentManagement from "./pages/lms/admin/StudentManagement";
 import AdministrationSettings from "./pages/lms/admin/AdministrationSettings";
 import ClassManagement from "./pages/lms/admin/ClassManagement";
+import RoleManagement from "./pages/lms/admin/RoleManagement";
+import UserRoleAssignment from "./pages/lms/admin/UserRoleAssignment";
 import CreateCourse from "./pages/lms/courses/CreateCourse";
 import CourseEditor from "./pages/lms/courses/CourseEditor";
 import CourseCatalog from "./pages/lms/courses/CourseCatalog";
@@ -77,14 +79,40 @@ import StudentSchedules from "./pages/lms/finance/reports/StudentSchedules";
 import HRDashboard from "./pages/lms/hr/HRDashboard";
 import EmployeeList from "./pages/lms/hr/employees/EmployeeList";
 import AddEmployee from "./pages/lms/hr/employees/AddEmployee";
+import BulkUpload from "./pages/lms/hr/employees/BulkUpload";
+import Documents from "./pages/lms/hr/employees/Documents";
 import Designations from "./pages/lms/hr/utilities/Designations";
 import Ranks from "./pages/lms/hr/utilities/Ranks";
 import EmploymentTerms from "./pages/lms/hr/utilities/EmploymentTerms";
 import EmployeeCategories from "./pages/lms/hr/utilities/EmployeeCategories";
-import Departments from "./pages/lms/hr/utilities/Departments";
+import CasualCategories from "./pages/lms/hr/utilities/CasualCategories";
+import HRDepartments from "./pages/lms/hr/utilities/Departments";
+import Skills from "./pages/lms/hr/utilities/Skills";
+import SkillTypes from "./pages/lms/hr/utilities/SkillTypes";
+import InsuranceTypes from "./pages/lms/hr/utilities/InsuranceTypes";
 import LeaveApplications from "./pages/lms/hr/leave/LeaveApplications";
 import LeaveTypes from "./pages/lms/hr/leave/LeaveTypes";
+import LeaveBalances from "./pages/lms/hr/leave/LeaveBalances";
+import LeaveCalendar from "./pages/lms/hr/leave/LeaveCalendar";
+import LeaveGroups from "./pages/lms/hr/leave/config/LeaveGroups";
+import LeavePeriods from "./pages/lms/hr/leave/config/LeavePeriods";
+import WorkWeeks from "./pages/lms/hr/leave/config/WorkWeeks";
+import Holidays from "./pages/lms/hr/leave/config/Holidays";
+import ReservedPeriods from "./pages/lms/hr/leave/config/ReservedPeriods";
 import DailyAttendance from "./pages/lms/hr/attendance/DailyAttendance";
+import Overtime from "./pages/lms/hr/attendance/Overtime";
+import TOIL from "./pages/lms/hr/attendance/TOIL";
+import PerformanceReviews from "./pages/lms/hr/performance/PerformanceReviews";
+import EvaluationPeriods from "./pages/lms/hr/performance/EvaluationPeriods";
+import RatingScales from "./pages/lms/hr/performance/RatingScales";
+import DisciplinaryRecords from "./pages/lms/hr/disciplinary/DisciplinaryRecords";
+import Structure from "./pages/lms/hr/organization/Structure";
+import HeadcountReport from "./pages/lms/hr/reports/HeadcountReport";
+import LeaveLiability from "./pages/lms/hr/reports/LeaveLiability";
+import AbsenteeismReport from "./pages/lms/hr/reports/AbsenteeismReport";
+import TurnoverReport from "./pages/lms/hr/reports/TurnoverReport";
+import ContractExpiry from "./pages/lms/hr/reports/ContractExpiry";
+import ProbationTracking from "./pages/lms/hr/reports/ProbationTracking";
 
 const queryClient = new QueryClient();
 
@@ -115,7 +143,11 @@ const App = () => (
               <Route path="instructor/courses" element={<InstructorCourses />} />
               <Route path="students" element={<StudentManagement />} />
               <Route path="students/classes" element={<ClassManagement />} />
+              
+              {/* Admin Routes */}
               <Route path="admin/users" element={<UserManagement />} />
+              <Route path="admin/roles" element={<RoleManagement />} />
+              <Route path="admin/user-roles" element={<UserRoleAssignment />} />
               <Route path="admin/categories" element={<CategoryManagement />} />
               <Route path="admin/analytics" element={<AnalyticsDashboard />} />
               <Route path="admin/administration" element={<AdministrationSettings />} />
@@ -167,14 +199,46 @@ const App = () => (
               <Route path="hr/dashboard" element={<HRDashboard />} />
               <Route path="hr/employees" element={<EmployeeList />} />
               <Route path="hr/employees/add" element={<AddEmployee />} />
+              <Route path="hr/employees/bulk-upload" element={<BulkUpload />} />
+              <Route path="hr/employees/documents" element={<Documents />} />
+              <Route path="hr/organization/structure" element={<Structure />} />
+              {/* HR Leave */}
+              <Route path="hr/leave/applications" element={<LeaveApplications />} />
+              <Route path="hr/leave/balances" element={<LeaveBalances />} />
+              <Route path="hr/leave/calendar" element={<LeaveCalendar />} />
+              <Route path="hr/leave/config/types" element={<LeaveTypes />} />
+              <Route path="hr/leave/config/groups" element={<LeaveGroups />} />
+              <Route path="hr/leave/config/periods" element={<LeavePeriods />} />
+              <Route path="hr/leave/config/work-weeks" element={<WorkWeeks />} />
+              <Route path="hr/leave/config/holidays" element={<Holidays />} />
+              <Route path="hr/leave/config/reserved-periods" element={<ReservedPeriods />} />
+              {/* HR Attendance */}
+              <Route path="hr/attendance/daily" element={<DailyAttendance />} />
+              <Route path="hr/attendance/overtime" element={<Overtime />} />
+              <Route path="hr/attendance/toil" element={<TOIL />} />
+              {/* HR Performance */}
+              <Route path="hr/performance/reviews" element={<PerformanceReviews />} />
+              <Route path="hr/performance/periods" element={<EvaluationPeriods />} />
+              <Route path="hr/performance/scales" element={<RatingScales />} />
+              {/* HR Disciplinary */}
+              <Route path="hr/disciplinary/records" element={<DisciplinaryRecords />} />
+              {/* HR Utilities */}
               <Route path="hr/utilities/designations" element={<Designations />} />
               <Route path="hr/utilities/ranks" element={<Ranks />} />
               <Route path="hr/utilities/employment-terms" element={<EmploymentTerms />} />
               <Route path="hr/utilities/categories" element={<EmployeeCategories />} />
-              <Route path="hr/organization/departments" element={<Departments />} />
-              <Route path="hr/leave/applications" element={<LeaveApplications />} />
-              <Route path="hr/leave/config/types" element={<LeaveTypes />} />
-              <Route path="hr/attendance/daily" element={<DailyAttendance />} />
+              <Route path="hr/utilities/casual-categories" element={<CasualCategories />} />
+              <Route path="hr/utilities/departments" element={<HRDepartments />} />
+              <Route path="hr/utilities/skills" element={<Skills />} />
+              <Route path="hr/utilities/skill-types" element={<SkillTypes />} />
+              <Route path="hr/utilities/insurance-types" element={<InsuranceTypes />} />
+              {/* HR Reports */}
+              <Route path="hr/reports/headcount" element={<HeadcountReport />} />
+              <Route path="hr/reports/leave-liability" element={<LeaveLiability />} />
+              <Route path="hr/reports/absenteeism" element={<AbsenteeismReport />} />
+              <Route path="hr/reports/turnover" element={<TurnoverReport />} />
+              <Route path="hr/reports/contract-expiry" element={<ContractExpiry />} />
+              <Route path="hr/reports/probation" element={<ProbationTracking />} />
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
