@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -28,10 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Plus, Eye, DollarSign, Loader2, Receipt } from 'lucide-react';
+import { Search, Eye, DollarSign, Loader2, Receipt, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
+import PaymentReceipt from '@/components/lms/finance/PaymentReceipt';
 
 const MODULE_CODE = 'finance.receivables';
 
@@ -78,8 +80,22 @@ export default function Receivables() {
   const [searchTerm, setSearchTerm] = useState('');
   const [receivePaymentDialogOpen, setReceivePaymentDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
+
+  // Receipt data state
+  const [receiptData, setReceiptData] = useState<{
+    receiptNumber: string;
+    studentName: string;
+    studentNo: string;
+    paymentDate: string;
+    amount: number;
+    referenceNumber?: string;
+    notes?: string;
+    voteHeads: { name: string; amount: number }[];
+  } | null>(null);
 
   // Receive Payment form state
   const [newPayment, setNewPayment] = useState({
@@ -189,6 +205,67 @@ export default function Receivables() {
     setIncomeAccounts(data || []);
   };
 
+  // Fetch vote heads (fee accounts) for a student's invoices
+  const fetchVoteHeadsForStudent = async (studentId: string, paymentAmount: number): Promise<{ name: string; amount: number }[]> => {
+    // Get invoice items from unpaid/partial invoices for the student
+    const { data: invoices } = await supabase
+      .from('fee_invoices')
+      .select('id')
+      .eq('student_id', studentId)
+      .gt('balance_due', 0)
+      .order('invoice_date', { ascending: true });
+
+    if (!invoices || invoices.length === 0) {
+      // If no invoices, check if there's an income account selected
+      if (newPayment.income_account_id) {
+        const account = incomeAccounts.find(a => a.id === newPayment.income_account_id);
+        if (account) {
+          return [{ name: `${account.account_code} - ${account.account_name}`, amount: paymentAmount }];
+        }
+      }
+      return [];
+    }
+
+    const invoiceIds = invoices.map(inv => inv.id);
+
+    // Get invoice items with fee account details
+    const { data: items } = await supabase
+      .from('fee_invoice_items')
+      .select(`
+        description,
+        total,
+        fee_account_id,
+        fee_accounts(name)
+      `)
+      .in('invoice_id', invoiceIds);
+
+    if (!items || items.length === 0) {
+      if (newPayment.income_account_id) {
+        const account = incomeAccounts.find(a => a.id === newPayment.income_account_id);
+        if (account) {
+          return [{ name: `${account.account_code} - ${account.account_name}`, amount: paymentAmount }];
+        }
+      }
+      return [];
+    }
+
+    // Aggregate by fee account
+    const voteHeadMap = new Map<string, number>();
+    let remainingPayment = paymentAmount;
+
+    for (const item of items) {
+      if (remainingPayment <= 0) break;
+      const itemAmount = Number(item.total) || 0;
+      const amountToAllocate = Math.min(remainingPayment, itemAmount);
+      const accountName = (item as any).fee_accounts?.name || item.description || 'General Fee';
+      
+      voteHeadMap.set(accountName, (voteHeadMap.get(accountName) || 0) + amountToAllocate);
+      remainingPayment -= amountToAllocate;
+    }
+
+    return Array.from(voteHeadMap.entries()).map(([name, amount]) => ({ name, amount }));
+  };
+
   // Handle Receive Payment - standalone payment not tied to a specific invoice
   const handleReceivePayment = async () => {
     if (!newPayment.student_id || !newPayment.amount) {
@@ -225,9 +302,30 @@ export default function Receivables() {
       // Now apply FIFO allocation - update oldest unpaid invoices first
       await applyFIFOPaymentAllocation(newPayment.student_id, amount);
 
+      // Get student details for receipt
+      const student = students.find(s => s.id === newPayment.student_id);
+      const studentName = student ? `${student.other_name} ${student.surname}` : 'Unknown';
+      const studentNo = student?.student_no || '';
+
+      // Fetch vote heads for the receipt
+      const voteHeads = await fetchVoteHeadsForStudent(newPayment.student_id, amount);
+
+      // Set receipt data for printing
+      setReceiptData({
+        receiptNumber: receiptNumber || 'N/A',
+        studentName,
+        studentNo,
+        paymentDate: new Date().toISOString().split('T')[0],
+        amount,
+        referenceNumber: newPayment.reference_number || undefined,
+        notes: newPayment.notes || undefined,
+        voteHeads,
+      });
+
       toast.success(`Payment of ${formatCurrency(amount)} received successfully`);
       setReceivePaymentDialogOpen(false);
       setNewPayment({ student_id: '', income_account_id: '', amount: '', reference_number: '', notes: '' });
+      setReceiptDialogOpen(true); // Open receipt dialog
       fetchInvoices();
     } catch (error: any) {
       console.error('Error receiving payment:', error);
@@ -342,6 +440,88 @@ export default function Receivables() {
     }).format(amount);
   };
 
+  const handlePrintReceipt = () => {
+    const printContent = receiptRef.current;
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow pop-ups to print the receipt');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Payment Receipt</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+            .bg-white { background-color: white; }
+            .p-8 { padding: 2rem; }
+            .max-w-md { max-width: 28rem; }
+            .mx-auto { margin-left: auto; margin-right: auto; }
+            .text-black { color: black; }
+            .text-center { text-align: center; }
+            .text-left { text-align: left; }
+            .text-right { text-align: right; }
+            .text-2xl { font-size: 1.5rem; }
+            .text-sm { font-size: 0.875rem; }
+            .text-xs { font-size: 0.75rem; }
+            .font-bold { font-weight: bold; }
+            .font-semibold { font-weight: 600; }
+            .font-medium { font-weight: 500; }
+            .font-mono { font-family: monospace; }
+            .uppercase { text-transform: uppercase; }
+            .border { border: 1px solid #e5e7eb; }
+            .border-t { border-top: 1px solid #e5e7eb; }
+            .border-b { border-bottom: 1px solid #e5e7eb; }
+            .border-t-2 { border-top: 2px solid black; }
+            .border-b-2 { border-bottom: 2px solid black; }
+            .border-black { border-color: black; }
+            .border-gray-200 { border-color: #e5e7eb; }
+            .rounded-lg { border-radius: 0.5rem; }
+            .p-4 { padding: 1rem; }
+            .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+            .pt-1 { padding-top: 0.25rem; }
+            .pt-4 { padding-top: 1rem; }
+            .pb-4 { padding-bottom: 1rem; }
+            .mt-1 { margin-top: 0.25rem; }
+            .mt-8 { margin-top: 2rem; }
+            .mb-2 { margin-bottom: 0.5rem; }
+            .mb-4 { margin-bottom: 1rem; }
+            .mb-6 { margin-bottom: 1.5rem; }
+            .mb-8 { margin-bottom: 2rem; }
+            .space-y-1 > * + * { margin-top: 0.25rem; }
+            .space-y-2 > * + * { margin-top: 0.5rem; }
+            .space-y-3 > * + * { margin-top: 0.75rem; }
+            .bg-gray-50 { background-color: #f9fafb; }
+            .text-gray-500 { color: #6b7280; }
+            .text-gray-600 { color: #4b5563; }
+            .w-full { width: 100%; }
+            .w-32 { width: 8rem; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { padding: 0.5rem; }
+            @media print {
+              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Paid':
@@ -383,6 +563,7 @@ export default function Receivables() {
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Receive Payment</DialogTitle>
+                <DialogDescription>Record a payment from a student</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -554,6 +735,7 @@ export default function Receivables() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
+            <DialogDescription>Record a payment against this invoice</DialogDescription>
           </DialogHeader>
           {selectedInvoice && (
             <div className="space-y-4">
@@ -576,6 +758,42 @@ export default function Receivables() {
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Record Payment
               </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Print Dialog */}
+      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Payment Receipt</DialogTitle>
+            <DialogDescription>Review and print the payment receipt</DialogDescription>
+          </DialogHeader>
+          {receiptData && (
+            <div className="space-y-4">
+              <div className="border rounded-lg overflow-hidden">
+                <PaymentReceipt
+                  ref={receiptRef}
+                  receiptNumber={receiptData.receiptNumber}
+                  studentName={receiptData.studentName}
+                  studentNo={receiptData.studentNo}
+                  paymentDate={receiptData.paymentDate}
+                  amount={receiptData.amount}
+                  referenceNumber={receiptData.referenceNumber}
+                  notes={receiptData.notes}
+                  voteHeads={receiptData.voteHeads}
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>
+                  Close
+                </Button>
+                <Button onClick={handlePrintReceipt}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Receipt
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
