@@ -29,7 +29,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Eye, DollarSign, Loader2, Receipt, Printer } from 'lucide-react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { Search, DollarSign, Loader2, Receipt, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
@@ -37,17 +45,16 @@ import PaymentReceipt from '@/components/lms/finance/PaymentReceipt';
 
 const MODULE_CODE = 'finance.receivables';
 
-interface Invoice {
+interface Payment {
   id: string;
-  invoice_number: string;
+  receipt_number: string;
   student_id: string;
   student_name: string;
   student_no: string;
-  invoice_date: string;
-  due_date: string | null;
-  total_amount: number;
-  amount_paid: number;
-  balance_due: number;
+  payment_date: string;
+  amount: number;
+  reference_number: string | null;
+  notes: string | null;
   status: string;
 }
 
@@ -72,16 +79,14 @@ interface IncomeAccount {
 export default function Receivables() {
   const { user } = useAuth();
   const { canAdd, canEdit } = useModulePermissions(MODULE_CODE);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [feeAccounts, setFeeAccounts] = useState<FeeAccount[]>([]);
   const [incomeAccounts, setIncomeAccounts] = useState<IncomeAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [receivePaymentDialogOpen, setReceivePaymentDialogOpen] = useState(false);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -108,58 +113,55 @@ export default function Receivables() {
     notes: '',
   });
 
-  const [paymentAmount, setPaymentAmount] = useState('');
-
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      await Promise.all([fetchInvoices(), fetchStudents(), fetchFeeAccounts(), fetchIncomeAccounts()]);
+      await Promise.all([fetchPayments(), fetchStudents(), fetchFeeAccounts(), fetchIncomeAccounts()]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchInvoices = async () => {
+  const fetchPayments = async () => {
     const { data, error } = await supabase
-      .from('fee_invoices')
+      .from('fee_payments')
       .select(`
         id,
-        invoice_number,
+        receipt_number,
         student_id,
-        invoice_date,
-        due_date,
-        total_amount,
-        amount_paid,
-        balance_due,
+        payment_date,
+        amount,
+        reference_number,
+        notes,
         status,
         students(student_no, other_name, surname)
       `)
-      .order('invoice_date', { ascending: false });
+      .order('payment_date', { ascending: false })
+      .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching invoices:', error);
-      toast.error('Failed to load invoices');
+      console.error('Error fetching payments:', error);
+      toast.error('Failed to load payments');
       return;
     }
 
-    const formattedInvoices: Invoice[] = (data || []).map((inv: any) => ({
-      id: inv.id,
-      invoice_number: inv.invoice_number,
-      student_id: inv.student_id,
-      student_name: inv.students ? `${inv.students.other_name} ${inv.students.surname}` : 'Unknown',
-      student_no: inv.students?.student_no || '',
-      invoice_date: inv.invoice_date,
-      due_date: inv.due_date,
-      total_amount: Number(inv.total_amount) || 0,
-      amount_paid: Number(inv.amount_paid) || 0,
-      balance_due: Number(inv.balance_due) || 0,
-      status: inv.status,
+    const formattedPayments: Payment[] = (data || []).map((pay: any) => ({
+      id: pay.id,
+      receipt_number: pay.receipt_number,
+      student_id: pay.student_id,
+      student_name: pay.students ? `${pay.students.other_name} ${pay.students.surname}` : 'Unknown',
+      student_no: pay.students?.student_no || '',
+      payment_date: pay.payment_date,
+      amount: Number(pay.amount) || 0,
+      reference_number: pay.reference_number,
+      notes: pay.notes,
+      status: pay.status || 'Completed',
     }));
 
-    setInvoices(formattedInvoices);
+    setPayments(formattedPayments);
   };
 
   const fetchStudents = async () => {
@@ -214,11 +216,9 @@ export default function Receivables() {
       .from('fee_invoices')
       .select('id')
       .eq('student_id', studentId)
-      .gt('balance_due', 0)
       .order('invoice_date', { ascending: true });
 
     if (!invoices || invoices.length === 0) {
-      // If no invoices, check if there's an income account selected
       if (newPayment.income_account_id) {
         const account = incomeAccounts.find(a => a.id === newPayment.income_account_id);
         if (account) {
@@ -328,7 +328,7 @@ export default function Receivables() {
       setReceivePaymentDialogOpen(false);
       setNewPayment({ student_id: '', income_account_id: '', amount: '', reference_number: '', notes: '' });
       setReceiptDialogOpen(true); // Open receipt dialog
-      fetchInvoices();
+      fetchPayments(); // Refresh the list
     } catch (error: any) {
       console.error('Error receiving payment:', error);
       toast.error(error.message || 'Failed to receive payment');
@@ -367,72 +367,12 @@ export default function Receivables() {
         .from('fee_invoices')
         .update({
           amount_paid: newAmountPaid,
-          balance_due: newBalanceDue, // Allow negative for overpayments
+          balance_due: newBalanceDue,
           status: newStatus,
         })
         .eq('id', invoice.id);
 
       remainingPayment -= amountToApply;
-    }
-  };
-
-  const handleRecordPayment = async () => {
-    if (!selectedInvoice || !paymentAmount) {
-      toast.error('Please enter payment amount');
-      return;
-    }
-
-    const amount = parseFloat(paymentAmount);
-    if (amount <= 0) {
-      toast.error('Payment amount must be greater than zero');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // Generate receipt number
-      const { data: receiptNumber } = await supabase.rpc('generate_receipt_number');
-
-      // Create payment record
-      const { error: paymentError } = await supabase.from('fee_payments').insert({
-        receipt_number: receiptNumber,
-        student_id: selectedInvoice.student_id,
-        invoice_id: selectedInvoice.id,
-        payment_date: new Date().toISOString().split('T')[0],
-        amount: amount,
-        status: 'Completed',
-        received_by: user?.id,
-      });
-
-      if (paymentError) throw paymentError;
-
-      // Update invoice - allow overpayment (negative balance)
-      const newAmountPaid = selectedInvoice.amount_paid + amount;
-      const newBalance = selectedInvoice.total_amount - newAmountPaid;
-      // Allow negative balance for overpayments
-      const newStatus = newBalance < 0 ? 'Overpaid' : newBalance === 0 ? 'Paid' : 'Partial';
-
-      const { error: updateError } = await supabase
-        .from('fee_invoices')
-        .update({
-          amount_paid: newAmountPaid,
-          balance_due: newBalance, // Can be negative for overpayments
-          status: newStatus,
-        })
-        .eq('id', selectedInvoice.id);
-
-      if (updateError) throw updateError;
-
-      toast.success('Payment recorded successfully');
-      setPaymentDialogOpen(false);
-      setPaymentAmount('');
-      setSelectedInvoice(null);
-      fetchInvoices();
-    } catch (error: any) {
-      console.error('Error recording payment:', error);
-      toast.error(error.message || 'Failed to record payment');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -460,56 +400,14 @@ export default function Receivables() {
           <title>Payment Receipt</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-            .bg-white { background-color: white; }
-            .p-8 { padding: 2rem; }
-            .max-w-md { max-width: 28rem; }
-            .mx-auto { margin-left: auto; margin-right: auto; }
-            .text-black { color: black; }
+            .receipt-container { max-width: 400px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; }
             .text-center { text-align: center; }
-            .text-left { text-align: left; }
             .text-right { text-align: right; }
-            .text-2xl { font-size: 1.5rem; }
-            .text-sm { font-size: 0.875rem; }
-            .text-xs { font-size: 0.75rem; }
             .font-bold { font-weight: bold; }
-            .font-semibold { font-weight: 600; }
-            .font-medium { font-weight: 500; }
-            .font-mono { font-family: monospace; }
-            .uppercase { text-transform: uppercase; }
-            .border { border: 1px solid #e5e7eb; }
-            .border-t { border-top: 1px solid #e5e7eb; }
-            .border-b { border-bottom: 1px solid #e5e7eb; }
-            .border-t-2 { border-top: 2px solid black; }
-            .border-b-2 { border-bottom: 2px solid black; }
-            .border-black { border-color: black; }
-            .border-gray-200 { border-color: #e5e7eb; }
-            .rounded-lg { border-radius: 0.5rem; }
-            .p-4 { padding: 1rem; }
-            .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-            .pt-1 { padding-top: 0.25rem; }
-            .pt-4 { padding-top: 1rem; }
-            .pb-4 { padding-bottom: 1rem; }
-            .mt-1 { margin-top: 0.25rem; }
-            .mt-8 { margin-top: 2rem; }
-            .mb-2 { margin-bottom: 0.5rem; }
             .mb-4 { margin-bottom: 1rem; }
-            .mb-6 { margin-bottom: 1.5rem; }
-            .mb-8 { margin-bottom: 2rem; }
-            .space-y-1 > * + * { margin-top: 0.25rem; }
-            .space-y-2 > * + * { margin-top: 0.5rem; }
-            .space-y-3 > * + * { margin-top: 0.75rem; }
-            .bg-gray-50 { background-color: #f9fafb; }
-            .text-gray-500 { color: #6b7280; }
-            .text-gray-600 { color: #4b5563; }
-            .w-full { width: 100%; }
-            .w-32 { width: 8rem; }
-            .flex { display: flex; }
-            .justify-between { justify-content: space-between; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { padding: 0.5rem; }
-            @media print {
-              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            }
+            .mt-4 { margin-top: 1rem; }
+            .border-t { border-top: 1px solid #ddd; padding-top: 0.5rem; }
+            @media print { body { margin: 0; } }
           </style>
         </head>
         <body>
@@ -519,352 +417,335 @@ export default function Receivables() {
     `);
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    printWindow.print();
+    printWindow.close();
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Paid':
-        return <Badge className="bg-primary hover:bg-primary/90">Paid</Badge>;
-      case 'Partial':
-        return <Badge variant="secondary">Partial</Badge>;
-      case 'Overdue':
-        return <Badge variant="destructive">Overdue</Badge>;
-      case 'Overpaid':
-        return <Badge className="bg-blue-600 hover:bg-blue-700 text-white">Overpaid</Badge>;
-      case 'Cancelled':
-        return <Badge variant="outline">Cancelled</Badge>;
-      default:
-        return <Badge variant="outline">Unpaid</Badge>;
-    }
+  const handleViewReceipt = async (payment: Payment) => {
+    // Fetch vote heads for the receipt
+    const voteHeads = await fetchVoteHeadsForStudent(payment.student_id, payment.amount);
+
+    setReceiptData({
+      receiptNumber: payment.receipt_number,
+      studentName: payment.student_name,
+      studentNo: payment.student_no,
+      paymentDate: payment.payment_date,
+      amount: payment.amount,
+      referenceNumber: payment.reference_number || undefined,
+      notes: payment.notes || undefined,
+      voteHeads,
+    });
+    setReceiptDialogOpen(true);
   };
 
-  const filteredInvoices = invoices.filter(
-    (inv) =>
-      inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.student_no.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter payments based on search
+  const filteredPayments = payments.filter(payment =>
+    payment.receipt_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.student_no.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
+  // Pagination
+  const totalPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedInvoices = filteredInvoices.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedPayments = filteredPayments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Reset to page 1 when search changes
-  React.useEffect(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  return (
-    <ProtectedPage moduleCode={MODULE_CODE} title="Receivables">
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Receivables</h1>
-          <p className="text-muted-foreground">Manage student fee invoices and payments</p>
-        </div>
-        <ActionButton moduleCode={MODULE_CODE} action="add">
-          <Dialog open={receivePaymentDialogOpen} onOpenChange={setReceivePaymentDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Receipt className="mr-2 h-4 w-4" />
-                Receive Payment
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Receive Payment</DialogTitle>
-                <DialogDescription>Record a payment from a student</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Student *</Label>
-                  <Select
-                    value={newPayment.student_id}
-                    onValueChange={(value) => setNewPayment({ ...newPayment, student_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select student" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {students.map((student) => (
-                        <SelectItem key={student.id} value={student.id}>
-                          {student.student_no} - {student.other_name} {student.surname}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Income Account (optional)</Label>
-                  <Select
-                    value={newPayment.income_account_id}
-                    onValueChange={(value) => setNewPayment({ ...newPayment, income_account_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select income account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {incomeAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.account_code} - {account.account_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Amount (KES) *</Label>
-                  <Input
-                    type="number"
-                    value={newPayment.amount}
-                    onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Reference Number</Label>
-                  <Input
-                    value={newPayment.reference_number}
-                    onChange={(e) => setNewPayment({ ...newPayment, reference_number: e.target.value })}
-                    placeholder="e.g., Bank transaction ref"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Input
-                    value={newPayment.notes}
-                    onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })}
-                    placeholder="Payment notes"
-                  />
-                </div>
-                <Button onClick={handleReceivePayment} className="w-full" disabled={submitting}>
-                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Receive Payment
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </ActionButton>
-      </div>
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Completed':
+        return <Badge variant="default">Completed</Badge>;
+      case 'Pending':
+        return <Badge variant="secondary">Pending</Badge>;
+      case 'Cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Invoices</CardTitle>
-            <div className="relative w-72">
+  // Calculate totals
+  const totalReceived = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+
+  return (
+    <ProtectedPage moduleCode={MODULE_CODE}>
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Receivables</h1>
+            <p className="text-muted-foreground">Manage student fee payments and receipts</p>
+          </div>
+          <div className="flex gap-2">
+            <ActionButton moduleCode={MODULE_CODE} action="add">
+              <Dialog open={receivePaymentDialogOpen} onOpenChange={setReceivePaymentDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Receive Payment
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Receive Payment</DialogTitle>
+                    <DialogDescription>Record a fee payment from a student</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Student *</Label>
+                      <Select
+                        value={newPayment.student_id}
+                        onValueChange={(value) => setNewPayment({ ...newPayment, student_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a student" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {students.map((student) => (
+                            <SelectItem key={student.id} value={student.id}>
+                              {student.other_name} {student.surname} ({student.student_no})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Income Account</Label>
+                      <Select
+                        value={newPayment.income_account_id}
+                        onValueChange={(value) => setNewPayment({ ...newPayment, income_account_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an income account (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {incomeAccounts.map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.account_code} - {account.account_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Amount (KES) *</Label>
+                      <Input
+                        type="number"
+                        placeholder="Enter payment amount"
+                        value={newPayment.amount}
+                        onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Reference Number</Label>
+                      <Input
+                        placeholder="Bank/MPESA reference (optional)"
+                        value={newPayment.reference_number}
+                        onChange={(e) => setNewPayment({ ...newPayment, reference_number: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Notes</Label>
+                      <Input
+                        placeholder="Additional notes (optional)"
+                        value={newPayment.notes}
+                        onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setReceivePaymentDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleReceivePayment} disabled={submitting}>
+                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Receive Payment
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </ActionButton>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Total Receipts</div>
+              <div className="text-2xl font-bold">{filteredPayments.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Total Amount Received</div>
+          <div className="text-2xl font-bold text-primary">{formatCurrency(totalReceived)}</div>
+        </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground">Showing</div>
+              <div className="text-2xl font-bold">{paginatedPayments.length} of {filteredPayments.length}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search invoices..."
+                placeholder="Search by receipt number, student name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Paid</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedInvoices.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
-                      No invoices found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedInvoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-mono">{invoice.invoice_number}</TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{invoice.student_name}</p>
-                          <p className="text-xs text-muted-foreground">{invoice.student_no}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(invoice.total_amount)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(invoice.amount_paid)}</TableCell>
-                      <TableCell className={`text-right font-medium ${invoice.balance_due < 0 ? 'text-blue-600' : ''}`}>
-                        {invoice.balance_due < 0 
-                          ? `(${formatCurrency(Math.abs(invoice.balance_due))})` 
-                          : formatCurrency(invoice.balance_due)}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="icon" title="View Details">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {invoice.amount_paid > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Print Receipt"
-                              onClick={async () => {
-                                const voteHeads = await fetchVoteHeadsForStudent(invoice.student_id, invoice.amount_paid);
-                                setReceiptData({
-                                  receiptNumber: `INV-${invoice.invoice_number}`,
-                                  studentName: invoice.student_name,
-                                  studentNo: invoice.student_no,
-                                  paymentDate: invoice.invoice_date,
-                                  amount: invoice.amount_paid,
-                                  voteHeads,
-                                });
-                                setReceiptDialogOpen(true);
-                              }}
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {invoice.balance_due > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Record Payment"
-                              onClick={() => {
-                                setSelectedInvoice(invoice);
-                                setPaymentDialogOpen(true);
-                              }}
-                            >
-                              <DollarSign className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
+          </CardContent>
+        </Card>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredInvoices.length)} of {filteredInvoices.length} invoices
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(pageNum)}
-                        className="w-8 h-8 p-0"
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
+        {/* Payments Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Payment Receipts ({filteredPayments.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
-            <DialogDescription>Record a payment against this invoice</DialogDescription>
-          </DialogHeader>
-          {selectedInvoice && (
-            <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg space-y-2">
-                <p><strong>Invoice:</strong> {selectedInvoice.invoice_number}</p>
-                <p><strong>Student:</strong> {selectedInvoice.student_name}</p>
-                <p><strong>Balance Due:</strong> {formatCurrency(selectedInvoice.balance_due)}</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Payment Amount (KES) *</Label>
-                <Input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                />
-                <p className="text-xs text-muted-foreground">
-                  You can pay more than the balance. Excess will be recorded as prepayment.
+            ) : paginatedPayments.length === 0 ? (
+              <div className="text-center py-12">
+                <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">No Receipts Found</h3>
+                <p className="text-muted-foreground">
+                  {searchTerm ? 'No receipts match your search' : 'No payments have been recorded yet'}
                 </p>
               </div>
-              <Button onClick={handleRecordPayment} className="w-full" disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Record Payment
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Receipt No.</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-mono font-medium">{payment.receipt_number}</TableCell>
+                        <TableCell>{format(new Date(payment.payment_date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{payment.student_name}</p>
+                            <p className="text-xs text-muted-foreground">{payment.student_no}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-primary">
+                          {formatCurrency(payment.amount)}
+                        </TableCell>
+                        <TableCell>{payment.reference_number || '-'}</TableCell>
+                        <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewReceipt(payment)}
+                          >
+                            <Printer className="h-4 w-4 mr-1" />
+                            Print Receipt
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
 
-      {/* Receipt Print Dialog */}
-      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Payment Receipt</DialogTitle>
-            <DialogDescription>Review and print the payment receipt</DialogDescription>
-          </DialogHeader>
-          {receiptData && (
-            <div className="space-y-4">
-              <div className="border rounded-lg overflow-hidden">
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <div className="text-sm text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Previous
+                          </Button>
+                        </PaginationItem>
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          return (
+                            <PaginationItem key={pageNum}>
+                              <PaginationLink
+                                onClick={() => setCurrentPage(pageNum)}
+                                isActive={currentPage === pageNum}
+                                className="cursor-pointer"
+                              >
+                                {pageNum}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        })}
+                        <PaginationItem>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Receipt Dialog */}
+        <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Payment Receipt</DialogTitle>
+              <DialogDescription>Print or save this receipt</DialogDescription>
+            </DialogHeader>
+            <div ref={receiptRef}>
+              {receiptData && (
                 <PaymentReceipt
-                  ref={receiptRef}
                   receiptNumber={receiptData.receiptNumber}
                   studentName={receiptData.studentName}
                   studentNo={receiptData.studentNo}
@@ -874,21 +755,20 @@ export default function Receivables() {
                   notes={receiptData.notes}
                   voteHeads={receiptData.voteHeads}
                 />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>
-                  Close
-                </Button>
-                <Button onClick={handlePrintReceipt}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print Receipt
-                </Button>
-              </div>
+              )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>
+                Close
+              </Button>
+              <Button onClick={handlePrintReceipt}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print Receipt
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </ProtectedPage>
   );
 }
