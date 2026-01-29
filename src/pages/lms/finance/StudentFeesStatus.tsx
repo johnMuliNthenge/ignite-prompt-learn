@@ -62,54 +62,87 @@ export default function StudentFeesStatus() {
 
   const fetchStudentFeeStatuses = async () => {
     try {
+      // Fetch all students
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select(`
-          id,
-          student_no,
-          other_name,
-          surname,
-          email,
-          classes(name)
-        `)
+        .select('id, student_no, other_name, surname, email, class_id')
         .order('surname');
 
       if (studentsError) throw studentsError;
 
-      const { data: invoices } = await supabase
-        .from('fee_invoices')
-        .select('student_id, total_amount, amount_paid, balance_due, status');
+      // Fetch classes separately for reliable mapping
+      const { data: classesData } = await supabase
+        .from('classes')
+        .select('id, name');
 
-      const { data: payments } = await supabase
+      // Fetch ALL invoices - this is the DEBIT (what student owes)
+      const { data: invoicesData } = await supabase
+        .from('fee_invoices')
+        .select('id, student_id, total_amount, status, due_date');
+
+      // Fetch ALL completed payments - this is the CREDIT (what student paid)
+      const { data: paymentsData } = await supabase
         .from('fee_payments')
-        .select('student_id, amount')
+        .select('id, student_id, amount')
         .eq('status', 'Completed');
 
-      const studentStatuses: StudentFeeStatus[] = (studentsData || []).map((student: any) => {
-        const studentInvoices = invoices?.filter(inv => inv.student_id === student.id) || [];
-        const studentPayments = payments?.filter(pay => pay.student_id === student.id) || [];
+      const classMap = new Map((classesData || []).map(c => [c.id, c.name]));
 
+      const studentStatuses: StudentFeeStatus[] = (studentsData || []).map((student: any) => {
+        // Get all invoices for this student (DEBITS)
+        const studentInvoices = (invoicesData || []).filter(inv => inv.student_id === student.id);
+        
+        // Get all payments for this student (CREDITS)
+        const studentPayments = (paymentsData || []).filter(pay => pay.student_id === student.id);
+
+        // Calculate totals using proper accounting logic
+        // Total Invoiced = Sum of all invoice amounts (DEBIT side)
         const totalInvoiced = studentInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
+        
+        // Total Paid = Sum of all payment amounts (CREDIT side)
         const totalPaid = studentPayments.reduce((sum, pay) => sum + (Number(pay.amount) || 0), 0);
+        
+        // Balance = Debit - Credit (Outstanding amount student still owes)
         const balance = totalInvoiced - totalPaid;
 
+        // Determine status based on financial state
         let status: 'Paid' | 'Partial' | 'Unpaid' | 'Overdue' = 'Unpaid';
-        if (balance <= 0 && totalInvoiced > 0) status = 'Paid';
-        else if (totalPaid > 0 && balance > 0) status = 'Partial';
-        else if (studentInvoices.some(inv => inv.status === 'Overdue')) status = 'Overdue';
+        
+        if (totalInvoiced === 0) {
+          // No invoices - no fee status
+          status = 'Unpaid';
+        } else if (balance <= 0) {
+          // Fully paid or overpaid
+          status = 'Paid';
+        } else if (totalPaid > 0) {
+          // Partial payment made
+          status = 'Partial';
+        } else {
+          // Check if any invoice is overdue
+          const hasOverdue = studentInvoices.some(inv => {
+            if (inv.due_date) {
+              return new Date(inv.due_date) < new Date() && inv.status !== 'Paid';
+            }
+            return false;
+          });
+          status = hasOverdue ? 'Overdue' : 'Unpaid';
+        }
 
         return {
           id: student.id,
-          student_no: student.student_no,
+          student_no: student.student_no || '',
           full_name: `${student.other_name || ''} ${student.surname || ''}`.trim(),
           email: student.email || '',
-          class_name: student.classes?.name || null,
+          class_name: classMap.get(student.class_id) || null,
           total_invoiced: totalInvoiced,
           total_paid: totalPaid,
           balance: Math.max(0, balance),
           status,
         };
       });
+
+      // Sort by balance (highest debt first) to prioritize collections
+      studentStatuses.sort((a, b) => b.balance - a.balance);
 
       setStudents(studentStatuses);
     } catch (error) {
