@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Plus, Eye, DollarSign, Loader2 } from 'lucide-react';
+import { Search, Plus, Eye, DollarSign, Loader2, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
@@ -61,26 +61,33 @@ interface FeeAccount {
   name: string;
 }
 
+interface IncomeAccount {
+  id: string;
+  account_code: string;
+  account_name: string;
+}
+
 export default function Receivables() {
   const { user } = useAuth();
   const { canAdd, canEdit } = useModulePermissions(MODULE_CODE);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [feeAccounts, setFeeAccounts] = useState<FeeAccount[]>([]);
+  const [incomeAccounts, setIncomeAccounts] = useState<IncomeAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [receivePaymentDialogOpen, setReceivePaymentDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form states
-  const [newInvoice, setNewInvoice] = useState({
+  // Receive Payment form state
+  const [newPayment, setNewPayment] = useState({
     student_id: '',
-    fee_account_id: '',
+    income_account_id: '',
     amount: '',
-    description: '',
-    due_date: '',
+    reference_number: '',
+    notes: '',
   });
 
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -91,7 +98,7 @@ export default function Receivables() {
 
   const fetchData = async () => {
     try {
-      await Promise.all([fetchInvoices(), fetchStudents(), fetchFeeAccounts()]);
+      await Promise.all([fetchInvoices(), fetchStudents(), fetchFeeAccounts(), fetchIncomeAccounts()]);
     } finally {
       setLoading(false);
     }
@@ -166,62 +173,167 @@ export default function Receivables() {
     setFeeAccounts(data || []);
   };
 
-  const handleCreateInvoice = async () => {
-    if (!newInvoice.student_id || !newInvoice.amount) {
-      toast.error('Please fill in all required fields');
+  const fetchIncomeAccounts = async () => {
+    const { data, error } = await supabase
+      .from('chart_of_accounts')
+      .select('id, account_code, account_name')
+      .eq('account_type', 'Income')
+      .eq('is_active', true)
+      .order('account_code');
+
+    if (error) {
+      console.error('Error fetching income accounts:', error);
+      return;
+    }
+
+    setIncomeAccounts(data || []);
+  };
+
+  // Handle Receive Payment - standalone payment not tied to a specific invoice
+  const handleReceivePayment = async () => {
+    if (!newPayment.student_id || !newPayment.amount) {
+      toast.error('Please select a student and enter the payment amount');
+      return;
+    }
+
+    const amount = parseFloat(newPayment.amount);
+    if (amount <= 0) {
+      toast.error('Payment amount must be greater than zero');
       return;
     }
 
     setSubmitting(true);
     try {
-      // Generate invoice number
-      const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+      // Generate receipt number
+      const { data: receiptNumber } = await supabase.rpc('generate_receipt_number');
 
-      const amount = parseFloat(newInvoice.amount);
+      // Create the payment record
+      const { error: paymentError } = await supabase.from('fee_payments').insert({
+        receipt_number: receiptNumber,
+        student_id: newPayment.student_id,
+        invoice_id: null, // Standalone payment - will be allocated via FIFO
+        payment_date: new Date().toISOString().split('T')[0],
+        amount: amount,
+        reference_number: newPayment.reference_number || null,
+        notes: newPayment.notes || null,
+        status: 'Completed',
+        received_by: user?.id,
+      });
 
-      const { data, error } = await supabase
-        .from('fee_invoices')
-        .insert({
-          invoice_number: invoiceNumber,
-          student_id: newInvoice.student_id,
-          invoice_date: new Date().toISOString().split('T')[0],
-          due_date: newInvoice.due_date || null,
-          subtotal: amount,
-          total_amount: amount,
-          balance_due: amount,
-          status: 'Unpaid',
-          created_by: user?.id,
-        })
-        .select()
-        .single();
+      if (paymentError) throw paymentError;
 
-      if (error) throw error;
+      // Now apply FIFO allocation - update oldest unpaid invoices first
+      await applyFIFOPaymentAllocation(newPayment.student_id, amount);
 
-      // Create invoice item if fee account selected
-      if (newInvoice.fee_account_id && data) {
-        await supabase.from('fee_invoice_items').insert({
-          invoice_id: data.id,
-          fee_account_id: newInvoice.fee_account_id,
-          description: newInvoice.description || 'Fee charge',
-          quantity: 1,
-          unit_price: amount,
-          total: amount,
-        });
-      }
-
-      toast.success('Invoice created successfully');
-      setCreateDialogOpen(false);
-      setNewInvoice({ student_id: '', fee_account_id: '', amount: '', description: '', due_date: '' });
+      toast.success(`Payment of ${formatCurrency(amount)} received successfully`);
+      setReceivePaymentDialogOpen(false);
+      setNewPayment({ student_id: '', income_account_id: '', amount: '', reference_number: '', notes: '' });
       fetchInvoices();
     } catch (error: any) {
-      console.error('Error creating invoice:', error);
-      toast.error(error.message || 'Failed to create invoice');
+      console.error('Error receiving payment:', error);
+      toast.error(error.message || 'Failed to receive payment');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // FIFO Payment Allocation - apply payment to oldest invoices first
+  const applyFIFOPaymentAllocation = async (studentId: string, paymentAmount: number) => {
+    // Fetch all unpaid/partial invoices for the student, ordered by date (oldest first)
+    const { data: unpaidInvoices, error } = await supabase
+      .from('fee_invoices')
+      .select('id, total_amount, amount_paid, balance_due')
+      .eq('student_id', studentId)
+      .gt('balance_due', 0)
+      .order('invoice_date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching unpaid invoices:', error);
+      return;
+    }
+
+    let remainingPayment = paymentAmount;
+
+    for (const invoice of (unpaidInvoices || [])) {
+      if (remainingPayment <= 0) break;
+
+      const invoiceBalance = Number(invoice.balance_due) || 0;
+      const amountToApply = Math.min(remainingPayment, invoiceBalance);
+      const newAmountPaid = (Number(invoice.amount_paid) || 0) + amountToApply;
+      const newBalanceDue = (Number(invoice.total_amount) || 0) - newAmountPaid;
+      const newStatus = newBalanceDue <= 0 ? 'Paid' : 'Partial';
+
+      await supabase
+        .from('fee_invoices')
+        .update({
+          amount_paid: newAmountPaid,
+          balance_due: Math.max(0, newBalanceDue),
+          status: newStatus,
+        })
+        .eq('id', invoice.id);
+
+      remainingPayment -= amountToApply;
+    }
+  };
+
   const handleRecordPayment = async () => {
+    if (!selectedInvoice || !paymentAmount) {
+      toast.error('Please enter payment amount');
+      return;
+    }
+
+    const amount = parseFloat(paymentAmount);
+    if (amount <= 0 || amount > selectedInvoice.balance_due) {
+      toast.error('Invalid payment amount');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Generate receipt number
+      const { data: receiptNumber } = await supabase.rpc('generate_receipt_number');
+
+      // Create payment record
+      const { error: paymentError } = await supabase.from('fee_payments').insert({
+        receipt_number: receiptNumber,
+        student_id: selectedInvoice.student_id,
+        invoice_id: selectedInvoice.id,
+        payment_date: new Date().toISOString().split('T')[0],
+        amount: amount,
+        status: 'Completed',
+        received_by: user?.id,
+      });
+
+      if (paymentError) throw paymentError;
+
+      // Update invoice
+      const newAmountPaid = selectedInvoice.amount_paid + amount;
+      const newBalance = selectedInvoice.total_amount - newAmountPaid;
+      const newStatus = newBalance <= 0 ? 'Paid' : 'Partial';
+
+      const { error: updateError } = await supabase
+        .from('fee_invoices')
+        .update({
+          amount_paid: newAmountPaid,
+          balance_due: newBalance,
+          status: newStatus,
+        })
+        .eq('id', selectedInvoice.id);
+
+      if (updateError) throw updateError;
+
+      toast.success('Payment recorded successfully');
+      setPaymentDialogOpen(false);
+      setPaymentAmount('');
+      setSelectedInvoice(null);
+      fetchInvoices();
+    } catch (error: any) {
+      console.error('Error recording payment:', error);
+      toast.error(error.message || 'Failed to record payment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
     if (!selectedInvoice || !paymentAmount) {
       toast.error('Please enter payment amount');
       return;
@@ -290,9 +402,9 @@ export default function Receivables() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Paid':
-        return <Badge className="bg-green-500">Paid</Badge>;
+        return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
       case 'Partial':
-        return <Badge className="bg-yellow-500">Partial</Badge>;
+        return <Badge className="bg-yellow-600 hover:bg-yellow-700">Partial</Badge>;
       case 'Overdue':
         return <Badge variant="destructive">Overdue</Badge>;
       case 'Cancelled':
@@ -318,86 +430,88 @@ export default function Receivables() {
           <p className="text-muted-foreground">Manage student fee invoices and payments</p>
         </div>
         <ActionButton moduleCode={MODULE_CODE} action="add">
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <Dialog open={receivePaymentDialogOpen} onOpenChange={setReceivePaymentDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Invoice
+                <Receipt className="mr-2 h-4 w-4" />
+                Receive Payment
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Create New Invoice</DialogTitle>
+                <DialogTitle>Receive Payment</DialogTitle>
               </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Student *</Label>
-                <Select
-                  value={newInvoice.student_id}
-                  onValueChange={(value) => setNewInvoice({ ...newInvoice, student_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students.map((student) => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.student_no} - {student.other_name} {student.surname}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Student *</Label>
+                  <Select
+                    value={newPayment.student_id}
+                    onValueChange={(value) => setNewPayment({ ...newPayment, student_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {students.map((student) => (
+                        <SelectItem key={student.id} value={student.id}>
+                          {student.student_no} - {student.other_name} {student.surname}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Income Account (optional)</Label>
+                  <Select
+                    value={newPayment.income_account_id}
+                    onValueChange={(value) => setNewPayment({ ...newPayment, income_account_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select income account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {incomeAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.account_code} - {account.account_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Amount (KES) *</Label>
+                  <Input
+                    type="number"
+                    value={newPayment.amount}
+                    onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Reference Number</Label>
+                  <Input
+                    value={newPayment.reference_number}
+                    onChange={(e) => setNewPayment({ ...newPayment, reference_number: e.target.value })}
+                    placeholder="e.g., Bank transaction ref"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Input
+                    value={newPayment.notes}
+                    onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })}
+                    placeholder="Payment notes"
+                  />
+                </div>
+                <Button onClick={handleReceivePayment} className="w-full" disabled={submitting}>
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Receive Payment
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label>Fee Account</Label>
-                <Select
-                  value={newInvoice.fee_account_id}
-                  onValueChange={(value) => setNewInvoice({ ...newInvoice, fee_account_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select fee account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {feeAccounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Amount (KES) *</Label>
-                <Input
-                  type="number"
-                  value={newInvoice.amount}
-                  onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Input
-                  value={newInvoice.description}
-                  onChange={(e) => setNewInvoice({ ...newInvoice, description: e.target.value })}
-                  placeholder="Fee description"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Due Date</Label>
-                <Input
-                  type="date"
-                  value={newInvoice.due_date}
-                  onChange={(e) => setNewInvoice({ ...newInvoice, due_date: e.target.value })}
-                />
-              </div>
-              <Button onClick={handleCreateInvoice} className="w-full" disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Invoice
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
         </ActionButton>
       </div>
 
