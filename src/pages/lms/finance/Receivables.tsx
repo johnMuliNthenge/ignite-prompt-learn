@@ -83,6 +83,8 @@ export default function Receivables() {
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const receiptRef = useRef<HTMLDivElement>(null);
 
   // Receipt data state
@@ -526,13 +528,15 @@ export default function Receivables() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Paid':
-        return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
+        return <Badge className="bg-primary hover:bg-primary/90">Paid</Badge>;
       case 'Partial':
-        return <Badge className="bg-yellow-600 hover:bg-yellow-700">Partial</Badge>;
+        return <Badge variant="secondary">Partial</Badge>;
       case 'Overdue':
         return <Badge variant="destructive">Overdue</Badge>;
+      case 'Overpaid':
+        return <Badge className="bg-blue-600 hover:bg-blue-700 text-white">Overpaid</Badge>;
       case 'Cancelled':
-        return <Badge variant="secondary">Cancelled</Badge>;
+        return <Badge variant="outline">Cancelled</Badge>;
       default:
         return <Badge variant="outline">Unpaid</Badge>;
     }
@@ -544,6 +548,16 @@ export default function Receivables() {
       inv.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inv.student_no.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedInvoices = filteredInvoices.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Reset to page 1 when search changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   return (
     <ProtectedPage moduleCode={MODULE_CODE} title="Receivables">
@@ -667,7 +681,6 @@ export default function Receivables() {
                   <TableHead>Invoice #</TableHead>
                   <TableHead>Student</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Due Date</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Paid</TableHead>
                   <TableHead className="text-right">Balance</TableHead>
@@ -676,14 +689,14 @@ export default function Receivables() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvoices.length === 0 ? (
+                {paginatedInvoices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       No invoices found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredInvoices.map((invoice) => (
+                  paginatedInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-mono">{invoice.invoice_number}</TableCell>
                       <TableCell>
@@ -693,13 +706,12 @@ export default function Receivables() {
                         </div>
                       </TableCell>
                       <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell>
-                        {invoice.due_date ? format(new Date(invoice.due_date), 'dd/MM/yyyy') : '-'}
-                      </TableCell>
                       <TableCell className="text-right">{formatCurrency(invoice.total_amount)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(invoice.amount_paid)}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(invoice.balance_due)}
+                      <TableCell className={`text-right font-medium ${invoice.balance_due < 0 ? 'text-blue-600' : ''}`}>
+                        {invoice.balance_due < 0 
+                          ? `(${formatCurrency(Math.abs(invoice.balance_due))})` 
+                          : formatCurrency(invoice.balance_due)}
                       </TableCell>
                       <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                       <TableCell>
@@ -749,6 +761,58 @@ export default function Receivables() {
               </TableBody>
             </Table>
           )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredInvoices.length)} of {filteredInvoices.length} invoices
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -773,8 +837,12 @@ export default function Receivables() {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   placeholder="0.00"
-                  max={selectedInvoice.balance_due}
+                  min="0"
+                  step="0.01"
                 />
+                <p className="text-xs text-muted-foreground">
+                  You can pay more than the balance. Excess will be recorded as prepayment.
+                </p>
               </div>
               <Button onClick={handleRecordPayment} className="w-full" disabled={submitting}>
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
