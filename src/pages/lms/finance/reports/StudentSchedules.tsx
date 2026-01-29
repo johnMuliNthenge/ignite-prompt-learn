@@ -38,31 +38,31 @@ export default function StudentSchedules() {
 
   const fetchSchedules = async () => {
     try {
-      // Fetch students with their fee summaries
-      const { data, error } = await supabase
+      // Fetch students
+      const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select(`
-          id,
-          student_no,
-          other_name,
-          surname,
-          fee_invoices(total_amount, amount_paid, balance_due)
-        `)
+        .select('id, student_no, other_name, surname')
         .eq('status', 'Active')
         .order('surname');
 
-      if (error) throw error;
+      if (studentsError) throw studentsError;
 
-      const formattedSchedules: StudentSchedule[] = (data || []).map((student: any) => {
-        const invoices = student.fee_invoices || [];
-        const totalInvoiced = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount) || 0), 0);
-        const totalPaid = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.amount_paid) || 0), 0);
-        const balance = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.balance_due) || 0), 0);
+      // Fetch all invoices separately (more reliable than nested joins)
+      const { data: invoicesData } = await supabase
+        .from('fee_invoices')
+        .select('student_id, total_amount, amount_paid, balance_due');
+
+      const formattedSchedules: StudentSchedule[] = (studentsData || []).map((student: any) => {
+        // Filter invoices for this student
+        const studentInvoices = (invoicesData || []).filter((inv: any) => inv.student_id === student.id);
+        const totalInvoiced = studentInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount) || 0), 0);
+        const totalPaid = studentInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.amount_paid) || 0), 0);
+        const balance = studentInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.balance_due) || 0), 0);
 
         return {
           id: student.id,
           student_no: student.student_no || '',
-          student_name: `${student.other_name} ${student.surname}`,
+          student_name: `${student.other_name || ''} ${student.surname || ''}`.trim(),
           total_invoiced: totalInvoiced,
           total_paid: totalPaid,
           balance: balance,
