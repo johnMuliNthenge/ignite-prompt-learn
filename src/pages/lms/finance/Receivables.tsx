@@ -334,63 +334,6 @@ export default function Receivables() {
       setSubmitting(false);
     }
   };
-    if (!selectedInvoice || !paymentAmount) {
-      toast.error('Please enter payment amount');
-      return;
-    }
-
-    const amount = parseFloat(paymentAmount);
-    if (amount <= 0 || amount > selectedInvoice.balance_due) {
-      toast.error('Invalid payment amount');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // Generate receipt number
-      const { data: receiptNumber } = await supabase.rpc('generate_receipt_number');
-
-      // Create payment record
-      const { error: paymentError } = await supabase.from('fee_payments').insert({
-        receipt_number: receiptNumber,
-        student_id: selectedInvoice.student_id,
-        invoice_id: selectedInvoice.id,
-        payment_date: new Date().toISOString().split('T')[0],
-        amount: amount,
-        status: 'Completed',
-        received_by: user?.id,
-      });
-
-      if (paymentError) throw paymentError;
-
-      // Update invoice
-      const newAmountPaid = selectedInvoice.amount_paid + amount;
-      const newBalance = selectedInvoice.total_amount - newAmountPaid;
-      const newStatus = newBalance <= 0 ? 'Paid' : 'Partial';
-
-      const { error: updateError } = await supabase
-        .from('fee_invoices')
-        .update({
-          amount_paid: newAmountPaid,
-          balance_due: newBalance,
-          status: newStatus,
-        })
-        .eq('id', selectedInvoice.id);
-
-      if (updateError) throw updateError;
-
-      toast.success('Payment recorded successfully');
-      setPaymentDialogOpen(false);
-      setPaymentAmount('');
-      setSelectedInvoice(null);
-      fetchInvoices();
-    } catch (error: any) {
-      console.error('Error recording payment:', error);
-      toast.error(error.message || 'Failed to record payment');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', {
