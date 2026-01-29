@@ -10,7 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -221,7 +221,7 @@ export default function StudentInvoicing() {
             total_amount: selectedTemplate.total_amount,
             amount_paid: 0,
             balance_due: selectedTemplate.total_amount,
-            status: 'Pending',
+            status: 'Unpaid',
             notes: `Template: ${selectedTemplate.id}`,
           })
           .select('id')
@@ -431,6 +431,7 @@ export default function StudentInvoicing() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Invoice Creation</DialogTitle>
+            <DialogDescription>Review the details below before creating invoices.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
