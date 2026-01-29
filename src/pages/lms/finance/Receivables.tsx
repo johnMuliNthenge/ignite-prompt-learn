@@ -359,13 +359,13 @@ export default function Receivables() {
       const amountToApply = Math.min(remainingPayment, invoiceBalance);
       const newAmountPaid = (Number(invoice.amount_paid) || 0) + amountToApply;
       const newBalanceDue = (Number(invoice.total_amount) || 0) - newAmountPaid;
-      const newStatus = newBalanceDue <= 0 ? 'Paid' : 'Partial';
+      const newStatus = newBalanceDue < 0 ? 'Overpaid' : newBalanceDue === 0 ? 'Paid' : 'Partial';
 
       await supabase
         .from('fee_invoices')
         .update({
           amount_paid: newAmountPaid,
-          balance_due: Math.max(0, newBalanceDue),
+          balance_due: newBalanceDue, // Allow negative for overpayments
           status: newStatus,
         })
         .eq('id', invoice.id);
@@ -381,8 +381,8 @@ export default function Receivables() {
     }
 
     const amount = parseFloat(paymentAmount);
-    if (amount <= 0 || amount > selectedInvoice.balance_due) {
-      toast.error('Invalid payment amount');
+    if (amount <= 0) {
+      toast.error('Payment amount must be greater than zero');
       return;
     }
 
@@ -404,16 +404,17 @@ export default function Receivables() {
 
       if (paymentError) throw paymentError;
 
-      // Update invoice
+      // Update invoice - allow overpayment (negative balance)
       const newAmountPaid = selectedInvoice.amount_paid + amount;
       const newBalance = selectedInvoice.total_amount - newAmountPaid;
-      const newStatus = newBalance <= 0 ? 'Paid' : 'Partial';
+      // Allow negative balance for overpayments
+      const newStatus = newBalance < 0 ? 'Overpaid' : newBalance === 0 ? 'Paid' : 'Partial';
 
       const { error: updateError } = await supabase
         .from('fee_invoices')
         .update({
           amount_paid: newAmountPaid,
-          balance_due: newBalance,
+          balance_due: newBalance, // Can be negative for overpayments
           status: newStatus,
         })
         .eq('id', selectedInvoice.id);
