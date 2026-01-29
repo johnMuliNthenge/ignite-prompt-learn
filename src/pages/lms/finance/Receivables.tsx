@@ -706,6 +706,27 @@ export default function Receivables() {
                           <Button variant="ghost" size="icon" title="View Details">
                             <Eye className="h-4 w-4" />
                           </Button>
+                          {invoice.amount_paid > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Print Receipt"
+                              onClick={async () => {
+                                const voteHeads = await fetchVoteHeadsForStudent(invoice.student_id, invoice.amount_paid);
+                                setReceiptData({
+                                  receiptNumber: `INV-${invoice.invoice_number}`,
+                                  studentName: invoice.student_name,
+                                  studentNo: invoice.student_no,
+                                  paymentDate: invoice.invoice_date,
+                                  amount: invoice.amount_paid,
+                                  voteHeads,
+                                });
+                                setReceiptDialogOpen(true);
+                              }}
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                          )}
                           {invoice.balance_due > 0 && (
                             <Button
                               variant="ghost"
