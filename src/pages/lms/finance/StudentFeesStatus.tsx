@@ -32,7 +32,7 @@ interface StudentFeeStatus {
   total_invoiced: number;
   total_paid: number;
   balance: number;
-  status: 'Paid' | 'Partial' | 'Unpaid' | 'Overdue';
+  status: 'Paid' | 'Partial' | 'Unpaid' | 'Overdue' | 'Overpaid';
 }
 
 interface Transaction {
@@ -106,13 +106,16 @@ export default function StudentFeesStatus() {
         const balance = totalInvoiced - totalPaid;
 
         // Determine status based on financial state
-        let status: 'Paid' | 'Partial' | 'Unpaid' | 'Overdue' = 'Unpaid';
+        let status: 'Paid' | 'Partial' | 'Unpaid' | 'Overdue' | 'Overpaid' = 'Unpaid';
         
         if (totalInvoiced === 0) {
           // No invoices - no fee status
           status = 'Unpaid';
-        } else if (balance <= 0) {
-          // Fully paid or overpaid
+        } else if (balance < 0) {
+          // Overpaid - student has credit
+          status = 'Overpaid';
+        } else if (balance === 0) {
+          // Fully paid
           status = 'Paid';
         } else if (totalPaid > 0) {
           // Partial payment made
@@ -136,7 +139,7 @@ export default function StudentFeesStatus() {
           class_name: classMap.get(student.class_id) || null,
           total_invoiced: totalInvoiced,
           total_paid: totalPaid,
-          balance: Math.max(0, balance),
+          balance: balance, // Allow negative balance for overpayments
           status,
         };
       });
@@ -280,12 +283,14 @@ export default function StudentFeesStatus() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-                      case 'Paid':
+      case 'Paid':
         return <Badge variant="default" className="bg-primary">Paid</Badge>;
       case 'Partial':
         return <Badge variant="secondary">Partial</Badge>;
       case 'Overdue':
         return <Badge variant="destructive">Overdue</Badge>;
+      case 'Overpaid':
+        return <Badge className="bg-blue-600 text-white">Overpaid</Badge>;
       default:
         return <Badge variant="secondary">Unpaid</Badge>;
     }
@@ -362,8 +367,8 @@ export default function StudentFeesStatus() {
                       <TableCell>{student.class_name || '-'}</TableCell>
                       <TableCell className="text-right">{formatCurrency(student.total_invoiced)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(student.total_paid)}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(student.balance)}
+                      <TableCell className={`text-right font-medium ${student.balance < 0 ? 'text-blue-600' : ''}`}>
+                        {student.balance < 0 ? `(${formatCurrency(Math.abs(student.balance))})` : formatCurrency(student.balance)}
                       </TableCell>
                       <TableCell>{getStatusBadge(student.status)}</TableCell>
                       <TableCell>
@@ -466,8 +471,14 @@ export default function StudentFeesStatus() {
                       <p className="text-lg font-bold text-primary">{formatCurrency(selectedStudent.total_paid)}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-                      <p className="text-lg font-bold text-destructive">{formatCurrency(selectedStudent.balance)}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedStudent.balance < 0 ? 'Credit Balance (Overpayment)' : 'Outstanding Balance'}
+                      </p>
+                      <p className={`text-lg font-bold ${selectedStudent.balance < 0 ? 'text-blue-600' : 'text-destructive'}`}>
+                        {selectedStudent.balance < 0 
+                          ? `(${formatCurrency(Math.abs(selectedStudent.balance))})` 
+                          : formatCurrency(selectedStudent.balance)}
+                      </p>
                     </div>
                   </div>
                 </div>
