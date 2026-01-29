@@ -38,6 +38,7 @@ import FinanceDashboard from "./pages/lms/finance/FinanceDashboard";
 import StudentFeesStatus from "./pages/lms/finance/StudentFeesStatus";
 import SummarizedFeeStatement from "./pages/lms/finance/SummarizedFeeStatement";
 import StudentFinance from "./pages/lms/finance/StudentFinance";
+import StudentInvoice from "./pages/lms/finance/StudentInvoice";
 import Receivables from "./pages/lms/finance/Receivables";
 import Payables from "./pages/lms/finance/Payables";
 import Budget from "./pages/lms/finance/Budget";
@@ -158,6 +159,7 @@ const App = () => (
               <Route path="finance/fees-status" element={<StudentFeesStatus />} />
               <Route path="finance/fee-statement" element={<SummarizedFeeStatement />} />
               <Route path="finance/student-finance" element={<StudentFinance />} />
+              <Route path="finance/student-invoice" element={<StudentInvoice />} />
               <Route path="finance/receivables" element={<Receivables />} />
               <Route path="finance/payables" element={<Payables />} />
               <Route path="finance/budget" element={<Budget />} />
