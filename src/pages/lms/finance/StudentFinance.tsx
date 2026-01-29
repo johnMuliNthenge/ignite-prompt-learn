@@ -37,7 +37,7 @@ async function fetchStudentsFromDb() {
   const { data, error } = await getSupabaseClient()
     .from('students')
     .select('id, student_no, surname, other_name')
-    .eq('is_active', true)
+    .eq('status', 'Active')
     .order('surname');
   if (error) throw error;
   return data || [];

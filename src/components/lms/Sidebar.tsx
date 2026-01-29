@@ -228,6 +228,19 @@ const financeModule: NavModule = {
       title: 'Student Finance',
       href: '/lms/finance/student-finance',
       icon: Wallet,
+      subItems: [
+        {
+          title: 'Overview',
+          href: '/lms/finance/student-finance',
+          icon: Wallet,
+        },
+        {
+          title: 'Student Invoice',
+          href: '/lms/finance/student-invoice',
+          icon: FileText,
+          moduleCode: 'finance.student_invoice',
+        },
+      ],
     },
     {
       title: 'Receivables',

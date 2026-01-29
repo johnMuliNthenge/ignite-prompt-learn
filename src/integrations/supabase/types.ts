@@ -1605,6 +1605,118 @@ export type Database = {
           },
         ]
       }
+      fee_template_items: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string | null
+          description: string | null
+          id: string
+          sort_order: number | null
+          template_id: string
+        }
+        Insert: {
+          account_id: string
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          sort_order?: number | null
+          template_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          sort_order?: number | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_template_items_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "fee_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fee_templates: {
+        Row: {
+          academic_year_id: string | null
+          class_id: string | null
+          course_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          template_type: string
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          academic_year_id?: string | null
+          class_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          template_type: string
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Update: {
+          academic_year_id?: string | null
+          class_id?: string | null
+          course_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          template_type?: string
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_templates_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_templates_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_templates_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "lms_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_years: {
         Row: {
           created_at: string | null
