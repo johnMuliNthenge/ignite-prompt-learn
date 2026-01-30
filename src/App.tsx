@@ -80,6 +80,7 @@ import StudentSchedules from "./pages/lms/finance/reports/StudentSchedules";
 import HRDashboard from "./pages/lms/hr/HRDashboard";
 import EmployeeList from "./pages/lms/hr/employees/EmployeeList";
 import AddEmployee from "./pages/lms/hr/employees/AddEmployee";
+import EditEmployee from "./pages/lms/hr/employees/EditEmployee";
 import BulkUpload from "./pages/lms/hr/employees/BulkUpload";
 import Documents from "./pages/lms/hr/employees/Documents";
 import Designations from "./pages/lms/hr/utilities/Designations";
@@ -201,6 +202,7 @@ const App = () => (
               <Route path="hr/dashboard" element={<HRDashboard />} />
               <Route path="hr/employees" element={<EmployeeList />} />
               <Route path="hr/employees/add" element={<AddEmployee />} />
+              <Route path="hr/employees/:id/edit" element={<EditEmployee />} />
               <Route path="hr/employees/bulk-upload" element={<BulkUpload />} />
               <Route path="hr/employees/documents" element={<Documents />} />
               <Route path="hr/organization/structure" element={<Structure />} />
