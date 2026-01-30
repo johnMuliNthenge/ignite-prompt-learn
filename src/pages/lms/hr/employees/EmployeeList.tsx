@@ -33,7 +33,7 @@ export default function EmployeeList() {
         .from('hr_employees')
         .select(`
           *,
-          hr_departments(name),
+          hr_departments!hr_employees_department_id_fkey(name),
           hr_designations(name),
           hr_ranks(name)
         `)
