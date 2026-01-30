@@ -204,6 +204,7 @@ const App = () => (
               <Route path="hr/employees/bulk-upload" element={<BulkUpload />} />
               <Route path="hr/employees/documents" element={<Documents />} />
               <Route path="hr/organization/structure" element={<Structure />} />
+              <Route path="hr/organization/departments" element={<HRDepartments />} />
               {/* HR Leave */}
               <Route path="hr/leave/applications" element={<LeaveApplications />} />
               <Route path="hr/leave/balances" element={<LeaveBalances />} />

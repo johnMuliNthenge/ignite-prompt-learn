@@ -77,19 +77,10 @@ const LandingPage = () => {
             <Button onClick={() => navigate("/lms/auth")} variant="ghost">
               Learning Platform
             </Button>
-            {user ? (
+            {user && (
               <Button onClick={() => navigate("/dashboard")} variant="outline">
                 Dashboard
               </Button>
-            ) : (
-              <>
-                <Button onClick={() => navigate("/auth")} variant="ghost">
-                  Login
-                </Button>
-                <Button onClick={() => navigate("/auth")} className="course-gradient">
-                  Sign Up
-                </Button>
-              </>
             )}
           </div>
         </div>
