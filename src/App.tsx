@@ -20,6 +20,7 @@ import LMSDashboard from "./pages/lms/LMSDashboard";
 import UserManagement from "./pages/lms/admin/UserManagement";
 import CategoryManagement from "./pages/lms/admin/CategoryManagement";
 import SiteSettings from "./pages/lms/admin/SiteSettings";
+import SmtpSettings from "./pages/lms/admin/SmtpSettings";
 import AnalyticsDashboard from "./pages/lms/admin/AnalyticsDashboard";
 import StudentManagement from "./pages/lms/admin/StudentManagement";
 import AdministrationSettings from "./pages/lms/admin/AdministrationSettings";
@@ -154,6 +155,7 @@ const App = () => (
               <Route path="admin/analytics" element={<AnalyticsDashboard />} />
               <Route path="admin/administration" element={<AdministrationSettings />} />
               <Route path="admin/settings" element={<SiteSettings />} />
+              <Route path="admin/smtp" element={<SmtpSettings />} />
               
               {/* Finance Routes */}
               <Route path="finance" element={<FinanceDashboard />} />

@@ -4598,6 +4598,51 @@ export type Database = {
           },
         ]
       }
+      smtp_settings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          encryption: string
+          from_email: string
+          from_name: string
+          host: string
+          id: string
+          is_active: boolean
+          password: string
+          port: number
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          encryption?: string
+          from_email: string
+          from_name: string
+          host: string
+          id?: string
+          is_active?: boolean
+          password: string
+          port?: number
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          encryption?: string
+          from_email?: string
+          from_name?: string
+          host?: string
+          id?: string
+          is_active?: boolean
+          password?: string
+          port?: number
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       student_ledger: {
         Row: {
           account_id: string | null
