@@ -2474,6 +2474,8 @@ export type Database = {
           middle_name: string | null
           national_id: string | null
           passport_no: string | null
+          password_set_at: string | null
+          password_setup_sent_at: string | null
           phone: string | null
           photo_url: string | null
           physical_address: string | null
@@ -2507,6 +2509,8 @@ export type Database = {
           middle_name?: string | null
           national_id?: string | null
           passport_no?: string | null
+          password_set_at?: string | null
+          password_setup_sent_at?: string | null
           phone?: string | null
           photo_url?: string | null
           physical_address?: string | null
@@ -2540,6 +2544,8 @@ export type Database = {
           middle_name?: string | null
           national_id?: string | null
           passport_no?: string | null
+          password_set_at?: string | null
+          password_setup_sent_at?: string | null
           phone?: string | null
           photo_url?: string | null
           physical_address?: string | null

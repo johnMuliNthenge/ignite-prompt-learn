@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Eye, Edit, UserX, MoreHorizontal } from "lucide-react";
+import { Search, Plus, Eye, Edit, UserX, MoreHorizontal, Mail, MailCheck, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   DropdownMenu,
@@ -17,6 +17,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type EmploymentStatus = 'active' | 'probation' | 'confirmed' | 'suspended' | 'resigned' | 'terminated' | 'retired' | 'deceased';
 
@@ -25,8 +31,9 @@ export default function EmployeeList() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sendingEmailFor, setSendingEmailFor] = useState<string | null>(null);
 
-  const { data: employees, isLoading } = useQuery({
+  const { data: employees, isLoading, refetch } = useQuery({
     queryKey: ['hr-employees', search, statusFilter],
     queryFn: async () => {
       let query = supabase
@@ -52,6 +59,50 @@ export default function EmployeeList() {
       return data || [];
     }
   });
+
+  const handleSendPasswordSetup = async (employee: any) => {
+    if (!employee.email) {
+      toast({
+        title: "No email address",
+        description: "This employee doesn't have an email address set.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingEmailFor(employee.id);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('send-password-setup', {
+        body: {
+          employeeId: employee.id,
+          email: employee.email,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to send email');
+      }
+
+      toast({
+        title: "Email sent",
+        description: `Password setup email sent to ${employee.email}`,
+      });
+      
+      refetch();
+    } catch (error: any) {
+      console.error('Error sending password setup email:', error);
+      toast({
+        title: "Failed to send email",
+        description: error.message || "An error occurred while sending the email.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingEmailFor(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -153,25 +204,58 @@ export default function EmployeeList() {
                       {emp.date_of_hire ? new Date(emp.date_of_hire).toLocaleDateString() : '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link to={`/lms/hr/employees/${emp.id}`}>
-                              <Eye className="mr-2 h-4 w-4" /> View Profile
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link to={`/lms/hr/employees/${emp.id}/edit`}>
-                              <Edit className="mr-2 h-4 w-4" /> Edit
-                            </Link>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center justify-end gap-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              {emp.password_setup_sent_at ? (
+                                <Button variant="ghost" size="icon" disabled className="text-green-600">
+                                  <MailCheck className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleSendPasswordSetup(emp)}
+                                  disabled={sendingEmailFor === emp.id || !emp.email}
+                                >
+                                  {sendingEmailFor === emp.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Mail className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              )}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {emp.password_setup_sent_at 
+                                ? `Password setup sent on ${new Date(emp.password_setup_sent_at).toLocaleDateString()}`
+                                : emp.email 
+                                  ? "Send password setup email"
+                                  : "No email address set"}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link to={`/lms/hr/employees/${emp.id}`}>
+                                <Eye className="mr-2 h-4 w-4" /> View Profile
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link to={`/lms/hr/employees/${emp.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

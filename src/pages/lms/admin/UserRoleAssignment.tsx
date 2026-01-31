@@ -76,11 +76,24 @@ export default function UserRoleAssignment() {
 
   const fetchData = async () => {
     try {
-      // Fetch profiles
+      // Fetch HR employees (only show employees, not students)
+      const { data: employees, error: employeesError } = await supabase
+        .from('hr_employees')
+        .select('id, first_name, last_name, email, user_id')
+        .order('created_at', { ascending: false });
+
+      if (employeesError) throw employeesError;
+
+      // Only get profiles for users who are HR employees
+      const employeeUserIds = (employees || [])
+        .filter(emp => emp.user_id)
+        .map(emp => emp.user_id);
+
+      // Fetch profiles only for employees with user accounts
       const { data: profiles, error: profilesError } = await supabase
         .from('lms_profiles')
         .select('*')
-        .order('created_at', { ascending: false });
+        .in('user_id', employeeUserIds.length > 0 ? employeeUserIds : ['00000000-0000-0000-0000-000000000000']);
 
       if (profilesError) throw profilesError;
 
@@ -93,7 +106,8 @@ export default function UserRoleAssignment() {
             id,
             name
           )
-        `);
+        `)
+        .in('user_id', employeeUserIds.length > 0 ? employeeUserIds : ['00000000-0000-0000-0000-000000000000']);
 
       if (rolesError) throw rolesError;
 
@@ -106,11 +120,13 @@ export default function UserRoleAssignment() {
 
       if (appRolesError) throw appRolesError;
 
-      // Combine data
+      // Combine data - only include profiles that belong to HR employees
       const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
         const userRole = userRoles?.find((r) => r.user_id === profile.user_id);
+        const employee = employees?.find(emp => emp.user_id === profile.user_id);
         return {
           ...profile,
+          full_name: profile.full_name || (employee ? `${employee.first_name} ${employee.last_name}` : null),
           legacy_role: userRole?.role || 'student',
           app_role_id: userRole?.app_role_id || null,
           app_role_name: (userRole?.app_roles as any)?.name || null,
