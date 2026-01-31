@@ -54,6 +54,7 @@ import {
   TreeDeciduous,
   Layers,
   BadgeCheck,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -203,6 +204,12 @@ const administrationModule: NavModule = {
       href: '/lms/admin/settings',
       icon: Settings,
       moduleCode: 'admin.settings',
+    },
+    {
+      title: 'SMTP Settings',
+      href: '/lms/admin/smtp',
+      icon: Mail,
+      moduleCode: 'admin.smtp',
     },
   ],
 };
