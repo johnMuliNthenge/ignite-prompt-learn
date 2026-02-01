@@ -55,6 +55,7 @@ import {
   Layers,
   BadgeCheck,
   Mail,
+  ClipboardPen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -687,6 +688,40 @@ const hrModule: NavModule = {
   ],
 };
 
+// Student Academics Module
+const academicsModule: NavModule = {
+  title: 'Student Academics',
+  icon: ClipboardPen,
+  moduleCode: 'academics',
+  roles: ['admin', 'teacher'],
+  items: [
+    {
+      title: 'Exams Management',
+      href: '/lms/academics/exams',
+      icon: FileCheck,
+      moduleCode: 'academics.exams',
+    },
+    {
+      title: 'Marks Entry',
+      href: '/lms/academics/marks',
+      icon: ClipboardList,
+      moduleCode: 'academics.marks',
+    },
+    {
+      title: 'Results',
+      href: '/lms/academics/results',
+      icon: BarChart2,
+      moduleCode: 'academics.results',
+    },
+    {
+      title: 'Student Attendance',
+      href: '/lms/academics/attendance',
+      icon: ClipboardCheck,
+      moduleCode: 'academics.attendance',
+    },
+  ],
+};
+
 interface SidebarProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -960,6 +995,16 @@ function SidebarContent({
             <Separator className="my-4" />
             <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
               {renderModule(financeModule)}
+            </div>
+          </>
+        )}
+
+        {/* Student Academics Module */}
+        {canViewModule(academicsModule) && (
+          <>
+            <Separator className="my-4" />
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(academicsModule)}
             </div>
           </>
         )}

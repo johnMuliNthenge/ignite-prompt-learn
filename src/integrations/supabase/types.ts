@@ -14,6 +14,136 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_exams: {
+        Row: {
+          academic_year_id: string | null
+          class_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          exam_date: string | null
+          exam_type: string | null
+          id: string
+          is_published: boolean | null
+          name: string
+          passing_marks: number | null
+          session_id: string | null
+          subject: string | null
+          total_marks: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          academic_year_id?: string | null
+          class_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          exam_date?: string | null
+          exam_type?: string | null
+          id?: string
+          is_published?: boolean | null
+          name: string
+          passing_marks?: number | null
+          session_id?: string | null
+          subject?: string | null
+          total_marks?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          academic_year_id?: string | null
+          class_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          exam_date?: string | null
+          exam_type?: string | null
+          id?: string
+          is_published?: boolean | null
+          name?: string
+          passing_marks?: number | null
+          session_id?: string | null
+          subject?: string | null
+          total_marks?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_exams_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_exams_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_exams_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_marks: {
+        Row: {
+          created_at: string | null
+          entered_by: string | null
+          exam_id: string | null
+          grade: string | null
+          id: string
+          is_absent: boolean | null
+          marks_obtained: number | null
+          remarks: string | null
+          student_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entered_by?: string | null
+          exam_id?: string | null
+          grade?: string | null
+          id?: string
+          is_absent?: boolean | null
+          marks_obtained?: number | null
+          remarks?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entered_by?: string | null
+          exam_id?: string | null
+          grade?: string | null
+          id?: string
+          is_absent?: boolean | null
+          marks_obtained?: number | null
+          remarks?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_marks_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "academic_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_marks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academic_years: {
         Row: {
           created_at: string | null
@@ -4648,6 +4778,57 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      student_attendance: {
+        Row: {
+          attendance_date: string
+          class_id: string | null
+          created_at: string | null
+          id: string
+          marked_by: string | null
+          remarks: string | null
+          status: string | null
+          student_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          attendance_date: string
+          class_id?: string | null
+          created_at?: string | null
+          id?: string
+          marked_by?: string | null
+          remarks?: string | null
+          status?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          attendance_date?: string
+          class_id?: string | null
+          created_at?: string | null
+          id?: string
+          marked_by?: string | null
+          remarks?: string | null
+          status?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_attendance_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_attendance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_ledger: {
         Row: {
