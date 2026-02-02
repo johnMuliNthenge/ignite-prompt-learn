@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -13,6 +14,7 @@ import { Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
 import { format } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Programme {
   id: string;
@@ -48,7 +50,7 @@ const CurriculumManagement = () => {
   const [selectedProgramme, setSelectedProgramme] = useState<string>("all");
   const [formData, setFormData] = useState({
     programme_id: "",
-    subject_id: "",
+    subject_ids: [] as string[],
     start_date: "",
     end_date: "",
     semester: "",
@@ -96,30 +98,42 @@ const CurriculumManagement = () => {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const payload = {
-        programme_id: data.programme_id,
-        subject_id: data.subject_id,
-        start_date: data.start_date,
-        end_date: data.end_date || null,
-        semester: data.semester ? parseInt(data.semester) : null,
-        year_of_study: data.year_of_study,
-        is_compulsory: data.is_compulsory,
-        credit_hours: data.credit_hours,
-        is_active: data.is_active,
-      };
-
+    mutationFn: async (data: typeof formData & { id?: string }) => {
       if (data.id) {
+        // Editing single entry
+        const payload = {
+          programme_id: data.programme_id,
+          subject_id: data.subject_ids[0],
+          start_date: data.start_date,
+          end_date: data.end_date || null,
+          semester: data.semester ? parseInt(data.semester) : null,
+          year_of_study: data.year_of_study,
+          is_compulsory: data.is_compulsory,
+          credit_hours: data.credit_hours,
+          is_active: data.is_active,
+        };
         const { error } = await supabase.from("curriculum").update(payload).eq("id", data.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("curriculum").insert(payload);
+        // Creating multiple entries (one per subject)
+        const entries = data.subject_ids.map((subject_id) => ({
+          programme_id: data.programme_id,
+          subject_id,
+          start_date: data.start_date,
+          end_date: data.end_date || null,
+          semester: data.semester ? parseInt(data.semester) : null,
+          year_of_study: data.year_of_study,
+          is_compulsory: data.is_compulsory,
+          credit_hours: data.credit_hours,
+          is_active: data.is_active,
+        }));
+        const { error } = await supabase.from("curriculum").insert(entries);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["curriculum"] });
-      toast.success(editingCurriculum ? "Curriculum updated successfully" : "Curriculum entry created successfully");
+      toast.success(editingCurriculum ? "Curriculum updated successfully" : "Curriculum entries created successfully");
       resetForm();
     },
     onError: (error: Error) => {
@@ -144,7 +158,7 @@ const CurriculumManagement = () => {
   const resetForm = () => {
     setFormData({
       programme_id: "",
-      subject_id: "",
+      subject_ids: [],
       start_date: "",
       end_date: "",
       semester: "",
@@ -161,7 +175,7 @@ const CurriculumManagement = () => {
     setEditingCurriculum(item);
     setFormData({
       programme_id: item.programme_id,
-      subject_id: item.subject_id,
+      subject_ids: [item.subject_id],
       start_date: item.start_date,
       end_date: item.end_date || "",
       semester: item.semester?.toString() || "",
@@ -173,8 +187,28 @@ const CurriculumManagement = () => {
     setIsDialogOpen(true);
   };
 
+  const handleSubjectToggle = (subjectId: string, checked: boolean) => {
+    if (checked) {
+      setFormData({ ...formData, subject_ids: [...formData.subject_ids, subjectId] });
+    } else {
+      setFormData({ ...formData, subject_ids: formData.subject_ids.filter((id) => id !== subjectId) });
+    }
+  };
+
+  const handleSelectAllSubjects = () => {
+    if (subjects && formData.subject_ids.length === subjects.length) {
+      setFormData({ ...formData, subject_ids: [] });
+    } else {
+      setFormData({ ...formData, subject_ids: subjects?.map((s) => s.id) || [] });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.subject_ids.length === 0) {
+      toast.error("Please select at least one subject");
+      return;
+    }
     saveMutation.mutate(editingCurriculum ? { ...formData, id: editingCurriculum.id } : formData);
   };
 
@@ -193,7 +227,7 @@ const CurriculumManagement = () => {
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" /> Add Curriculum Entry</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>{editingCurriculum ? "Edit Curriculum Entry" : "Add New Curriculum Entry"}</DialogTitle>
               </DialogHeader>
@@ -211,19 +245,41 @@ const CurriculumManagement = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                
                 <div className="space-y-2">
-                  <Label>Subject *</Label>
-                  <Select value={formData.subject_id} onValueChange={(v) => setFormData({ ...formData, subject_id: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select subject" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <div className="flex items-center justify-between">
+                    <Label>Subjects * ({formData.subject_ids.length} selected)</Label>
+                    {!editingCurriculum && (
+                      <Button type="button" variant="ghost" size="sm" onClick={handleSelectAllSubjects}>
+                        {subjects && formData.subject_ids.length === subjects.length ? "Deselect All" : "Select All"}
+                      </Button>
+                    )}
+                  </div>
+                  <ScrollArea className="h-[180px] border rounded-md p-3">
+                    <div className="grid grid-cols-2 gap-2">
                       {subjects?.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.code} - {s.name}</SelectItem>
+                        <div key={s.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`subject-${s.id}`}
+                            checked={formData.subject_ids.includes(s.id)}
+                            onCheckedChange={(checked) => handleSubjectToggle(s.id, checked as boolean)}
+                            disabled={editingCurriculum !== null && formData.subject_ids[0] !== s.id}
+                          />
+                          <label
+                            htmlFor={`subject-${s.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {s.code} - {s.name}
+                          </label>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  </ScrollArea>
+                  {!editingCurriculum && (
+                    <p className="text-xs text-muted-foreground">Select multiple subjects to add them all to this curriculum</p>
+                  )}
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="start_date">Start Date *</Label>
@@ -302,7 +358,7 @@ const CurriculumManagement = () => {
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
                   <Button type="submit" disabled={saveMutation.isPending}>
-                    {saveMutation.isPending ? "Saving..." : "Save"}
+                    {saveMutation.isPending ? "Saving..." : editingCurriculum ? "Save" : `Add ${formData.subject_ids.length} Subject(s)`}
                   </Button>
                 </div>
               </form>
