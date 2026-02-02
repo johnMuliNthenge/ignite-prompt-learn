@@ -719,6 +719,24 @@ const academicsModule: NavModule = {
       icon: ClipboardCheck,
       moduleCode: 'academics.attendance',
     },
+    {
+      title: 'Subjects',
+      href: '/lms/academics/subjects',
+      icon: BookOpen,
+      moduleCode: 'academics.subjects',
+    },
+    {
+      title: 'Programmes',
+      href: '/lms/academics/programmes',
+      icon: GraduationCap,
+      moduleCode: 'academics.programmes',
+    },
+    {
+      title: 'Curriculum',
+      href: '/lms/academics/curriculum',
+      icon: FileText,
+      moduleCode: 'academics.curriculum',
+    },
   ],
 };
 
