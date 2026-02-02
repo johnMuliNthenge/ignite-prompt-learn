@@ -680,6 +680,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          programme_id: string | null
           session_id: string | null
           updated_at: string | null
         }
@@ -692,6 +693,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          programme_id?: string | null
           session_id?: string | null
           updated_at?: string | null
         }
@@ -704,6 +706,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          programme_id?: string | null
           session_id?: string | null
           updated_at?: string | null
         }
@@ -713,6 +716,13 @@ export type Database = {
             columns: ["academic_year_id"]
             isOneToOne: false
             referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_programme_id_fkey"
+            columns: ["programme_id"]
+            isOneToOne: false
+            referencedRelation: "programmes"
             referencedColumns: ["id"]
           },
           {
@@ -1116,6 +1126,66 @@ export type Database = {
           symbol?: string
         }
         Relationships: []
+      }
+      curriculum: {
+        Row: {
+          created_at: string | null
+          credit_hours: number | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          is_compulsory: boolean | null
+          programme_id: string
+          semester: number | null
+          start_date: string
+          subject_id: string
+          updated_at: string | null
+          year_of_study: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          credit_hours?: number | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_compulsory?: boolean | null
+          programme_id: string
+          semester?: number | null
+          start_date: string
+          subject_id: string
+          updated_at?: string | null
+          year_of_study?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          credit_hours?: number | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_compulsory?: boolean | null
+          programme_id?: string
+          semester?: number | null
+          start_date?: string
+          subject_id?: string
+          updated_at?: string | null
+          year_of_study?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_programme_id_fkey"
+            columns: ["programme_id"]
+            isOneToOne: false
+            referencedRelation: "programmes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       enrollments: {
         Row: {
@@ -4489,6 +4559,39 @@ export type Database = {
         }
         Relationships: []
       }
+      programmes: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          duration_years: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          duration_years?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          duration_years?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       quiz_attempts: {
         Row: {
           answers: Json
@@ -5024,6 +5127,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subjects: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       tax_types: {
         Row: {

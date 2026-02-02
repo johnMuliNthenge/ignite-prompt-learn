@@ -39,6 +39,9 @@ import ExamsManagement from "./pages/lms/academics/ExamsManagement";
 import MarksEntry from "./pages/lms/academics/MarksEntry";
 import ResultsView from "./pages/lms/academics/ResultsView";
 import StudentAttendance from "./pages/lms/academics/StudentAttendance";
+import SubjectsManagement from "./pages/lms/academics/SubjectsManagement";
+import ProgrammesManagement from "./pages/lms/academics/ProgrammesManagement";
+import CurriculumManagement from "./pages/lms/academics/CurriculumManagement";
 
 // Finance pages
 import FinanceDashboard from "./pages/lms/finance/FinanceDashboard";
@@ -167,6 +170,9 @@ const App = () => (
               <Route path="academics/exams" element={<ExamsManagement />} />
               <Route path="academics/marks" element={<MarksEntry />} />
               <Route path="academics/results" element={<ResultsView />} />
+              <Route path="academics/subjects" element={<SubjectsManagement />} />
+              <Route path="academics/programmes" element={<ProgrammesManagement />} />
+              <Route path="academics/curriculum" element={<CurriculumManagement />} />
               <Route path="academics/attendance" element={<StudentAttendance />} />
               {/* Finance Routes */}
               <Route path="finance" element={<FinanceDashboard />} />
