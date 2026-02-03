@@ -10,7 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pencil, Trash2, FileText, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
 import { format } from "date-fns";
@@ -28,19 +29,26 @@ interface Subject {
   code: string;
 }
 
+interface CurriculumSubject {
+  id: string;
+  curriculum_id: string;
+  subject_id: string;
+  is_compulsory: boolean;
+  credit_hours: number;
+  subjects: Subject;
+}
+
 interface Curriculum {
   id: string;
+  name: string;
   programme_id: string;
-  subject_id: string;
   start_date: string;
   end_date: string | null;
   semester: number | null;
   year_of_study: number;
-  is_compulsory: boolean;
-  credit_hours: number;
   is_active: boolean;
   programmes: Programme;
-  subjects: Subject;
+  curriculum_subjects: CurriculumSubject[];
 }
 
 const CurriculumManagement = () => {
@@ -49,14 +57,14 @@ const CurriculumManagement = () => {
   const [editingCurriculum, setEditingCurriculum] = useState<Curriculum | null>(null);
   const [selectedProgramme, setSelectedProgramme] = useState<string>("all");
   const [formData, setFormData] = useState({
+    name: "",
     programme_id: "",
     subject_ids: [] as string[],
+    subject_settings: {} as Record<string, { is_compulsory: boolean; credit_hours: number }>,
     start_date: "",
     end_date: "",
     semester: "",
     year_of_study: 1,
-    is_compulsory: true,
-    credit_hours: 3,
     is_active: true,
   });
 
@@ -83,7 +91,11 @@ const CurriculumManagement = () => {
     queryFn: async () => {
       let query = supabase
         .from("curriculum")
-        .select("*, programmes(id, name, code), subjects(id, name, code)")
+        .select(`
+          *,
+          programmes(id, name, code),
+          curriculum_subjects(id, curriculum_id, subject_id, is_compulsory, credit_hours, subjects(id, name, code))
+        `)
         .order("year_of_study")
         .order("semester");
       
@@ -100,40 +112,74 @@ const CurriculumManagement = () => {
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { id?: string }) => {
       if (data.id) {
-        // Editing single entry
-        const payload = {
-          programme_id: data.programme_id,
-          subject_id: data.subject_ids[0],
-          start_date: data.start_date,
-          end_date: data.end_date || null,
-          semester: data.semester ? parseInt(data.semester) : null,
-          year_of_study: data.year_of_study,
-          is_compulsory: data.is_compulsory,
-          credit_hours: data.credit_hours,
-          is_active: data.is_active,
-        };
-        const { error } = await supabase.from("curriculum").update(payload).eq("id", data.id);
-        if (error) throw error;
-      } else {
-        // Creating multiple entries (one per subject)
-        const entries = data.subject_ids.map((subject_id) => ({
-          programme_id: data.programme_id,
+        // Update curriculum
+        const { error: updateError } = await supabase
+          .from("curriculum")
+          .update({
+            name: data.name,
+            programme_id: data.programme_id,
+            start_date: data.start_date,
+            end_date: data.end_date || null,
+            semester: data.semester ? parseInt(data.semester) : null,
+            year_of_study: data.year_of_study,
+            is_active: data.is_active,
+          })
+          .eq("id", data.id);
+        if (updateError) throw updateError;
+
+        // Delete existing subjects and re-insert
+        const { error: deleteError } = await supabase
+          .from("curriculum_subjects")
+          .delete()
+          .eq("curriculum_id", data.id);
+        if (deleteError) throw deleteError;
+
+        // Insert updated subjects
+        const subjectEntries = data.subject_ids.map((subject_id) => ({
+          curriculum_id: data.id!,
           subject_id,
-          start_date: data.start_date,
-          end_date: data.end_date || null,
-          semester: data.semester ? parseInt(data.semester) : null,
-          year_of_study: data.year_of_study,
-          is_compulsory: data.is_compulsory,
-          credit_hours: data.credit_hours,
-          is_active: data.is_active,
+          is_compulsory: data.subject_settings[subject_id]?.is_compulsory ?? true,
+          credit_hours: data.subject_settings[subject_id]?.credit_hours ?? 3,
         }));
-        const { error } = await supabase.from("curriculum").insert(entries);
-        if (error) throw error;
+        
+        if (subjectEntries.length > 0) {
+          const { error: insertError } = await supabase.from("curriculum_subjects").insert(subjectEntries);
+          if (insertError) throw insertError;
+        }
+      } else {
+        // Create new curriculum
+        const { data: newCurriculum, error: insertError } = await supabase
+          .from("curriculum")
+          .insert({
+            name: data.name,
+            programme_id: data.programme_id,
+            start_date: data.start_date,
+            end_date: data.end_date || null,
+            semester: data.semester ? parseInt(data.semester) : null,
+            year_of_study: data.year_of_study,
+            is_active: data.is_active,
+          })
+          .select()
+          .single();
+        if (insertError) throw insertError;
+
+        // Insert subjects
+        const subjectEntries = data.subject_ids.map((subject_id) => ({
+          curriculum_id: newCurriculum.id,
+          subject_id,
+          is_compulsory: data.subject_settings[subject_id]?.is_compulsory ?? true,
+          credit_hours: data.subject_settings[subject_id]?.credit_hours ?? 3,
+        }));
+
+        if (subjectEntries.length > 0) {
+          const { error: subjectError } = await supabase.from("curriculum_subjects").insert(subjectEntries);
+          if (subjectError) throw subjectError;
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["curriculum"] });
-      toast.success(editingCurriculum ? "Curriculum updated successfully" : "Curriculum entries created successfully");
+      toast.success(editingCurriculum ? "Curriculum updated successfully" : "Curriculum created successfully");
       resetForm();
     },
     onError: (error: Error) => {
@@ -148,7 +194,7 @@ const CurriculumManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["curriculum"] });
-      toast.success("Curriculum entry deleted successfully");
+      toast.success("Curriculum deleted successfully");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -157,14 +203,14 @@ const CurriculumManagement = () => {
 
   const resetForm = () => {
     setFormData({
+      name: "",
       programme_id: "",
       subject_ids: [],
+      subject_settings: {},
       start_date: "",
       end_date: "",
       semester: "",
       year_of_study: 1,
-      is_compulsory: true,
-      credit_hours: 3,
       is_active: true,
     });
     setEditingCurriculum(null);
@@ -172,16 +218,24 @@ const CurriculumManagement = () => {
   };
 
   const handleEdit = (item: Curriculum) => {
+    const existingSubjectSettings: Record<string, { is_compulsory: boolean; credit_hours: number }> = {};
+    item.curriculum_subjects?.forEach((cs) => {
+      existingSubjectSettings[cs.subject_id] = {
+        is_compulsory: cs.is_compulsory,
+        credit_hours: cs.credit_hours,
+      };
+    });
+
     setEditingCurriculum(item);
     setFormData({
+      name: item.name || "",
       programme_id: item.programme_id,
-      subject_ids: [item.subject_id],
+      subject_ids: item.curriculum_subjects?.map((cs) => cs.subject_id) || [],
+      subject_settings: existingSubjectSettings,
       start_date: item.start_date,
       end_date: item.end_date || "",
       semester: item.semester?.toString() || "",
       year_of_study: item.year_of_study,
-      is_compulsory: item.is_compulsory,
-      credit_hours: item.credit_hours,
       is_active: item.is_active,
     });
     setIsDialogOpen(true);
@@ -189,22 +243,47 @@ const CurriculumManagement = () => {
 
   const handleSubjectToggle = (subjectId: string, checked: boolean) => {
     if (checked) {
-      setFormData({ ...formData, subject_ids: [...formData.subject_ids, subjectId] });
+      setFormData({
+        ...formData,
+        subject_ids: [...formData.subject_ids, subjectId],
+        subject_settings: {
+          ...formData.subject_settings,
+          [subjectId]: { is_compulsory: true, credit_hours: 3 },
+        },
+      });
     } else {
-      setFormData({ ...formData, subject_ids: formData.subject_ids.filter((id) => id !== subjectId) });
+      const newSettings = { ...formData.subject_settings };
+      delete newSettings[subjectId];
+      setFormData({
+        ...formData,
+        subject_ids: formData.subject_ids.filter((id) => id !== subjectId),
+        subject_settings: newSettings,
+      });
     }
   };
 
   const handleSelectAllSubjects = () => {
     if (subjects && formData.subject_ids.length === subjects.length) {
-      setFormData({ ...formData, subject_ids: [] });
+      setFormData({ ...formData, subject_ids: [], subject_settings: {} });
     } else {
-      setFormData({ ...formData, subject_ids: subjects?.map((s) => s.id) || [] });
+      const allSettings: Record<string, { is_compulsory: boolean; credit_hours: number }> = {};
+      subjects?.forEach((s) => {
+        allSettings[s.id] = formData.subject_settings[s.id] || { is_compulsory: true, credit_hours: 3 };
+      });
+      setFormData({
+        ...formData,
+        subject_ids: subjects?.map((s) => s.id) || [],
+        subject_settings: allSettings,
+      });
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      toast.error("Please enter a curriculum name");
+      return;
+    }
     if (formData.subject_ids.length === 0) {
       toast.error("Please select at least one subject");
       return;
@@ -220,18 +299,29 @@ const CurriculumManagement = () => {
             <FileText className="h-8 w-8 text-primary" />
             <div>
               <h1 className="text-3xl font-bold">Curriculum</h1>
-              <p className="text-muted-foreground">Map subjects to programmes with date ranges</p>
+              <p className="text-muted-foreground">Define programme curricula with multiple subjects</p>
             </div>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" /> Add Curriculum Entry</Button>
+              <Button><Plus className="h-4 w-4 mr-2" /> Add Curriculum</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingCurriculum ? "Edit Curriculum Entry" : "Add New Curriculum Entry"}</DialogTitle>
+                <DialogTitle>{editingCurriculum ? "Edit Curriculum" : "Add New Curriculum"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Curriculum Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g., DICT 2024 Curriculum"
+                    required
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label>Programme *</Label>
                   <Select value={formData.programme_id} onValueChange={(v) => setFormData({ ...formData, programme_id: v })}>
@@ -249,35 +339,74 @@ const CurriculumManagement = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>Subjects * ({formData.subject_ids.length} selected)</Label>
-                    {!editingCurriculum && (
-                      <Button type="button" variant="ghost" size="sm" onClick={handleSelectAllSubjects}>
-                        {subjects && formData.subject_ids.length === subjects.length ? "Deselect All" : "Select All"}
-                      </Button>
-                    )}
+                    <Button type="button" variant="ghost" size="sm" onClick={handleSelectAllSubjects}>
+                      {subjects && formData.subject_ids.length === subjects.length ? "Deselect All" : "Select All"}
+                    </Button>
                   </div>
-                  <ScrollArea className="h-[180px] border rounded-md p-3">
-                    <div className="grid grid-cols-2 gap-2">
+                  <ScrollArea className="h-[200px] border rounded-md p-3">
+                    <div className="space-y-2">
                       {subjects?.map((s) => (
-                        <div key={s.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`subject-${s.id}`}
-                            checked={formData.subject_ids.includes(s.id)}
-                            onCheckedChange={(checked) => handleSubjectToggle(s.id, checked as boolean)}
-                            disabled={editingCurriculum !== null && formData.subject_ids[0] !== s.id}
-                          />
-                          <label
-                            htmlFor={`subject-${s.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            {s.code} - {s.name}
-                          </label>
+                        <div key={s.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`subject-${s.id}`}
+                              checked={formData.subject_ids.includes(s.id)}
+                              onCheckedChange={(checked) => handleSubjectToggle(s.id, checked as boolean)}
+                            />
+                            <label
+                              htmlFor={`subject-${s.id}`}
+                              className="text-sm font-medium leading-none cursor-pointer"
+                            >
+                              {s.code} - {s.name}
+                            </label>
+                          </div>
+                          {formData.subject_ids.includes(s.id) && (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                min={1}
+                                max={20}
+                                className="w-16 h-7 text-xs"
+                                placeholder="Credits"
+                                value={formData.subject_settings[s.id]?.credit_hours || 3}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    subject_settings: {
+                                      ...formData.subject_settings,
+                                      [s.id]: {
+                                        ...formData.subject_settings[s.id],
+                                        credit_hours: parseInt(e.target.value) || 3,
+                                      },
+                                    },
+                                  })
+                                }
+                              />
+                              <Badge
+                                variant={formData.subject_settings[s.id]?.is_compulsory ? "default" : "secondary"}
+                                className="cursor-pointer text-xs"
+                                onClick={() =>
+                                  setFormData({
+                                    ...formData,
+                                    subject_settings: {
+                                      ...formData.subject_settings,
+                                      [s.id]: {
+                                        ...formData.subject_settings[s.id],
+                                        is_compulsory: !formData.subject_settings[s.id]?.is_compulsory,
+                                      },
+                                    },
+                                  })
+                                }
+                              >
+                                {formData.subject_settings[s.id]?.is_compulsory ? "Core" : "Elective"}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </ScrollArea>
-                  {!editingCurriculum && (
-                    <p className="text-xs text-muted-foreground">Select multiple subjects to add them all to this curriculum</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">Click on "Core/Elective" badge to toggle. Set credit hours for each subject.</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -301,7 +430,7 @@ const CurriculumManagement = () => {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="year_of_study">Year of Study</Label>
                     <Input
@@ -325,40 +454,19 @@ const CurriculumManagement = () => {
                       placeholder="Optional"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="credit_hours">Credit Hours</Label>
-                    <Input
-                      id="credit_hours"
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={formData.credit_hours}
-                      onChange={(e) => setFormData({ ...formData, credit_hours: parseInt(e.target.value) || 3 })}
-                    />
-                  </div>
                 </div>
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="is_compulsory"
-                      checked={formData.is_compulsory}
-                      onCheckedChange={(checked) => setFormData({ ...formData, is_compulsory: checked })}
-                    />
-                    <Label htmlFor="is_compulsory">Compulsory</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="is_active"
-                      checked={formData.is_active}
-                      onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                    />
-                    <Label htmlFor="is_active">Active</Label>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is_active"
+                    checked={formData.is_active}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                  />
+                  <Label htmlFor="is_active">Active</Label>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
                   <Button type="submit" disabled={saveMutation.isPending}>
-                    {saveMutation.isPending ? "Saving..." : editingCurriculum ? "Save" : `Add ${formData.subject_ids.length} Subject(s)`}
+                    {saveMutation.isPending ? "Saving..." : editingCurriculum ? "Update Curriculum" : "Create Curriculum"}
                   </Button>
                 </div>
               </form>
@@ -368,7 +476,7 @@ const CurriculumManagement = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Curriculum Entries</CardTitle>
+            <CardTitle>All Curricula</CardTitle>
             <Select value={selectedProgramme} onValueChange={setSelectedProgramme}>
               <SelectTrigger className="w-[250px]">
                 <SelectValue placeholder="Filter by programme" />
@@ -385,18 +493,16 @@ const CurriculumManagement = () => {
             {isLoading ? (
               <p className="text-center py-4">Loading...</p>
             ) : curriculum?.length === 0 ? (
-              <p className="text-center py-4 text-muted-foreground">No curriculum entries found.</p>
+              <p className="text-center py-4 text-muted-foreground">No curricula found.</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Name</TableHead>
                     <TableHead>Programme</TableHead>
-                    <TableHead>Subject</TableHead>
+                    <TableHead>Subjects</TableHead>
                     <TableHead>Year</TableHead>
-                    <TableHead>Semester</TableHead>
-                    <TableHead>Credits</TableHead>
                     <TableHead>Date Range</TableHead>
-                    <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -404,24 +510,23 @@ const CurriculumManagement = () => {
                 <TableBody>
                   {curriculum?.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.programmes?.code}</TableCell>
-                      <TableCell>{item.subjects?.code} - {item.subjects?.name}</TableCell>
-                      <TableCell>Year {item.year_of_study}</TableCell>
-                      <TableCell>{item.semester ? `Sem ${item.semester}` : "-"}</TableCell>
-                      <TableCell>{item.credit_hours}</TableCell>
+                      <TableCell className="font-medium">{item.name || "Unnamed"}</TableCell>
+                      <TableCell>{item.programmes?.code}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <BookOpen className="h-4 w-4 text-muted-foreground" />
+                          <span>{item.curriculum_subjects?.length || 0} subjects</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>Year {item.year_of_study}{item.semester ? `, Sem ${item.semester}` : ""}</TableCell>
                       <TableCell className="text-sm">
                         {format(new Date(item.start_date), "MMM yyyy")}
                         {item.end_date ? ` - ${format(new Date(item.end_date), "MMM yyyy")}` : " - Ongoing"}
                       </TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs ${item.is_compulsory ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
-                          {item.is_compulsory ? "Compulsory" : "Elective"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs ${item.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                        <Badge variant={item.is_active ? "default" : "secondary"}>
                           {item.is_active ? "Active" : "Inactive"}
-                        </span>
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
