@@ -45,11 +45,13 @@ interface ClassData {
   description: string | null;
   academic_year_id: string | null;
   session_id: string | null;
+  programme_id: string | null;
   capacity: number | null;
   is_active: boolean;
   created_at: string;
   academic_years?: { name: string } | null;
   sessions?: { name: string } | null;
+  programmes?: { name: string; code: string } | null;
 }
 
 interface AcademicYear {
@@ -64,6 +66,12 @@ interface Session {
   academic_year_id: string;
 }
 
+interface Programme {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export default function ClassManagement() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -75,6 +83,7 @@ export default function ClassManagement() {
     description: '',
     academic_year_id: '',
     session_id: '',
+    programme_id: '',
     capacity: '',
     is_active: true,
   });
@@ -88,7 +97,8 @@ export default function ClassManagement() {
         .select(`
           *,
           academic_years(name),
-          sessions(name)
+          sessions(name),
+          programmes(name, code)
         `)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -122,6 +132,20 @@ export default function ClassManagement() {
     },
   });
 
+  // Fetch programmes
+  const { data: programmes = [] } = useQuery({
+    queryKey: ['programmes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('programmes')
+        .select('id, name, code')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data as Programme[];
+    },
+  });
+
   // Get student count per class
   const { data: studentCounts = {} } = useQuery({
     queryKey: ['class-student-counts'],
@@ -149,6 +173,7 @@ export default function ClassManagement() {
         description: data.description || null,
         academic_year_id: data.academic_year_id || null,
         session_id: data.session_id || null,
+        programme_id: data.programme_id || null,
         capacity: data.capacity ? parseInt(data.capacity) : null,
         is_active: data.is_active,
         created_by: user?.id,
@@ -196,6 +221,7 @@ export default function ClassManagement() {
       description: '',
       academic_year_id: '',
       session_id: '',
+      programme_id: '',
       capacity: '',
       is_active: true,
     });
@@ -210,6 +236,7 @@ export default function ClassManagement() {
       description: classItem.description || '',
       academic_year_id: classItem.academic_year_id || '',
       session_id: classItem.session_id || '',
+      programme_id: classItem.programme_id || '',
       capacity: classItem.capacity?.toString() || '',
       is_active: classItem.is_active,
     });
@@ -327,6 +354,27 @@ export default function ClassManagement() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="programme">Programme</Label>
+                <Select
+                  value={formData.programme_id}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, programme_id: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select programme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programmes.map((programme) => (
+                      <SelectItem key={programme.id} value={programme.id}>
+                        {programme.code} - {programme.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="capacity">Capacity</Label>
@@ -438,8 +486,9 @@ export default function ClassManagement() {
             <TableHeader>
               <TableRow>
                 <TableHead>Class Name</TableHead>
+                <TableHead className="hidden md:table-cell">Programme</TableHead>
                 <TableHead className="hidden md:table-cell">Academic Year</TableHead>
-                <TableHead className="hidden md:table-cell">Session</TableHead>
+                <TableHead className="hidden lg:table-cell">Session</TableHead>
                 <TableHead>Students</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -448,13 +497,13 @@ export default function ClassManagement() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : filteredClasses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No classes found
                   </TableCell>
                 </TableRow>
@@ -472,9 +521,12 @@ export default function ClassManagement() {
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {classItem.academic_years?.name || '-'}
+                      {classItem.programmes ? `${classItem.programmes.code}` : '-'}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
+                      {classItem.academic_years?.name || '-'}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       {classItem.sessions?.name || '-'}
                     </TableCell>
                     <TableCell>

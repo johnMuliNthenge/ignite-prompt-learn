@@ -1130,43 +1130,37 @@ export type Database = {
       curriculum: {
         Row: {
           created_at: string | null
-          credit_hours: number | null
           end_date: string | null
           id: string
           is_active: boolean | null
-          is_compulsory: boolean | null
+          name: string | null
           programme_id: string
           semester: number | null
           start_date: string
-          subject_id: string
           updated_at: string | null
           year_of_study: number | null
         }
         Insert: {
           created_at?: string | null
-          credit_hours?: number | null
           end_date?: string | null
           id?: string
           is_active?: boolean | null
-          is_compulsory?: boolean | null
+          name?: string | null
           programme_id: string
           semester?: number | null
           start_date: string
-          subject_id: string
           updated_at?: string | null
           year_of_study?: number | null
         }
         Update: {
           created_at?: string | null
-          credit_hours?: number | null
           end_date?: string | null
           id?: string
           is_active?: boolean | null
-          is_compulsory?: boolean | null
+          name?: string | null
           programme_id?: string
           semester?: number | null
           start_date?: string
-          subject_id?: string
           updated_at?: string | null
           year_of_study?: number | null
         }
@@ -1178,8 +1172,43 @@ export type Database = {
             referencedRelation: "programmes"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      curriculum_subjects: {
+        Row: {
+          created_at: string | null
+          credit_hours: number | null
+          curriculum_id: string
+          id: string
+          is_compulsory: boolean | null
+          subject_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          credit_hours?: number | null
+          curriculum_id: string
+          id?: string
+          is_compulsory?: boolean | null
+          subject_id: string
+        }
+        Update: {
+          created_at?: string | null
+          credit_hours?: number | null
+          curriculum_id?: string
+          id?: string
+          is_compulsory?: boolean | null
+          subject_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "curriculum_subject_id_fkey"
+            foreignKeyName: "curriculum_subjects_curriculum_id_fkey"
+            columns: ["curriculum_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_subjects_subject_id_fkey"
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
