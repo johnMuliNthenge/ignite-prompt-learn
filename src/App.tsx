@@ -27,6 +27,7 @@ import AdministrationSettings from "./pages/lms/admin/AdministrationSettings";
 import ClassManagement from "./pages/lms/admin/ClassManagement";
 import RoleManagement from "./pages/lms/admin/RoleManagement";
 import UserRoleAssignment from "./pages/lms/admin/UserRoleAssignment";
+import MpesaSettings from "./pages/lms/admin/MpesaSettings";
 import CreateCourse from "./pages/lms/courses/CreateCourse";
 import CourseEditor from "./pages/lms/courses/CourseEditor";
 import CourseCatalog from "./pages/lms/courses/CourseCatalog";
@@ -165,6 +166,7 @@ const App = () => (
               <Route path="admin/administration" element={<AdministrationSettings />} />
               <Route path="admin/settings" element={<SiteSettings />} />
               <Route path="admin/smtp" element={<SmtpSettings />} />
+              <Route path="admin/mpesa" element={<MpesaSettings />} />
               
               {/* Student Academics Routes */}
               <Route path="academics/exams" element={<ExamsManagement />} />

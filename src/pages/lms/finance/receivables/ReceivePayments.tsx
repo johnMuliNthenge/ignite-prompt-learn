@@ -16,7 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, DollarSign, Loader2, CreditCard, Receipt, Printer } from 'lucide-react';
+import { Search, DollarSign, Loader2, CreditCard, Receipt, Printer, Phone, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -73,6 +73,13 @@ export default function ReceivePayments() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<PaymentReceipt | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  
+  // M-Pesa state
+  const [mpesaDialogOpen, setMpesaDialogOpen] = useState(false);
+  const [mpesaEnabled, setMpesaEnabled] = useState(false);
+  const [mpesaPhone, setMpesaPhone] = useState('');
+  const [mpesaAmount, setMpesaAmount] = useState('');
+  const [mpesaSubmitting, setMpesaSubmitting] = useState(false);
 
   const [paymentData, setPaymentData] = useState({
     amount: '',
@@ -86,7 +93,19 @@ export default function ReceivePayments() {
 
   useEffect(() => {
     fetchData();
+    checkMpesaSettings();
   }, []);
+
+  const checkMpesaSettings = async () => {
+    const { data } = await supabase
+      .from('mpesa_settings')
+      .select('is_active')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    
+    setMpesaEnabled(!!data?.is_active);
+  };
 
   const fetchData = async () => {
     try {
@@ -180,6 +199,57 @@ export default function ReceivePayments() {
     });
     await fetchStudentInvoices(student.id);
     setPaymentDialogOpen(true);
+  };
+
+  const openMpesaDialog = async (student: Student) => {
+    setSelectedStudent(student);
+    setMpesaAmount(student.total_balance.toString());
+    setMpesaPhone('');
+    await fetchStudentInvoices(student.id);
+    setMpesaDialogOpen(true);
+  };
+
+  const handleMpesaPayment = async () => {
+    if (!selectedStudent || !mpesaPhone || !mpesaAmount) {
+      toast.error('Please enter phone number and amount');
+      return;
+    }
+
+    const amount = parseFloat(mpesaAmount);
+    if (amount < 1) {
+      toast.error('Minimum amount is KES 1');
+      return;
+    }
+
+    setMpesaSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mpesa-stk-push', {
+        body: {
+          phone_number: mpesaPhone,
+          amount: amount,
+          student_id: selectedStudent.id,
+          invoice_id: invoices.length > 0 ? invoices[0].id : null,
+          account_reference: selectedStudent.student_no || 'SchoolFees',
+          transaction_desc: `Fee payment for ${selectedStudent.other_name} ${selectedStudent.surname}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success('STK Push sent! Please check your phone and enter your M-Pesa PIN.');
+        setMpesaDialogOpen(false);
+        setMpesaPhone('');
+        setMpesaAmount('');
+      } else {
+        toast.error(data?.error || 'Failed to initiate M-Pesa payment');
+      }
+    } catch (error: any) {
+      console.error('M-Pesa error:', error);
+      toast.error(error.message || 'Failed to initiate M-Pesa payment');
+    } finally {
+      setMpesaSubmitting(false);
+    }
   };
 
   const generateReceiptNumber = async () => {
@@ -462,10 +532,18 @@ export default function ReceivePayments() {
                       {formatCurrency(student.total_balance)}
                     </TableCell>
                     <TableCell>
-                      <Button size="sm" onClick={() => openPaymentDialog(student)}>
-                        <DollarSign className="mr-2 h-4 w-4" />
-                        Receive Payment
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => openPaymentDialog(student)}>
+                          <DollarSign className="mr-2 h-4 w-4" />
+                          Receive
+                        </Button>
+                        {mpesaEnabled && (
+                          <Button size="sm" variant="outline" onClick={() => openMpesaDialog(student)}>
+                            <Smartphone className="mr-2 h-4 w-4" />
+                            M-Pesa
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -663,6 +741,75 @@ export default function ReceivePayments() {
                 </Button>
               </div>
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* M-Pesa Payment Dialog */}
+      <Dialog open={mpesaDialogOpen} onOpenChange={setMpesaDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              M-Pesa Payment
+            </DialogTitle>
+          </DialogHeader>
+          {selectedStudent && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="font-medium">{selectedStudent.other_name} {selectedStudent.surname}</p>
+                <p className="text-sm text-muted-foreground">ID: {selectedStudent.student_no}</p>
+                <p className="text-lg font-bold text-destructive mt-2">
+                  Outstanding: {formatCurrency(selectedStudent.total_balance)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Phone Number *</Label>
+                <Input
+                  type="tel"
+                  value={mpesaPhone}
+                  onChange={(e) => setMpesaPhone(e.target.value)}
+                  placeholder="e.g., 0712345678 or 254712345678"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter the phone number registered with M-Pesa
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Amount (KES) *</Label>
+                <Input
+                  type="number"
+                  value={mpesaAmount}
+                  onChange={(e) => setMpesaAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                <p className="font-medium mb-1">How it works:</p>
+                <ol className="list-decimal list-inside text-muted-foreground space-y-1">
+                  <li>Click "Send STK Push" below</li>
+                  <li>An M-Pesa prompt will appear on the phone</li>
+                  <li>Enter M-Pesa PIN to complete payment</li>
+                  <li>Payment will be automatically recorded</li>
+                </ol>
+              </div>
+
+              <Button
+                onClick={handleMpesaPayment}
+                className="w-full"
+                disabled={mpesaSubmitting}
+              >
+                {mpesaSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Smartphone className="mr-2 h-4 w-4" />
+                )}
+                Send STK Push
+              </Button>
+            </div>
           )}
         </DialogContent>
       </Dialog>

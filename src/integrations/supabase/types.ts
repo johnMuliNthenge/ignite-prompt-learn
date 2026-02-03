@@ -4075,6 +4075,120 @@ export type Database = {
         }
         Relationships: []
       }
+      mpesa_settings: {
+        Row: {
+          business_short_code: string
+          callback_url: string | null
+          consumer_key: string
+          consumer_secret: string
+          created_at: string | null
+          created_by: string | null
+          environment: string | null
+          id: string
+          is_active: boolean | null
+          passkey: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_short_code: string
+          callback_url?: string | null
+          consumer_key: string
+          consumer_secret: string
+          created_at?: string | null
+          created_by?: string | null
+          environment?: string | null
+          id?: string
+          is_active?: boolean | null
+          passkey: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_short_code?: string
+          callback_url?: string | null
+          consumer_key?: string
+          consumer_secret?: string
+          created_at?: string | null
+          created_by?: string | null
+          environment?: string | null
+          id?: string
+          is_active?: boolean | null
+          passkey?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      mpesa_transactions: {
+        Row: {
+          account_reference: string | null
+          amount: number
+          checkout_request_id: string | null
+          created_at: string | null
+          id: string
+          invoice_id: string | null
+          merchant_request_id: string | null
+          mpesa_receipt_number: string | null
+          phone_number: string
+          result_code: string | null
+          result_desc: string | null
+          status: string | null
+          student_id: string | null
+          transaction_date: string | null
+          transaction_desc: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_reference?: string | null
+          amount: number
+          checkout_request_id?: string | null
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          merchant_request_id?: string | null
+          mpesa_receipt_number?: string | null
+          phone_number: string
+          result_code?: string | null
+          result_desc?: string | null
+          status?: string | null
+          student_id?: string | null
+          transaction_date?: string | null
+          transaction_desc?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_reference?: string | null
+          amount?: number
+          checkout_request_id?: string | null
+          created_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          merchant_request_id?: string | null
+          mpesa_receipt_number?: string | null
+          phone_number?: string
+          result_code?: string | null
+          result_desc?: string | null
+          status?: string | null
+          student_id?: string | null
+          transaction_date?: string | null
+          transaction_desc?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mpesa_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fee_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mpesa_transactions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       online_classes: {
         Row: {
           course_id: string
