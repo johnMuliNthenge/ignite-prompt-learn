@@ -37,7 +37,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import { Search, DollarSign, Loader2, Receipt, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, DollarSign, Loader2, Receipt, Printer, ChevronLeft, ChevronRight, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
@@ -92,6 +92,14 @@ export default function Receivables() {
   const ITEMS_PER_PAGE = 10;
   const receiptRef = useRef<HTMLDivElement>(null);
 
+  // M-Pesa state
+  const [mpesaDialogOpen, setMpesaDialogOpen] = useState(false);
+  const [mpesaEnabled, setMpesaEnabled] = useState(false);
+  const [mpesaPhone, setMpesaPhone] = useState('');
+  const [mpesaAmount, setMpesaAmount] = useState('');
+  const [mpesaStudentId, setMpesaStudentId] = useState('');
+  const [mpesaSubmitting, setMpesaSubmitting] = useState(false);
+
   // Receipt data state
   const [receiptData, setReceiptData] = useState<{
     receiptNumber: string;
@@ -115,7 +123,74 @@ export default function Receivables() {
 
   useEffect(() => {
     fetchData();
+    checkMpesaSettings();
   }, []);
+
+  const checkMpesaSettings = async () => {
+    const { data } = await supabase
+      .from('mpesa_settings')
+      .select('is_active')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    
+    setMpesaEnabled(!!data?.is_active);
+  };
+
+  const handleMpesaPayment = async () => {
+    if (!mpesaStudentId || !mpesaPhone || !mpesaAmount) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const amount = parseFloat(mpesaAmount);
+    if (amount < 1) {
+      toast.error('Minimum amount is KES 1');
+      return;
+    }
+
+    setMpesaSubmitting(true);
+    try {
+      // Get student's oldest unpaid invoice for reference
+      const { data: invoices } = await supabase
+        .from('fee_invoices')
+        .select('id')
+        .eq('student_id', mpesaStudentId)
+        .gt('balance_due', 0)
+        .order('invoice_date', { ascending: true })
+        .limit(1);
+
+      const student = students.find(s => s.id === mpesaStudentId);
+
+      const { data, error } = await supabase.functions.invoke('mpesa-stk-push', {
+        body: {
+          phone_number: mpesaPhone,
+          amount: amount,
+          student_id: mpesaStudentId,
+          invoice_id: invoices && invoices.length > 0 ? invoices[0].id : null,
+          account_reference: student?.student_no || 'SchoolFees',
+          transaction_desc: `Fee payment for ${student?.other_name} ${student?.surname}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success('STK Push sent! Please check your phone and enter your M-Pesa PIN.');
+        setMpesaDialogOpen(false);
+        setMpesaPhone('');
+        setMpesaAmount('');
+        setMpesaStudentId('');
+      } else {
+        toast.error(data?.error || 'Failed to initiate M-Pesa payment');
+      }
+    } catch (error: any) {
+      console.error('M-Pesa error:', error);
+      toast.error(error.message || 'Failed to initiate M-Pesa payment');
+    } finally {
+      setMpesaSubmitting(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -480,6 +555,69 @@ export default function Receivables() {
             <p className="text-muted-foreground">Manage student fee payments and receipts</p>
           </div>
           <div className="flex gap-2">
+            {mpesaEnabled && (
+              <Dialog open={mpesaDialogOpen} onOpenChange={setMpesaDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="secondary">
+                    <Smartphone className="mr-2 h-4 w-4" />
+                    Prompt Payment
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>M-Pesa Payment Prompt</DialogTitle>
+                    <DialogDescription>Send an STK push to the student's phone</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Student *</Label>
+                      <Select
+                        value={mpesaStudentId}
+                        onValueChange={setMpesaStudentId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select student" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {students.map((student) => (
+                            <SelectItem key={student.id} value={student.id}>
+                              {student.student_no} - {student.other_name} {student.surname}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone Number *</Label>
+                      <Input
+                        placeholder="e.g., 0712345678"
+                        value={mpesaPhone}
+                        onChange={(e) => setMpesaPhone(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">Enter the M-Pesa registered phone number</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Amount (KES) *</Label>
+                      <Input
+                        type="number"
+                        placeholder="Enter amount"
+                        value={mpesaAmount}
+                        onChange={(e) => setMpesaAmount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setMpesaDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleMpesaPayment} disabled={mpesaSubmitting}>
+                      {mpesaSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Send STK Push
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
             <ActionButton moduleCode={MODULE_CODE} action="add">
               <Dialog open={receivePaymentDialogOpen} onOpenChange={setReceivePaymentDialogOpen}>
                 <DialogTrigger asChild>
