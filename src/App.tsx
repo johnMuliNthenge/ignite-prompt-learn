@@ -127,6 +127,15 @@ import TurnoverReport from "./pages/lms/hr/reports/TurnoverReport";
 import ContractExpiry from "./pages/lms/hr/reports/ContractExpiry";
 import ProbationTracking from "./pages/lms/hr/reports/ProbationTracking";
 
+// Student Portal pages
+import { StudentPortalLayout } from "./components/lms/StudentPortalLayout";
+import StudentDashboard from "./pages/lms/student-portal/StudentDashboard";
+import FeeBalance from "./pages/lms/student-portal/fees/FeeBalance";
+import FeeStatement from "./pages/lms/student-portal/fees/FeeStatement";
+import FeeReceipts from "./pages/lms/student-portal/fees/FeeReceipts";
+import ResultSlip from "./pages/lms/student-portal/academics/ResultSlip";
+import POEUpload from "./pages/lms/student-portal/poe/POEUpload";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -265,6 +274,16 @@ const App = () => (
               <Route path="hr/reports/turnover" element={<TurnoverReport />} />
               <Route path="hr/reports/contract-expiry" element={<ContractExpiry />} />
               <Route path="hr/reports/probation" element={<ProbationTracking />} />
+            </Route>
+
+            {/* Student Portal Routes */}
+            <Route path="/lms/student-portal" element={<StudentPortalLayout />}>
+              <Route index element={<StudentDashboard />} />
+              <Route path="fees/balance" element={<FeeBalance />} />
+              <Route path="fees/statement" element={<FeeStatement />} />
+              <Route path="fees/receipts" element={<FeeReceipts />} />
+              <Route path="academics/results" element={<ResultSlip />} />
+              <Route path="poe/upload" element={<POEUpload />} />
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

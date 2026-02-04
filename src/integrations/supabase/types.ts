@@ -5118,6 +5118,75 @@ export type Database = {
           },
         ]
       }
+      student_poe_submissions: {
+        Row: {
+          created_at: string
+          description: string | null
+          feedback: string | null
+          file_name: string | null
+          file_type: string
+          file_url: string
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_id: string
+          subject_id: string
+          submitted_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          feedback?: string | null
+          file_name?: string | null
+          file_type: string
+          file_url: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_id: string
+          subject_id: string
+          submitted_at?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          feedback?: string | null
+          file_name?: string | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_id?: string
+          subject_id?: string
+          submitted_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_poe_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_poe_submissions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_types: {
         Row: {
           created_at: string | null

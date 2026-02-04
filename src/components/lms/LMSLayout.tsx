@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar, MobileHeader } from './Sidebar';
 import { Loader2 } from 'lucide-react';
 
 export function LMSLayout() {
-  const { user, loading } = useAuth();
+  const { user, loading, isStudent, isAdmin, isTeacher } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     // Initialize from localStorage
@@ -25,6 +26,16 @@ export function LMSLayout() {
     }
   }, [user, loading, navigate]);
 
+  // Redirect students to student portal
+  useEffect(() => {
+    if (!loading && user && isStudent && !isAdmin && !isTeacher) {
+      // Only redirect if they're trying to access non-student portal LMS routes
+      if (!location.pathname.startsWith('/lms/student-portal')) {
+        navigate('/lms/student-portal');
+      }
+    }
+  }, [user, loading, isStudent, isAdmin, isTeacher, location.pathname, navigate]);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -35,6 +46,15 @@ export function LMSLayout() {
 
   if (!user) {
     return null;
+  }
+
+  // Redirect students - don't render the admin layout for them
+  if (isStudent && !isAdmin && !isTeacher) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
