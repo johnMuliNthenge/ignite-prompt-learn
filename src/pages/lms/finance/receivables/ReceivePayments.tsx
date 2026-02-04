@@ -533,16 +533,16 @@ export default function ReceivePayments() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        {mpesaEnabled && (
+                          <Button size="sm" variant="secondary" onClick={() => openMpesaDialog(student)}>
+                            <Smartphone className="mr-2 h-4 w-4" />
+                            Prompt Payment
+                          </Button>
+                        )}
                         <Button size="sm" onClick={() => openPaymentDialog(student)}>
                           <DollarSign className="mr-2 h-4 w-4" />
                           Receive
                         </Button>
-                        {mpesaEnabled && (
-                          <Button size="sm" variant="outline" onClick={() => openMpesaDialog(student)}>
-                            <Smartphone className="mr-2 h-4 w-4" />
-                            M-Pesa
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
