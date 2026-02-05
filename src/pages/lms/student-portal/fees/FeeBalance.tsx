@@ -42,11 +42,11 @@ export default function FeeBalance() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (user?.email) {
+    if (user?.id) {
       fetchStudentInvoices();
       checkMpesaSettings();
     }
-  }, [user?.email]);
+  }, [user?.id]);
 
   const checkMpesaSettings = async () => {
     try {
@@ -64,21 +64,26 @@ export default function FeeBalance() {
 
   const fetchStudentInvoices = async () => {
     try {
-      // Get student by email
+      // Get student by user_id (matches RLS policy)
       const { data: studentData } = await supabase
         .from('students')
         .select('id, student_no, phone')
-        .eq('email', user?.email)
+        .eq('user_id', user?.id)
         .single();
 
       if (studentData) {
         setStudent(studentData);
 
-        const { data: invoiceData } = await supabase
+        // Fetch invoices - RLS will filter by student's user_id
+        const { data: invoiceData, error: invoiceError } = await supabase
           .from('fee_invoices')
           .select('*')
           .eq('student_id', studentData.id)
           .order('invoice_date', { ascending: false });
+
+        if (invoiceError) {
+          console.error('Error fetching invoices:', invoiceError);
+        }
 
         setInvoices(invoiceData || []);
       }
