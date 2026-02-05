@@ -4,7 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Smartphone } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Invoice {
@@ -18,34 +23,62 @@ interface Invoice {
   status: string;
 }
 
+interface StudentInfo {
+  id: string;
+  student_no: string;
+  phone: string | null;
+}
+
 export default function FeeBalance() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [studentId, setStudentId] = useState<string | null>(null);
+  const [student, setStudent] = useState<StudentInfo | null>(null);
+  const [mpesaEnabled, setMpesaEnabled] = useState(false);
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [mpesaPhone, setMpesaPhone] = useState('');
+  const [mpesaAmount, setMpesaAmount] = useState('');
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     if (user?.email) {
       fetchStudentInvoices();
+      checkMpesaSettings();
     }
   }, [user?.email]);
+
+  const checkMpesaSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from('mpesa_settings')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+      
+      setMpesaEnabled(!!data);
+    } catch {
+      setMpesaEnabled(false);
+    }
+  };
 
   const fetchStudentInvoices = async () => {
     try {
       // Get student by email
-      const { data: student } = await supabase
+      const { data: studentData } = await supabase
         .from('students')
-        .select('id')
+        .select('id, student_no, phone')
         .eq('email', user?.email)
         .single();
 
-      if (student) {
-        setStudentId(student.id);
+      if (studentData) {
+        setStudent(studentData);
 
         const { data: invoiceData } = await supabase
           .from('fee_invoices')
           .select('*')
-          .eq('student_id', student.id)
+          .eq('student_id', studentData.id)
           .order('invoice_date', { ascending: false });
 
         setInvoices(invoiceData || []);
@@ -60,6 +93,65 @@ export default function FeeBalance() {
   const totalBalance = invoices.reduce((sum, inv) => sum + inv.balance_due, 0);
   const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.total_amount, 0);
   const totalPaid = invoices.reduce((sum, inv) => sum + inv.amount_paid, 0);
+
+  const openPayDialog = () => {
+    setMpesaPhone(student?.phone || '');
+    setMpesaAmount(totalBalance > 0 ? totalBalance.toString() : '');
+    setPayDialogOpen(true);
+  };
+
+  const handleMpesaPayment = async () => {
+    if (!mpesaPhone || !mpesaAmount || !student) {
+      toast({
+        title: 'Missing information',
+        description: 'Please enter phone number and amount',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      // Get oldest unpaid invoice
+      const unpaidInvoice = invoices.find(inv => inv.balance_due > 0);
+
+      const { data, error } = await supabase.functions.invoke('mpesa-stk-push', {
+        body: {
+          phone_number: mpesaPhone,
+          amount: parseFloat(mpesaAmount),
+          student_id: student.id,
+          invoice_id: unpaidInvoice?.id || null,
+          account_reference: student.student_no || 'SchoolFees',
+          transaction_desc: 'Fee Payment',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: 'Payment Initiated',
+          description: 'Please check your phone and enter your M-Pesa PIN to complete the payment.',
+        });
+        setPayDialogOpen(false);
+        // Refresh balance after a delay
+        setTimeout(() => {
+          fetchStudentInvoices();
+        }, 30000);
+      } else {
+        throw new Error(data?.error || 'Payment initiation failed');
+      }
+    } catch (error: any) {
+      console.error('M-Pesa error:', error);
+      toast({
+        title: 'Payment Failed',
+        description: error.message || 'Failed to initiate payment',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -84,9 +176,17 @@ export default function FeeBalance() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Fee Balance</h1>
-        <p className="text-muted-foreground">View your current fee balance and invoice details</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Fee Balance</h1>
+          <p className="text-muted-foreground">View your current fee balance and invoice details</p>
+        </div>
+        {mpesaEnabled && totalBalance > 0 && (
+          <Button onClick={openPayDialog}>
+            <Smartphone className="mr-2 h-4 w-4" />
+            Pay Now
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -117,6 +217,12 @@ export default function FeeBalance() {
             <div className={`text-2xl font-bold ${totalBalance > 0 ? 'text-destructive' : 'text-green-600'}`}>
               KES {totalBalance.toLocaleString()}
             </div>
+            {mpesaEnabled && totalBalance > 0 && (
+              <Button size="sm" className="mt-2" onClick={openPayDialog}>
+                <Smartphone className="mr-2 h-3 w-3" />
+                Pay Now
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -166,6 +272,62 @@ export default function FeeBalance() {
           )}
         </CardContent>
       </Card>
+
+      {/* M-Pesa Payment Dialog */}
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pay via M-Pesa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={mpesaPhone}
+                onChange={(e) => setMpesaPhone(e.target.value)}
+                placeholder="e.g., 0712345678"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter the M-Pesa registered phone number
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="amount">Amount (KES)</Label>
+              <Input
+                id="amount"
+                type="number"
+                value={mpesaAmount}
+                onChange={(e) => setMpesaAmount(e.target.value)}
+                placeholder="Enter amount"
+              />
+            </div>
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm">
+                <strong>Outstanding Balance:</strong> KES {totalBalance.toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleMpesaPayment} disabled={processing}>
+              {processing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Smartphone className="mr-2 h-4 w-4" />
+                  Send Payment Request
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
