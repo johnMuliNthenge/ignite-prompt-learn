@@ -165,6 +165,8 @@ export default function FeeBalance() {
         return <Badge className="bg-yellow-500">Partial</Badge>;
       case 'overdue':
         return <Badge variant="destructive">Overdue</Badge>;
+      case 'overpaid':
+        return <Badge className="bg-blue-500">Overpaid</Badge>;
       default:
         return <Badge variant="secondary">Pending</Badge>;
     }
@@ -219,8 +221,15 @@ export default function FeeBalance() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalBalance > 0 ? 'text-destructive' : 'text-green-600'}`}>
-              KES {totalBalance.toLocaleString()}
+              {totalBalance < 0 ? (
+                <span className="text-blue-600">(KES {Math.abs(totalBalance).toLocaleString()})</span>
+              ) : (
+                `KES ${totalBalance.toLocaleString()}`
+              )}
             </div>
+            {totalBalance < 0 && (
+              <Badge className="mt-2 bg-blue-500">Overpaid</Badge>
+            )}
             {mpesaEnabled && totalBalance > 0 && (
               <Button size="sm" className="mt-2" onClick={openPayDialog}>
                 <Smartphone className="mr-2 h-3 w-3" />
@@ -266,9 +275,13 @@ export default function FeeBalance() {
                       KES {invoice.amount_paid.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right text-destructive">
-                      KES {invoice.balance_due.toLocaleString()}
+                      {invoice.balance_due < 0 ? (
+                        <span className="text-blue-600">(KES {Math.abs(invoice.balance_due).toLocaleString()})</span>
+                      ) : (
+                        `KES ${invoice.balance_due.toLocaleString()}`
+                      )}
                     </TableCell>
-                    <TableCell>{getStatusBadge(invoice.status || 'pending')}</TableCell>
+                    <TableCell>{getStatusBadge(invoice.balance_due < 0 ? 'overpaid' : (invoice.status || 'pending'))}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
