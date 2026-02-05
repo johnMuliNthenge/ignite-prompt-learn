@@ -54,10 +54,9 @@ export default function FeeBalance() {
         .from('mpesa_settings')
         .select('id')
         .eq('is_active', true)
-        .limit(1)
-        .single();
+        .limit(1);
       
-      setMpesaEnabled(!!data);
+      setMpesaEnabled(data && data.length > 0);
     } catch {
       setMpesaEnabled(false);
     }
