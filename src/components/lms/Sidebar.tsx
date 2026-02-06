@@ -219,6 +219,12 @@ const administrationModule: NavModule = {
       icon: Phone,
       moduleCode: 'admin.mpesa',
     },
+    {
+      title: 'POE Review',
+      href: '/lms/admin/poe-review',
+      icon: ClipboardCheck,
+      moduleCode: 'admin.poe_review',
+    },
   ],
 };
 
@@ -286,6 +292,11 @@ const financeModule: NavModule = {
       title: 'Journal Entries',
       href: '/lms/finance/journals',
       icon: BookMarked,
+    },
+    {
+      title: 'Finance Setup',
+      href: '/lms/finance/setup',
+      icon: Settings,
     },
     {
       title: 'Utilities',

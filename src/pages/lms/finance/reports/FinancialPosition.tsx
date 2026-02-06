@@ -49,6 +49,16 @@ export default function FinancialPosition() {
 
       const accounts = data || [];
 
+      // Calculate student prepayments (overpayments) as a liability
+      const { data: invoiceData } = await supabase
+        .from('fee_invoices')
+        .select('total_amount, amount_paid');
+
+      const totalInvoiced = (invoiceData || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+      const totalPaid = (invoiceData || []).reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
+      const prepaymentAmount = totalPaid > totalInvoiced ? totalPaid - totalInvoiced : 0;
+
+      // Assets section
       setAssets(accounts
         .filter((acc: any) => acc.account_type === 'Asset')
         .map((acc: any) => ({
@@ -57,13 +67,25 @@ export default function FinancialPosition() {
           amount: 0,
         })));
 
-      setLiabilities(accounts
+      // Liabilities section - include student prepayments
+      const liabilityAccounts = accounts
         .filter((acc: any) => acc.account_type === 'Liability')
         .map((acc: any) => ({
           account_code: acc.account_code,
           account_name: acc.account_name,
           amount: 0,
-        })));
+        }));
+
+      // Add prepayment as a liability if exists
+      if (prepaymentAmount > 0) {
+        liabilityAccounts.push({
+          account_code: 'PREP',
+          account_name: 'Student Prepayments (Overpayments)',
+          amount: prepaymentAmount,
+        });
+      }
+
+      setLiabilities(liabilityAccounts);
 
       setEquity(accounts
         .filter((acc: any) => acc.account_type === 'Equity')

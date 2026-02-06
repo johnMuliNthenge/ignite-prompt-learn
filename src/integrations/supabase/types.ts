@@ -1946,6 +1946,30 @@ export type Database = {
           },
         ]
       }
+      finance_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          setting_key: string
+          setting_value: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          setting_key: string
+          setting_value?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       fiscal_years: {
         Row: {
           created_at: string | null
@@ -5127,8 +5151,10 @@ export type Database = {
           file_type: string
           file_url: string
           id: string
+          max_score: number | null
           reviewed_at: string | null
           reviewed_by: string | null
+          score: number | null
           status: string
           student_id: string
           subject_id: string
@@ -5144,8 +5170,10 @@ export type Database = {
           file_type: string
           file_url: string
           id?: string
+          max_score?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          score?: number | null
           status?: string
           student_id: string
           subject_id: string
@@ -5161,8 +5189,10 @@ export type Database = {
           file_type?: string
           file_url?: string
           id?: string
+          max_score?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          score?: number | null
           status?: string
           student_id?: string
           subject_id?: string

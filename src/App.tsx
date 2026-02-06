@@ -136,6 +136,12 @@ import FeeReceipts from "./pages/lms/student-portal/fees/FeeReceipts";
 import ResultSlip from "./pages/lms/student-portal/academics/ResultSlip";
 import POEUpload from "./pages/lms/student-portal/poe/POEUpload";
 
+// Admin POE Review
+import POEReview from "./pages/lms/admin/POEReview";
+
+// Finance Setup
+import FinanceSetup from "./pages/lms/finance/FinanceSetup";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -176,6 +182,7 @@ const App = () => (
               <Route path="admin/settings" element={<SiteSettings />} />
               <Route path="admin/smtp" element={<SmtpSettings />} />
               <Route path="admin/mpesa" element={<MpesaSettings />} />
+              <Route path="admin/poe-review" element={<POEReview />} />
               
               {/* Student Academics Routes */}
               <Route path="academics/exams" element={<ExamsManagement />} />
@@ -197,6 +204,7 @@ const App = () => (
               <Route path="finance/cash-bank" element={<CashBankManagement />} />
               <Route path="finance/cancellations" element={<Cancellations />} />
               <Route path="finance/journals" element={<JournalEntries />} />
+              <Route path="finance/setup" element={<FinanceSetup />} />
               {/* Finance Utilities */}
               <Route path="finance/utilities/chart-of-accounts" element={<ChartOfAccounts />} />
               <Route path="finance/utilities/fee-accounts" element={<FeeAccounts />} />

@@ -64,8 +64,10 @@ export default function POEUpload() {
   const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
-    fetchInitialData();
-  }, [user?.email]);
+    if (user?.id) {
+      fetchInitialData();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (selectedSubject && student) {
@@ -75,11 +77,11 @@ export default function POEUpload() {
 
   const fetchInitialData = async () => {
     try {
-      // Get student
+      // Get student by user_id (matches RLS policy)
       const { data: studentData } = await supabase
         .from('students')
         .select('id, student_no, class_id')
-        .eq('email', user?.email || '')
+        .eq('user_id', user?.id)
         .single();
 
       if (studentData) {
@@ -370,6 +372,11 @@ export default function POEUpload() {
                     <p className="text-xs text-muted-foreground mt-1">
                       Submitted: {new Date(submission.submitted_at).toLocaleDateString()}
                     </p>
+                    {(submission as any).score !== null && (
+                      <p className="text-sm font-medium text-primary mt-1">
+                        Score: {(submission as any).score}/{(submission as any).max_score || 100}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     {getStatusBadge(submission.status)}

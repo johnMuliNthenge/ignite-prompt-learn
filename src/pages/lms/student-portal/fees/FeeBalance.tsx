@@ -94,9 +94,10 @@ export default function FeeBalance() {
     }
   };
 
-  const totalBalance = invoices.reduce((sum, inv) => sum + inv.balance_due, 0);
+  // Calculate totals - balance is invoiced minus paid (negative = prepayment/overpayment)
   const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.total_amount, 0);
   const totalPaid = invoices.reduce((sum, inv) => sum + inv.amount_paid, 0);
+  const totalBalance = totalInvoiced - totalPaid; // Negative means overpayment
 
   const openPayDialog = () => {
     setMpesaPhone(student?.phone || '');

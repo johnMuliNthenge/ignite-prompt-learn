@@ -47,8 +47,10 @@ export default function ResultSlip() {
   const [loadingResults, setLoadingResults] = useState(false);
 
   useEffect(() => {
-    fetchInitialData();
-  }, [user?.email]);
+    if (user?.id) {
+      fetchInitialData();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (selectedSession && student) {
@@ -58,11 +60,11 @@ export default function ResultSlip() {
 
   const fetchInitialData = async () => {
     try {
-      // Get student
+      // Get student by user_id (matches RLS policy)
       const { data: studentData } = await supabase
         .from('students')
         .select('id, student_no, other_name, surname')
-        .eq('email', user?.email)
+        .eq('user_id', user?.id)
         .single();
 
       if (studentData) {
