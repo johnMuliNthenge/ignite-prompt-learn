@@ -26,18 +26,18 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.email) {
+    if (user?.id) {
       fetchStudentData();
     }
-  }, [user?.email]);
+  }, [user?.id]);
 
   const fetchStudentData = async () => {
     try {
-      // Find student by user email
+      // Find student by user_id (matches RLS policy)
       const { data: studentData } = await supabase
         .from('students')
         .select('id, student_no, other_name, surname')
-        .eq('email', user?.email)
+        .eq('user_id', user?.id)
         .single();
 
       if (studentData) {
@@ -93,11 +93,15 @@ export default function StudentDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${balance.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>
-              KES {balance.balance.toLocaleString()}
+            <div className={`text-2xl font-bold ${balance.balance > 0 ? 'text-destructive' : balance.balance < 0 ? 'text-blue-600' : 'text-green-600'}`}>
+              {balance.balance < 0 ? (
+                <span>(KES {Math.abs(balance.balance).toLocaleString()})</span>
+              ) : (
+                `KES ${balance.balance.toLocaleString()}`
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {balance.balance > 0 ? 'Outstanding balance' : 'All paid up!'}
+              {balance.balance > 0 ? 'Outstanding balance' : balance.balance < 0 ? 'Prepayment / Overpaid' : 'All paid up!'}
             </p>
           </CardContent>
         </Card>
