@@ -670,6 +670,55 @@ export type Database = {
           },
         ]
       }
+      class_subject_registrations: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          registered_by: string | null
+          session_id: string
+          subject_id: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          registered_by?: string | null
+          session_id: string
+          subject_id: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          registered_by?: string | null
+          session_id?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_subject_registrations_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_subject_registrations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_subject_registrations_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classes: {
         Row: {
           academic_year_id: string | null
