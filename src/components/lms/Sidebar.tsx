@@ -755,6 +755,12 @@ const academicsModule: NavModule = {
       icon: FileText,
       moduleCode: 'academics.curriculum',
     },
+    {
+      title: 'Subject Registration',
+      href: '/lms/academics/subject-registration',
+      icon: ClipboardCheck,
+      moduleCode: 'academics.subject_registration',
+    },
   ],
 };
 
