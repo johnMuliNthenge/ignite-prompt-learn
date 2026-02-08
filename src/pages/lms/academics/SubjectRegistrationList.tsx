@@ -41,6 +41,8 @@ interface StudentRow {
   student_no: string;
   surname: string;
   other_name: string;
+  class_id: string;
+  class_name: string;
   registered_count: number;
 }
 
@@ -60,10 +62,10 @@ export default function SubjectRegistrationList() {
 
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [sessions, setSessions] = useState<SessionOption[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState('');
+  const [selectedClassId, setSelectedClassId] = useState('all');
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [students, setStudents] = useState<StudentRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
   // View/Edit dialog
@@ -81,12 +83,17 @@ export default function SubjectRegistrationList() {
     fetchSessions();
   }, []);
 
+  // Auto-select first active session, then load students
   useEffect(() => {
-    if (selectedClassId && selectedSessionId) {
+    if (sessions.length > 0 && !selectedSessionId) {
+      setSelectedSessionId(sessions[0].id);
+    }
+  }, [sessions]);
+
+  useEffect(() => {
+    if (selectedSessionId) {
       setCurrentPage(1);
       fetchStudents();
-    } else {
-      setStudents([]);
     }
   }, [selectedClassId, selectedSessionId]);
 
@@ -111,36 +118,48 @@ export default function SubjectRegistrationList() {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      // Get students in the selected class
-      const { data: studentData } = await (supabase as any)
+      // Get students, optionally filtered by class
+      let studentQuery = (supabase as any)
         .from('students')
-        .select('id, student_no, surname, other_name')
-        .eq('class_id', selectedClassId)
+        .select('id, student_no, surname, other_name, class_id, classes:class_id (name)')
         .eq('is_active', true)
         .order('surname');
+
+      if (selectedClassId !== 'all') {
+        studentQuery = studentQuery.eq('class_id', selectedClassId);
+      }
+
+      const { data: studentData } = await studentQuery;
 
       if (!studentData || studentData.length === 0) {
         setStudents([]);
         return;
       }
 
-      // Get registration counts for this class+session per subject
+      // Get all class IDs from the students
+      const classIds = [...new Set((studentData as any[]).map((s: any) => s.class_id).filter(Boolean))] as string[];
+
+      // Get registration counts per class for this session
       const { data: regData } = await supabase
         .from('class_subject_registrations')
-        .select('subject_id')
-        .eq('class_id', selectedClassId)
+        .select('class_id, subject_id')
         .eq('session_id', selectedSessionId);
 
-      const registeredCount = regData?.length || 0;
+      // Count registrations per class
+      const countByClass = new Map<string, number>();
+      (regData || []).forEach((r: any) => {
+        countByClass.set(r.class_id, (countByClass.get(r.class_id) || 0) + 1);
+      });
 
-      // All students in a class share the same class-level registrations
       setStudents(
         (studentData as any[]).map((s: any) => ({
           id: s.id,
           student_no: s.student_no || '',
           surname: s.surname || '',
           other_name: s.other_name || '',
-          registered_count: registeredCount,
+          class_id: s.class_id || '',
+          class_name: s.classes?.name || '-',
+          registered_count: countByClass.get(s.class_id) || 0,
         }))
       );
     } catch (error) {
@@ -157,7 +176,7 @@ export default function SubjectRegistrationList() {
     setDialogLoading(true);
 
     try {
-      // Fetch registered subjects for this class+session
+      // Fetch registered subjects for this student's class + selected session
       const { data: regData } = await supabase
         .from('class_subject_registrations')
         .select(`
@@ -165,7 +184,7 @@ export default function SubjectRegistrationList() {
           subject_id,
           subjects:subject_id (id, name, code)
         `)
-        .eq('class_id', selectedClassId)
+        .eq('class_id', student.class_id)
         .eq('session_id', selectedSessionId);
 
       const subjects: SubjectDetail[] = (regData || []).map((r: any) => ({
@@ -181,7 +200,7 @@ export default function SubjectRegistrationList() {
         const { data: classData } = await supabase
           .from('classes')
           .select('programme_id')
-          .eq('id', selectedClassId)
+          .eq('id', student.class_id)
           .single();
 
         if (classData?.programme_id) {
@@ -222,13 +241,13 @@ export default function SubjectRegistrationList() {
   };
 
   const handleEditSave = async () => {
+    if (!dialogStudent) return;
     setSaving(true);
     try {
       const currentIds = new Set(studentSubjects.map((s) => s.id));
       const toAdd = Array.from(editSelectedIds).filter((id) => !currentIds.has(id));
       const toRemove = studentSubjects.filter((s) => !editSelectedIds.has(s.id));
 
-      // Remove deselected
       if (toRemove.length > 0) {
         const { error } = await supabase
           .from('class_subject_registrations')
@@ -237,13 +256,12 @@ export default function SubjectRegistrationList() {
         if (error) throw error;
       }
 
-      // Add new
       if (toAdd.length > 0) {
         const { error } = await supabase
           .from('class_subject_registrations')
           .insert(
             toAdd.map((subjectId) => ({
-              class_id: selectedClassId,
+              class_id: dialogStudent.class_id,
               session_id: selectedSessionId,
               subject_id: subjectId,
               registered_by: user?.id,
@@ -287,7 +305,7 @@ export default function SubjectRegistrationList() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Select Class & Session</CardTitle>
+          <CardTitle className="text-lg">Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
@@ -295,9 +313,10 @@ export default function SubjectRegistrationList() {
               <Label>Class</Label>
               <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select class" />
+                  <SelectValue placeholder="All classes" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
                   {classes.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
@@ -322,112 +341,112 @@ export default function SubjectRegistrationList() {
       </Card>
 
       {/* Student Listing */}
-      {selectedClassId && selectedSessionId && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Students</CardTitle>
-            <CardDescription>
-              {students.length} student{students.length !== 1 ? 's' : ''} in this class
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            ) : students.length === 0 ? (
-              <p className="text-center text-muted-foreground py-6">
-                No students found in this class
-              </p>
-            ) : (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Student No</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead className="text-center">Registered Subjects</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Students</CardTitle>
+          <CardDescription>
+            {students.length} student{students.length !== 1 ? 's' : ''} found
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : students.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6">
+              No students found
+            </p>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Student No</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead className="text-center">Registered Subjects</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedStudents.map((student, idx) => (
+                    <TableRow key={student.id}>
+                      <TableCell className="text-muted-foreground">
+                        {(currentPage - 1) * PAGE_SIZE + idx + 1}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">{student.student_no}</TableCell>
+                      <TableCell className="font-medium">
+                        {student.surname} {student.other_name}
+                      </TableCell>
+                      <TableCell>{student.class_name}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={student.registered_count > 0 ? 'default' : 'secondary'}>
+                          {student.registered_count}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDialog(student, 'view')}
+                          >
+                            <Eye className="mr-1 h-3.5 w-3.5" />
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDialog(student, 'edit')}
+                          >
+                            <Pencil className="mr-1 h-3.5 w-3.5" />
+                            Edit
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedStudents.map((student, idx) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="text-muted-foreground">
-                          {(currentPage - 1) * PAGE_SIZE + idx + 1}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{student.student_no}</TableCell>
-                        <TableCell className="font-medium">
-                          {student.surname} {student.other_name}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={student.registered_count > 0 ? 'default' : 'secondary'}>
-                            {student.registered_count}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openDialog(student, 'view')}
-                            >
-                              <Eye className="mr-1 h-3.5 w-3.5" />
-                              View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openDialog(student, 'edit')}
-                            >
-                              <Pencil className="mr-1 h-3.5 w-3.5" />
-                              Edit
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                  ))}
+                </TableBody>
+              </Table>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="mt-4">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-4">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => setCurrentPage(page)}
+                            isActive={currentPage === page}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
                         </PaginationItem>
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              onClick={() => setCurrentPage(page)}
-                              isActive={currentPage === page}
-                              className="cursor-pointer"
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        ))}
-                        <PaginationItem>
-                          <PaginationNext
-                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* View/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -437,7 +456,7 @@ export default function SubjectRegistrationList() {
               {dialogMode === 'view' ? 'Registered Subjects' : 'Edit Subject Registration'}
               {dialogStudent && (
                 <span className="block text-sm font-normal text-muted-foreground mt-1">
-                  {dialogStudent.surname} {dialogStudent.other_name} ({dialogStudent.student_no})
+                  {dialogStudent.surname} {dialogStudent.other_name} ({dialogStudent.student_no}) — {dialogStudent.class_name}
                 </span>
               )}
             </DialogTitle>
