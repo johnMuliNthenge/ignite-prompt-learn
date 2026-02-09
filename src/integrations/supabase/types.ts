@@ -29,6 +29,7 @@ export type Database = {
           passing_marks: number | null
           session_id: string | null
           subject: string | null
+          subject_id: string | null
           total_marks: number | null
           updated_at: string | null
         }
@@ -46,6 +47,7 @@ export type Database = {
           passing_marks?: number | null
           session_id?: string | null
           subject?: string | null
+          subject_id?: string | null
           total_marks?: number | null
           updated_at?: string | null
         }
@@ -63,6 +65,7 @@ export type Database = {
           passing_marks?: number | null
           session_id?: string | null
           subject?: string | null
+          subject_id?: string | null
           total_marks?: number | null
           updated_at?: string | null
         }
@@ -86,6 +89,13 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_exams_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]

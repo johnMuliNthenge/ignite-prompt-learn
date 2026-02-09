@@ -21,36 +21,62 @@ interface Student {
 
 export default function MarksEntry() {
   const queryClient = useQueryClient();
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSession, setSelectedSession] = useState("");
   const [selectedExam, setSelectedExam] = useState("");
   const [marksData, setMarksData] = useState<Record<string, { marks: string; absent: boolean; remarks: string }>>({});
 
-  const { data: exams } = useQuery({
-    queryKey: ["academic-exams-for-marks"],
+  const { data: classes } = useQuery({
+    queryKey: ["classes-active"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("academic_exams")
-        .select("id, name, class_id, total_marks, passing_marks, classes:class_id(name)")
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("classes").select("id, name").eq("is_active", true);
       if (error) throw error;
       return data;
     },
   });
 
-  const selectedExamData = exams?.find((e) => e.id === selectedExam);
+  const { data: sessions } = useQuery({
+    queryKey: ["sessions-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("sessions").select("id, name").eq("is_active", true);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch exams for the selected class+session (each exam = one subject)
+  const { data: exams } = useQuery({
+    queryKey: ["exams-for-class-session", selectedClass, selectedSession],
+    queryFn: async () => {
+      if (!selectedClass || !selectedSession) return [];
+      const { data, error } = await (supabase as any)
+        .from("academic_exams")
+        .select("id, name, subject_id, total_marks, passing_marks, exam_type, subjects:subject_id(name, code)")
+        .eq("class_id", selectedClass)
+        .eq("session_id", selectedSession)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClass && !!selectedSession,
+  });
+
+  const selectedExamData = exams?.find((e: any) => e.id === selectedExam);
 
   const { data: students, isLoading: loadingStudents } = useQuery({
-    queryKey: ["students-for-marks", selectedExamData?.class_id],
+    queryKey: ["students-for-marks", selectedClass],
     queryFn: async () => {
-      if (!selectedExamData?.class_id) return [] as Student[];
+      if (!selectedClass) return [] as Student[];
       const { data, error } = await supabase
         .from("students")
         .select("id, student_no, surname, other_name")
-        .eq("class_id", selectedExamData.class_id)
+        .eq("class_id", selectedClass)
+        .eq("status", "Active")
         .order("surname");
       if (error) throw error;
       return data as Student[];
     },
-    enabled: !!selectedExamData?.class_id,
+    enabled: !!selectedClass,
   });
 
   const { data: existingMarks } = useQuery({
@@ -67,7 +93,6 @@ export default function MarksEntry() {
     enabled: !!selectedExam,
   });
 
-  // Initialize marks data when students or existing marks change
   useEffect(() => {
     if (students && existingMarks) {
       const newMarksData: Record<string, { marks: string; absent: boolean; remarks: string }> = {};
@@ -83,13 +108,15 @@ export default function MarksEntry() {
     }
   }, [students, existingMarks]);
 
+  // Reset exam when class/session changes
+  useEffect(() => {
+    setSelectedExam("");
+  }, [selectedClass, selectedSession]);
+
   const updateMarkField = (studentId: string, field: string, value: any) => {
     setMarksData((prev) => ({
       ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        [field]: value,
-      },
+      [studentId]: { ...prev[studentId], [field]: value },
     }));
   };
 
@@ -106,7 +133,6 @@ export default function MarksEntry() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedExam || !students) return;
-      
       const marksToSave = students.map((student) => {
         const data = marksData[student.id] || { marks: "", absent: false, remarks: "" };
         const marksObtained = data.absent ? 0 : (parseFloat(data.marks) || 0);
@@ -119,11 +145,9 @@ export default function MarksEntry() {
           grade: calculateGrade(marksObtained, selectedExamData?.total_marks || 100, selectedExamData?.passing_marks || 40),
         };
       });
-
       const { error } = await supabase
         .from("academic_marks")
         .upsert(marksToSave, { onConflict: "exam_id,student_id" });
-      
       if (error) throw error;
     },
     onSuccess: () => {
@@ -138,7 +162,7 @@ export default function MarksEntry() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Marks Entry</h1>
-          <p className="text-muted-foreground">Enter and manage student marks for exams</p>
+          <p className="text-muted-foreground">Select class, session, and subject exam to enter marks</p>
         </div>
 
         <Card>
@@ -148,33 +172,54 @@ export default function MarksEntry() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Exam</Label>
-                <Select value={selectedExam} onValueChange={setSelectedExam}>
+                <Label>Class</Label>
+                <Select value={selectedClass} onValueChange={setSelectedClass}>
+                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                  <SelectContent>
+                    {classes?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Session</Label>
+                <Select value={selectedSession} onValueChange={setSelectedSession}>
+                  <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
+                  <SelectContent>
+                    {sessions?.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Subject Exam</Label>
+                <Select value={selectedExam} onValueChange={setSelectedExam} disabled={!selectedClass || !selectedSession}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select an exam" />
+                    <SelectValue placeholder={
+                      !selectedClass || !selectedSession
+                        ? "Select class & session first"
+                        : "Select exam"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {exams?.map((exam) => (
+                    {exams?.map((exam: any) => (
                       <SelectItem key={exam.id} value={exam.id}>
-                        {exam.name} ({exam.classes?.name || "No class"})
+                        {exam.subjects ? `${exam.subjects.code} - ${exam.subjects.name}` : exam.name}
+                        {exam.exam_type ? ` (${exam.exam_type})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              {selectedExamData && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Total Marks</Label>
-                    <Input value={selectedExamData.total_marks} disabled />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Passing Marks</Label>
-                    <Input value={selectedExamData.passing_marks} disabled />
-                  </div>
-                </>
-              )}
             </div>
+            {selectedExamData && (
+              <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
+                <span>Total Marks: <strong className="text-foreground">{selectedExamData.total_marks}</strong></span>
+                <span>Passing Marks: <strong className="text-foreground">{selectedExamData.passing_marks}</strong></span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
