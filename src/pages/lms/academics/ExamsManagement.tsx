@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
@@ -24,24 +24,28 @@ export default function ExamsManagement() {
     class_id: "",
     academic_year_id: "",
     session_id: "",
+    subject_id: "",
     exam_date: "",
     total_marks: "100",
     passing_marks: "40",
     exam_type: "",
-    subject: "",
     description: "",
   });
+
+  // Available subjects from registration for the selected class+session
+  const [registeredSubjects, setRegisteredSubjects] = useState<{ id: string; name: string; code: string }[]>([]);
 
   const { data: exams, isLoading } = useQuery({
     queryKey: ["academic-exams"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("academic_exams")
         .select(`
           *,
           classes:class_id(name),
           academic_years:academic_year_id(name),
-          sessions:session_id(name)
+          sessions:session_id(name),
+          subjects:subject_id(name, code)
         `)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -70,11 +74,36 @@ export default function ExamsManagement() {
   const { data: sessions } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("sessions").select("id, name");
+      const { data, error } = await supabase.from("sessions").select("id, name").eq("is_active", true);
       if (error) throw error;
       return data;
     },
   });
+
+  // Fetch registered subjects when class+session change
+  useEffect(() => {
+    const fetchRegisteredSubjects = async () => {
+      if (!formData.class_id || !formData.session_id) {
+        setRegisteredSubjects([]);
+        return;
+      }
+      const { data } = await (supabase as any)
+        .from("class_subject_registrations")
+        .select("subject_id, subjects:subject_id(id, name, code)")
+        .eq("class_id", formData.class_id)
+        .eq("session_id", formData.session_id);
+
+      const subjects = (data || [])
+        .filter((d: any) => d.subjects)
+        .map((d: any) => ({
+          id: d.subjects.id,
+          name: d.subjects.name,
+          code: d.subjects.code,
+        }));
+      setRegisteredSubjects(subjects);
+    };
+    fetchRegisteredSubjects();
+  }, [formData.class_id, formData.session_id]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -130,11 +159,11 @@ export default function ExamsManagement() {
       class_id: "",
       academic_year_id: "",
       session_id: "",
+      subject_id: "",
       exam_date: "",
       total_marks: "100",
       passing_marks: "40",
       exam_type: "",
-      subject: "",
       description: "",
     });
     setEditingExam(null);
@@ -148,11 +177,11 @@ export default function ExamsManagement() {
       class_id: exam.class_id || "",
       academic_year_id: exam.academic_year_id || "",
       session_id: exam.session_id || "",
+      subject_id: exam.subject_id || "",
       exam_date: exam.exam_date || "",
       total_marks: exam.total_marks?.toString() || "100",
       passing_marks: exam.passing_marks?.toString() || "40",
       exam_type: exam.exam_type || "",
-      subject: exam.subject || "",
       description: exam.description || "",
     });
     setIsDialogOpen(true);
@@ -160,16 +189,18 @@ export default function ExamsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const selectedSubject = registeredSubjects.find(s => s.id === formData.subject_id);
     saveMutation.mutate({
       name: formData.name,
       class_id: formData.class_id || null,
       academic_year_id: formData.academic_year_id || null,
       session_id: formData.session_id || null,
+      subject_id: formData.subject_id || null,
+      subject: selectedSubject?.name || null,
       exam_date: formData.exam_date || null,
       total_marks: parseFloat(formData.total_marks),
       passing_marks: parseFloat(formData.passing_marks),
       exam_type: formData.exam_type || null,
-      subject: formData.subject || null,
       description: formData.description || null,
     });
   };
@@ -188,7 +219,7 @@ export default function ExamsManagement() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Exams Management</h1>
-            <p className="text-muted-foreground">Create and manage academic exams</p>
+            <p className="text-muted-foreground">Create and manage academic exams linked to registered subjects</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -211,19 +242,57 @@ export default function ExamsManagement() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Subject</Label>
-                    <Input
-                      value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    />
+                    <Label>Exam Type</Label>
+                    <Select value={formData.exam_type} onValueChange={(v) => setFormData({ ...formData, exam_type: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                      <SelectContent>
+                        {examTypes.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Class</Label>
-                    <Select value={formData.class_id} onValueChange={(v) => setFormData({ ...formData, class_id: v })}>
+                    <Label>Class *</Label>
+                    <Select value={formData.class_id} onValueChange={(v) => setFormData({ ...formData, class_id: v, subject_id: "" })}>
                       <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                       <SelectContent>
                         {classes?.map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Session *</Label>
+                    <Select value={formData.session_id} onValueChange={(v) => setFormData({ ...formData, session_id: v, subject_id: "" })}>
+                      <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
+                      <SelectContent>
+                        {sessions?.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Subject *</Label>
+                    <Select 
+                      value={formData.subject_id} 
+                      onValueChange={(v) => setFormData({ ...formData, subject_id: v })}
+                      disabled={registeredSubjects.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          !formData.class_id || !formData.session_id 
+                            ? "Select class & session first" 
+                            : registeredSubjects.length === 0 
+                              ? "No registered subjects" 
+                              : "Select subject"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {registeredSubjects.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.code} - {s.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -235,28 +304,6 @@ export default function ExamsManagement() {
                       <SelectContent>
                         {academicYears?.map((y) => (
                           <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Session</Label>
-                    <Select value={formData.session_id} onValueChange={(v) => setFormData({ ...formData, session_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
-                      <SelectContent>
-                        {sessions?.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Exam Type</Label>
-                    <Select value={formData.exam_type} onValueChange={(v) => setFormData({ ...formData, exam_type: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                      <SelectContent>
-                        {examTypes.map((t) => (
-                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -318,6 +365,7 @@ export default function ExamsManagement() {
                     <TableHead>Name</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Class</TableHead>
+                    <TableHead>Session</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Total/Pass</TableHead>
@@ -326,11 +374,14 @@ export default function ExamsManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {exams?.map((exam) => (
+                  {exams?.map((exam: any) => (
                     <TableRow key={exam.id}>
                       <TableCell className="font-medium">{exam.name}</TableCell>
-                      <TableCell>{exam.subject || "-"}</TableCell>
+                      <TableCell>
+                        {exam.subjects ? `${exam.subjects.code} - ${exam.subjects.name}` : exam.subject || "-"}
+                      </TableCell>
                       <TableCell>{exam.classes?.name || "-"}</TableCell>
+                      <TableCell>{exam.sessions?.name || "-"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">{exam.exam_type || "-"}</Badge>
                       </TableCell>
@@ -366,7 +417,7 @@ export default function ExamsManagement() {
                   ))}
                   {(!exams || exams.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground">
                         No exams found
                       </TableCell>
                     </TableRow>
