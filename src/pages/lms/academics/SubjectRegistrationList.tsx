@@ -122,7 +122,7 @@ export default function SubjectRegistrationList() {
       let studentQuery = (supabase as any)
         .from('students')
         .select('id, student_no, surname, other_name, class_id, classes:class_id (name)')
-        .eq('is_active', true)
+        .eq('status', 'Active')
         .order('surname');
 
       if (selectedClassId !== 'all') {
