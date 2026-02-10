@@ -31,7 +31,7 @@ export default function MarksComputation() {
   const [formData, setFormData] = useState({
     name: "",
     max_marks: "100",
-    weight: "1",
+    weight: "100",
     sort_order: "0",
   });
 
@@ -118,7 +118,7 @@ export default function MarksComputation() {
   });
 
   const resetForm = () => {
-    setFormData({ name: "", max_marks: "100", weight: "1", sort_order: "0" });
+    setFormData({ name: "", max_marks: "100", weight: "100", sort_order: "0" });
     setEditingComponent(null);
     setIsDialogOpen(false);
   };
@@ -193,8 +193,8 @@ export default function MarksComputation() {
                   Mark Components — {selectedSubjectData?.code} {selectedSubjectData?.name}
                 </CardTitle>
                 <CardDescription>
-                  Each component contributes to the final computed mark based on its weight.
-                  Total weight: <strong className="text-foreground">{totalWeight}</strong>
+                  Each component contributes to the final computed mark based on its weight percentage.
+                  Total weight: <strong className="text-foreground">{totalWeight}%</strong>
                 </CardDescription>
               </div>
               <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
@@ -232,17 +232,18 @@ export default function MarksComputation() {
                         <p className="text-xs text-muted-foreground">Maximum marks for this paper</p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Weight *</Label>
+                        <Label>Weight (%) *</Label>
                         <Input
                           type="number"
-                          min="0.1"
-                          step="0.1"
+                          min="1"
+                          max="100"
+                          step="1"
                           value={formData.weight}
                           onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                           required
                         />
                         <p className="text-xs text-muted-foreground">
-                          Contribution ratio to final mark
+                          Contribution percentage to final mark (e.g., 30 for 30%)
                         </p>
                       </div>
                     </div>
@@ -283,7 +284,7 @@ export default function MarksComputation() {
                         <TableHead className="w-8">#</TableHead>
                         <TableHead>Component Name</TableHead>
                         <TableHead>Max Marks</TableHead>
-                        <TableHead>Weight</TableHead>
+                        <TableHead>Weight (%)</TableHead>
                         <TableHead>Contribution %</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -297,7 +298,7 @@ export default function MarksComputation() {
                           </TableCell>
                           <TableCell className="font-medium">{comp.name}</TableCell>
                           <TableCell>{comp.max_marks}</TableCell>
-                          <TableCell>{comp.weight}</TableCell>
+                          <TableCell>{comp.weight}%</TableCell>
                           <TableCell>
                             <Badge variant="outline">
                               {totalWeight > 0
@@ -344,11 +345,15 @@ export default function MarksComputation() {
                         .filter((c) => c.is_active)
                         .map(
                           (c) =>
-                            `(${c.name} / ${c.max_marks} × ${c.weight})`
+                            `(${c.name} / ${c.max_marks} × ${c.weight}%)`
                         )
-                        .join(" + ")}{" "}
-                      / {totalWeight} × 100
+                        .join(" + ")}
                     </p>
+                    {totalWeight !== 100 && (
+                      <p className="text-xs text-destructive mt-2">
+                        ⚠ Total weight is {totalWeight}% — it should add up to 100%
+                      </p>
+                    )}
                   </div>
                 </>
               )}

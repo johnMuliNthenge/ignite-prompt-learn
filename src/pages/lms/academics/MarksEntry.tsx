@@ -214,10 +214,10 @@ export default function MarksEntry() {
       if (entry?.absent) return;
       const marks = parseFloat(entry?.marks || "0");
       const normalized = comp.max_marks > 0 ? marks / comp.max_marks : 0;
-      weightedSum += normalized * Number(comp.weight);
+      weightedSum += normalized * (Number(comp.weight) / 100);
     });
 
-    return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100 * 100) / 100 : 0;
+    return Math.round(weightedSum * 100 * 100) / 100;
   };
 
   const isStudentAbsent = (studentId: string): boolean => {
@@ -421,7 +421,7 @@ export default function MarksEntry() {
                               <TableHead key={comp.id} className="text-center min-w-[100px]">
                                 <div>{comp.name}</div>
                                 <div className="text-xs font-normal text-muted-foreground">
-                                  /{comp.max_marks} (w:{comp.weight})
+                                  /{comp.max_marks} ({comp.weight}%)
                                 </div>
                               </TableHead>
                             ))}
