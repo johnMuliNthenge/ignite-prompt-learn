@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPage } from "@/components/auth/ProtectedPage";
@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Save, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Save, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface Student {
@@ -19,12 +20,25 @@ interface Student {
   other_name: string;
 }
 
+interface MarkComponent {
+  id: string;
+  name: string;
+  max_marks: number;
+  weight: number;
+  sort_order: number;
+  is_active: boolean;
+}
+
+// Per-student, per-component marks
+type ComponentMarksMap = Record<string, Record<string, { marks: string; absent: boolean }>>;
+
 export default function MarksEntry() {
   const queryClient = useQueryClient();
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSession, setSelectedSession] = useState("");
   const [selectedExam, setSelectedExam] = useState("");
-  const [marksData, setMarksData] = useState<Record<string, { marks: string; absent: boolean; remarks: string }>>({});
+  const [componentMarks, setComponentMarks] = useState<ComponentMarksMap>({});
+  const [remarks, setRemarks] = useState<Record<string, string>>({});
 
   const { data: classes } = useQuery({
     queryKey: ["classes-active"],
@@ -44,7 +58,6 @@ export default function MarksEntry() {
     },
   });
 
-  // Fetch exams for the selected class+session (each exam = one subject)
   const { data: exams } = useQuery({
     queryKey: ["exams-for-class-session", selectedClass, selectedSession],
     queryFn: async () => {
@@ -62,6 +75,27 @@ export default function MarksEntry() {
   });
 
   const selectedExamData = exams?.find((e: any) => e.id === selectedExam);
+  const subjectId = selectedExamData?.subject_id;
+
+  // Fetch mark components for the exam's subject
+  const { data: markComponents } = useQuery({
+    queryKey: ["mark-components-for-subject", subjectId],
+    queryFn: async () => {
+      if (!subjectId) return [];
+      const { data, error } = await (supabase as any)
+        .from("subject_mark_components")
+        .select("*")
+        .eq("subject_id", subjectId)
+        .eq("is_active", true)
+        .order("sort_order");
+      if (error) throw error;
+      return data as MarkComponent[];
+    },
+    enabled: !!subjectId,
+  });
+
+  const hasComponents = markComponents && markComponents.length > 0;
+  const totalWeight = markComponents?.reduce((sum, c) => sum + Number(c.weight), 0) || 0;
 
   const { data: students, isLoading: loadingStudents } = useQuery({
     queryKey: ["students-for-marks", selectedClass],
@@ -79,6 +113,22 @@ export default function MarksEntry() {
     enabled: !!selectedClass,
   });
 
+  // Fetch existing component marks
+  const { data: existingComponentMarks } = useQuery({
+    queryKey: ["existing-component-marks", selectedExam],
+    queryFn: async () => {
+      if (!selectedExam) return [];
+      const { data, error } = await (supabase as any)
+        .from("academic_component_marks")
+        .select("*")
+        .eq("exam_id", selectedExam);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedExam && !!hasComponents,
+  });
+
+  // Fetch existing aggregate marks (for remarks and non-component mode)
   const { data: existingMarks } = useQuery({
     queryKey: ["existing-marks", selectedExam],
     queryFn: async () => {
@@ -93,65 +143,169 @@ export default function MarksEntry() {
     enabled: !!selectedExam,
   });
 
+  // Populate form state from existing data
   useEffect(() => {
-    if (students && existingMarks) {
-      const newMarksData: Record<string, { marks: string; absent: boolean; remarks: string }> = {};
-      students.forEach((student) => {
-        const existing = existingMarks.find((m) => m.student_id === student.id);
-        newMarksData[student.id] = {
-          marks: existing?.marks_obtained?.toString() || "",
-          absent: existing?.is_absent || false,
-          remarks: existing?.remarks || "",
+    if (!students) return;
+
+    const newRemarks: Record<string, string> = {};
+    students.forEach((s) => {
+      const existing = existingMarks?.find((m) => m.student_id === s.id);
+      newRemarks[s.id] = existing?.remarks || "";
+    });
+    setRemarks(newRemarks);
+
+    if (hasComponents && markComponents) {
+      const newCM: ComponentMarksMap = {};
+      students.forEach((s) => {
+        newCM[s.id] = {};
+        markComponents.forEach((comp) => {
+          const existing = existingComponentMarks?.find(
+            (m: any) => m.student_id === s.id && m.component_id === comp.id
+          );
+          newCM[s.id][comp.id] = {
+            marks: existing?.marks_obtained?.toString() || "",
+            absent: existing?.is_absent || false,
+          };
+        });
+      });
+      setComponentMarks(newCM);
+    } else if (!hasComponents) {
+      // Legacy simple mode
+      const newCM: ComponentMarksMap = {};
+      students.forEach((s) => {
+        const existing = existingMarks?.find((m) => m.student_id === s.id);
+        newCM[s.id] = {
+          __simple: {
+            marks: existing?.marks_obtained?.toString() || "",
+            absent: existing?.is_absent || false,
+          },
         };
       });
-      setMarksData(newMarksData);
+      setComponentMarks(newCM);
     }
-  }, [students, existingMarks]);
+  }, [students, existingMarks, existingComponentMarks, hasComponents, markComponents]);
 
-  // Reset exam when class/session changes
   useEffect(() => {
     setSelectedExam("");
   }, [selectedClass, selectedSession]);
 
-  const updateMarkField = (studentId: string, field: string, value: any) => {
-    setMarksData((prev) => ({
+  const updateComponentMark = (studentId: string, componentId: string, field: "marks" | "absent", value: any) => {
+    setComponentMarks((prev) => ({
       ...prev,
-      [studentId]: { ...prev[studentId], [field]: value },
+      [studentId]: {
+        ...prev[studentId],
+        [componentId]: {
+          ...prev[studentId]?.[componentId],
+          [field]: value,
+        },
+      },
     }));
   };
 
-  const calculateGrade = (marks: number, total: number, passing: number): string => {
-    if (marks < passing) return "F";
-    const percentage = (marks / total) * 100;
+  // Compute final mark for a student from components
+  const computeFinalMark = (studentId: string): number => {
+    if (!hasComponents || !markComponents) return 0;
+    const studentData = componentMarks[studentId];
+    if (!studentData) return 0;
+
+    let weightedSum = 0;
+    markComponents.forEach((comp) => {
+      const entry = studentData[comp.id];
+      if (entry?.absent) return;
+      const marks = parseFloat(entry?.marks || "0");
+      const normalized = comp.max_marks > 0 ? marks / comp.max_marks : 0;
+      weightedSum += normalized * Number(comp.weight);
+    });
+
+    return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100 * 100) / 100 : 0;
+  };
+
+  const isStudentAbsent = (studentId: string): boolean => {
+    if (!hasComponents || !markComponents) {
+      return componentMarks[studentId]?.__simple?.absent || false;
+    }
+    const studentData = componentMarks[studentId];
+    if (!studentData) return false;
+    return markComponents.every((comp) => studentData[comp.id]?.absent);
+  };
+
+  const calculateGrade = (percentage: number): string => {
     if (percentage >= 90) return "A";
     if (percentage >= 80) return "B";
     if (percentage >= 70) return "C";
     if (percentage >= 60) return "D";
-    return "E";
+    if (percentage >= 50) return "E";
+    return "F";
   };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedExam || !students) return;
-      const marksToSave = students.map((student) => {
-        const data = marksData[student.id] || { marks: "", absent: false, remarks: "" };
-        const marksObtained = data.absent ? 0 : (parseFloat(data.marks) || 0);
-        return {
-          exam_id: selectedExam,
-          student_id: student.id,
-          marks_obtained: marksObtained,
-          is_absent: data.absent,
-          remarks: data.remarks || null,
-          grade: calculateGrade(marksObtained, selectedExamData?.total_marks || 100, selectedExamData?.passing_marks || 40),
-        };
-      });
-      const { error } = await supabase
-        .from("academic_marks")
-        .upsert(marksToSave, { onConflict: "exam_id,student_id" });
-      if (error) throw error;
+
+      if (hasComponents && markComponents) {
+        // Save component marks
+        const componentRows = students.flatMap((student) =>
+          markComponents.map((comp) => {
+            const entry = componentMarks[student.id]?.[comp.id] || { marks: "0", absent: false };
+            return {
+              exam_id: selectedExam,
+              student_id: student.id,
+              component_id: comp.id,
+              marks_obtained: entry.absent ? 0 : parseFloat(entry.marks) || 0,
+              is_absent: entry.absent,
+            };
+          })
+        );
+
+        const { error: compError } = await (supabase as any)
+          .from("academic_component_marks")
+          .upsert(componentRows, { onConflict: "exam_id,student_id,component_id" });
+        if (compError) throw compError;
+
+        // Also save computed aggregate marks
+        const aggregateRows = students.map((student) => {
+          const finalMark = computeFinalMark(student.id);
+          const absent = isStudentAbsent(student.id);
+          return {
+            exam_id: selectedExam,
+            student_id: student.id,
+            marks_obtained: absent ? 0 : finalMark,
+            is_absent: absent,
+            grade: absent ? "F" : calculateGrade(finalMark),
+            remarks: remarks[student.id] || null,
+          };
+        });
+
+        const { error: aggError } = await supabase
+          .from("academic_marks")
+          .upsert(aggregateRows, { onConflict: "exam_id,student_id" });
+        if (aggError) throw aggError;
+      } else {
+        // Simple mode (no components)
+        const marksToSave = students.map((student) => {
+          const entry = componentMarks[student.id]?.__simple || { marks: "0", absent: false };
+          const marksObtained = entry.absent ? 0 : parseFloat(entry.marks) || 0;
+          const total = selectedExamData?.total_marks || 100;
+          const percentage = (marksObtained / total) * 100;
+          return {
+            exam_id: selectedExam,
+            student_id: student.id,
+            marks_obtained: marksObtained,
+            is_absent: entry.absent,
+            grade: calculateGrade(percentage),
+            remarks: remarks[student.id] || null,
+          };
+        });
+
+        const { error } = await supabase
+          .from("academic_marks")
+          .upsert(marksToSave, { onConflict: "exam_id,student_id" });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["existing-marks", selectedExam] });
+      queryClient.invalidateQueries({ queryKey: ["existing-component-marks", selectedExam] });
       toast.success("Marks saved successfully");
     },
     onError: (error: any) => toast.error(error.message),
@@ -215,9 +369,15 @@ export default function MarksEntry() {
               </div>
             </div>
             {selectedExamData && (
-              <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
+              <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span>Total Marks: <strong className="text-foreground">{selectedExamData.total_marks}</strong></span>
                 <span>Passing Marks: <strong className="text-foreground">{selectedExamData.passing_marks}</strong></span>
+                {hasComponents && (
+                  <Badge variant="outline" className="gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Component-based ({markComponents?.length} papers)
+                  </Badge>
+                )}
               </div>
             )}
           </CardContent>
@@ -226,7 +386,14 @@ export default function MarksEntry() {
         {selectedExam && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Student Marks</CardTitle>
+              <div>
+                <CardTitle>Student Marks</CardTitle>
+                {hasComponents && (
+                  <CardDescription>
+                    Enter marks per component. Final mark is auto-computed from weights.
+                  </CardDescription>
+                )}
+              </div>
               <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -242,49 +409,124 @@ export default function MarksEntry() {
               ) : !students?.length ? (
                 <p className="text-muted-foreground">No students found for this class</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student No</TableHead>
-                      <TableHead>Student Name</TableHead>
-                      <TableHead className="w-24">Marks</TableHead>
-                      <TableHead className="w-20">Absent</TableHead>
-                      <TableHead>Remarks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {students.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell>{student.student_no}</TableCell>
-                        <TableCell>{student.surname} {student.other_name}</TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            max={selectedExamData?.total_marks}
-                            min={0}
-                            value={marksData[student.id]?.marks || ""}
-                            onChange={(e) => updateMarkField(student.id, "marks", e.target.value)}
-                            disabled={marksData[student.id]?.absent}
-                            className="w-20"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Checkbox
-                            checked={marksData[student.id]?.absent || false}
-                            onCheckedChange={(checked) => updateMarkField(student.id, "absent", checked)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={marksData[student.id]?.remarks || ""}
-                            onChange={(e) => updateMarkField(student.id, "remarks", e.target.value)}
-                            placeholder="Optional remarks"
-                          />
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="sticky left-0 bg-background z-10">Student No</TableHead>
+                        <TableHead className="sticky left-20 bg-background z-10">Student Name</TableHead>
+                        {hasComponents ? (
+                          <>
+                            {markComponents?.map((comp) => (
+                              <TableHead key={comp.id} className="text-center min-w-[100px]">
+                                <div>{comp.name}</div>
+                                <div className="text-xs font-normal text-muted-foreground">
+                                  /{comp.max_marks} (w:{comp.weight})
+                                </div>
+                              </TableHead>
+                            ))}
+                            <TableHead className="text-center min-w-[80px]">Final %</TableHead>
+                            <TableHead className="text-center">Grade</TableHead>
+                          </>
+                        ) : (
+                          <>
+                            <TableHead className="w-24">Marks</TableHead>
+                            <TableHead className="w-20">Absent</TableHead>
+                          </>
+                        )}
+                        <TableHead>Remarks</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {students.map((student) => {
+                        const finalMark = hasComponents ? computeFinalMark(student.id) : 0;
+                        const absent = isStudentAbsent(student.id);
+                        const grade = hasComponents
+                          ? (absent ? "F" : calculateGrade(finalMark))
+                          : "";
+
+                        return (
+                          <TableRow key={student.id}>
+                            <TableCell className="sticky left-0 bg-background z-10">{student.student_no}</TableCell>
+                            <TableCell className="sticky left-20 bg-background z-10">
+                              {student.surname} {student.other_name}
+                            </TableCell>
+                            {hasComponents ? (
+                              <>
+                                {markComponents?.map((comp) => (
+                                  <TableCell key={comp.id} className="text-center">
+                                    <div className="flex items-center gap-1 justify-center">
+                                      <Input
+                                        type="number"
+                                        max={comp.max_marks}
+                                        min={0}
+                                        value={componentMarks[student.id]?.[comp.id]?.marks || ""}
+                                        onChange={(e) =>
+                                          updateComponentMark(student.id, comp.id, "marks", e.target.value)
+                                        }
+                                        disabled={componentMarks[student.id]?.[comp.id]?.absent}
+                                        className="w-16 text-center"
+                                      />
+                                      <Checkbox
+                                        checked={componentMarks[student.id]?.[comp.id]?.absent || false}
+                                        onCheckedChange={(checked) =>
+                                          updateComponentMark(student.id, comp.id, "absent", checked)
+                                        }
+                                        title="Absent"
+                                      />
+                                    </div>
+                                  </TableCell>
+                                ))}
+                                <TableCell className="text-center font-bold">
+                                  {absent ? "-" : finalMark.toFixed(1)}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={grade === "F" ? "destructive" : "default"}>
+                                    {grade}
+                                  </Badge>
+                                </TableCell>
+                              </>
+                            ) : (
+                              <>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    max={selectedExamData?.total_marks}
+                                    min={0}
+                                    value={componentMarks[student.id]?.__simple?.marks || ""}
+                                    onChange={(e) =>
+                                      updateComponentMark(student.id, "__simple", "marks", e.target.value)
+                                    }
+                                    disabled={componentMarks[student.id]?.__simple?.absent}
+                                    className="w-20"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={componentMarks[student.id]?.__simple?.absent || false}
+                                    onCheckedChange={(checked) =>
+                                      updateComponentMark(student.id, "__simple", "absent", checked)
+                                    }
+                                  />
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell>
+                              <Input
+                                value={remarks[student.id] || ""}
+                                onChange={(e) =>
+                                  setRemarks((prev) => ({ ...prev, [student.id]: e.target.value }))
+                                }
+                                placeholder="Optional"
+                                className="min-w-[120px]"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
