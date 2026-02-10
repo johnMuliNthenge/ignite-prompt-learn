@@ -14,6 +14,61 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_component_marks: {
+        Row: {
+          component_id: string
+          created_at: string | null
+          exam_id: string
+          id: string
+          is_absent: boolean | null
+          marks_obtained: number | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          component_id: string
+          created_at?: string | null
+          exam_id: string
+          id?: string
+          is_absent?: boolean | null
+          marks_obtained?: number | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          component_id?: string
+          created_at?: string | null
+          exam_id?: string
+          id?: string
+          is_absent?: boolean | null
+          marks_obtained?: number | null
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_component_marks_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "subject_mark_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_component_marks_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "academic_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_component_marks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academic_exams: {
         Row: {
           academic_year_id: string | null
@@ -5425,6 +5480,50 @@ export type Database = {
             columns: ["student_type_id"]
             isOneToOne: false
             referencedRelation: "student_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subject_mark_components: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean
+          max_marks: number
+          name: string
+          sort_order: number
+          subject_id: string
+          updated_at: string | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_marks?: number
+          name: string
+          sort_order?: number
+          subject_id: string
+          updated_at?: string | null
+          weight?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_marks?: number
+          name?: string
+          sort_order?: number
+          subject_id?: string
+          updated_at?: string | null
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_mark_components_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]

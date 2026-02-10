@@ -761,6 +761,12 @@ const academicsModule: NavModule = {
       icon: ClipboardCheck,
       moduleCode: 'academics.subject_registration',
     },
+    {
+      title: 'Marks Computation',
+      href: '/lms/academics/marks-computation',
+      icon: Calculator,
+      moduleCode: 'academics.marks_computation',
+    },
   ],
 };
 
