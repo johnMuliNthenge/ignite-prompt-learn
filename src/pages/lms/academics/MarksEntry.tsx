@@ -37,6 +37,7 @@ export default function MarksEntry() {
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSession, setSelectedSession] = useState("");
   const [selectedExam, setSelectedExam] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
   const [componentMarks, setComponentMarks] = useState<ComponentMarksMap>({});
   const [remarks, setRemarks] = useState<Record<string, string>>({});
 
@@ -64,7 +65,7 @@ export default function MarksEntry() {
       if (!selectedClass || !selectedSession) return [];
       const { data, error } = await (supabase as any)
         .from("academic_exams")
-        .select("id, name, subject_id, total_marks, passing_marks, exam_type, subjects:subject_id(name, code)")
+        .select("id, name, total_marks, passing_marks, exam_type")
         .eq("class_id", selectedClass)
         .eq("session_id", selectedSession)
         .order("name");
@@ -74,8 +75,26 @@ export default function MarksEntry() {
     enabled: !!selectedClass && !!selectedSession,
   });
 
+  // Fetch registered subjects for the selected class + session
+  const { data: registeredSubjects } = useQuery({
+    queryKey: ["registered-subjects-marks", selectedClass, selectedSession],
+    queryFn: async () => {
+      if (!selectedClass || !selectedSession) return [];
+      const { data, error } = await (supabase as any)
+        .from("class_subject_registrations")
+        .select("subject_id, subjects:subject_id(id, name, code)")
+        .eq("class_id", selectedClass)
+        .eq("session_id", selectedSession);
+      if (error) throw error;
+      return (data || [])
+        .filter((d: any) => d.subjects)
+        .map((d: any) => ({ id: d.subjects.id, name: d.subjects.name, code: d.subjects.code }));
+    },
+    enabled: !!selectedClass && !!selectedSession,
+  });
+
   const selectedExamData = exams?.find((e: any) => e.id === selectedExam);
-  const subjectId = selectedExamData?.subject_id;
+  const subjectId = selectedSubject || null;
 
   // Fetch mark components for the exam's subject
   const { data: markComponents } = useQuery({
@@ -187,7 +206,12 @@ export default function MarksEntry() {
 
   useEffect(() => {
     setSelectedExam("");
+    setSelectedSubject("");
   }, [selectedClass, selectedSession]);
+
+  useEffect(() => {
+    setSelectedSubject("");
+  }, [selectedExam]);
 
   const updateComponentMark = (studentId: string, componentId: string, field: "marks" | "absent", value: any) => {
     setComponentMarks((prev) => ({
@@ -316,7 +340,7 @@ export default function MarksEntry() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Marks Entry</h1>
-          <p className="text-muted-foreground">Select class, session, and subject exam to enter marks</p>
+          <p className="text-muted-foreground">Select class, session, exam, and subject to enter marks</p>
         </div>
 
         <Card>
@@ -324,7 +348,7 @@ export default function MarksEntry() {
             <CardTitle>Select Exam</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Class</Label>
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -348,7 +372,7 @@ export default function MarksEntry() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Subject Exam</Label>
+                <Label>Exam</Label>
                 <Select value={selectedExam} onValueChange={setSelectedExam} disabled={!selectedClass || !selectedSession}>
                   <SelectTrigger>
                     <SelectValue placeholder={
@@ -360,8 +384,27 @@ export default function MarksEntry() {
                   <SelectContent>
                     {exams?.map((exam: any) => (
                       <SelectItem key={exam.id} value={exam.id}>
-                        {exam.subjects ? `${exam.subjects.code} - ${exam.subjects.name}` : exam.name}
+                        {exam.name}
                         {exam.exam_type ? ` (${exam.exam_type})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Subject</Label>
+                <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={!selectedExam}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      !selectedExam
+                        ? "Select exam first"
+                        : "Select subject"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {registeredSubjects?.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.code} - {s.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -383,7 +426,7 @@ export default function MarksEntry() {
           </CardContent>
         </Card>
 
-        {selectedExam && (
+        {selectedExam && selectedSubject && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
