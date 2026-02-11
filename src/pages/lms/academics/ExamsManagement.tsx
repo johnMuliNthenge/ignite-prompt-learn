@@ -113,23 +113,13 @@ export default function ExamsManagement() {
           .eq("id", editingExam.id);
         if (error) throw error;
       } else {
-        // Bulk insert one exam per registered subject
-        if (registeredSubjects.length === 0) {
-          throw new Error("No registered subjects found for this class and session");
-        }
-        const rows = registeredSubjects.map((s) => ({
-          ...data,
-          subject_id: s.id,
-          subject: s.name,
-          name: `${data.name} - ${s.code}`,
-        }));
-        const { error } = await supabase.from("academic_exams").insert(rows);
+        const { error } = await supabase.from("academic_exams").insert(data);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic-exams"] });
-      toast.success(editingExam ? "Exam updated" : `${registeredSubjects.length} exams created for all registered subjects`);
+      toast.success(editingExam ? "Exam updated" : "Exam created successfully");
       resetForm();
     },
     onError: (error: any) => toast.error(error.message),
