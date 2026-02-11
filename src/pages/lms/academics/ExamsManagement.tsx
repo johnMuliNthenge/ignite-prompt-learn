@@ -24,7 +24,6 @@ export default function ExamsManagement() {
     class_id: "",
     academic_year_id: "",
     session_id: "",
-    subject_id: "",
     exam_date: "",
     total_marks: "100",
     passing_marks: "40",
@@ -114,13 +113,23 @@ export default function ExamsManagement() {
           .eq("id", editingExam.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("academic_exams").insert(data);
+        // Bulk insert one exam per registered subject
+        if (registeredSubjects.length === 0) {
+          throw new Error("No registered subjects found for this class and session");
+        }
+        const rows = registeredSubjects.map((s) => ({
+          ...data,
+          subject_id: s.id,
+          subject: s.name,
+          name: `${data.name} - ${s.code}`,
+        }));
+        const { error } = await supabase.from("academic_exams").insert(rows);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic-exams"] });
-      toast.success(editingExam ? "Exam updated" : "Exam created");
+      toast.success(editingExam ? "Exam updated" : `${registeredSubjects.length} exams created for all registered subjects`);
       resetForm();
     },
     onError: (error: any) => toast.error(error.message),
@@ -159,7 +168,6 @@ export default function ExamsManagement() {
       class_id: "",
       academic_year_id: "",
       session_id: "",
-      subject_id: "",
       exam_date: "",
       total_marks: "100",
       passing_marks: "40",
@@ -177,7 +185,6 @@ export default function ExamsManagement() {
       class_id: exam.class_id || "",
       academic_year_id: exam.academic_year_id || "",
       session_id: exam.session_id || "",
-      subject_id: exam.subject_id || "",
       exam_date: exam.exam_date || "",
       total_marks: exam.total_marks?.toString() || "100",
       passing_marks: exam.passing_marks?.toString() || "40",
@@ -189,14 +196,11 @@ export default function ExamsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedSubject = registeredSubjects.find(s => s.id === formData.subject_id);
     saveMutation.mutate({
       name: formData.name,
       class_id: formData.class_id || null,
       academic_year_id: formData.academic_year_id || null,
       session_id: formData.session_id || null,
-      subject_id: formData.subject_id || null,
-      subject: selectedSubject?.name || null,
       exam_date: formData.exam_date || null,
       total_marks: parseFloat(formData.total_marks),
       passing_marks: parseFloat(formData.passing_marks),
@@ -254,7 +258,7 @@ export default function ExamsManagement() {
                   </div>
                   <div className="space-y-2">
                     <Label>Class *</Label>
-                    <Select value={formData.class_id} onValueChange={(v) => setFormData({ ...formData, class_id: v, subject_id: "" })}>
+                    <Select value={formData.class_id} onValueChange={(v) => setFormData({ ...formData, class_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                       <SelectContent>
                         {classes?.map((c) => (
@@ -265,7 +269,7 @@ export default function ExamsManagement() {
                   </div>
                   <div className="space-y-2">
                     <Label>Session *</Label>
-                    <Select value={formData.session_id} onValueChange={(v) => setFormData({ ...formData, session_id: v, subject_id: "" })}>
+                    <Select value={formData.session_id} onValueChange={(v) => setFormData({ ...formData, session_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
                       <SelectContent>
                         {sessions?.map((s) => (
@@ -274,29 +278,20 @@ export default function ExamsManagement() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Subject *</Label>
-                    <Select 
-                      value={formData.subject_id} 
-                      onValueChange={(v) => setFormData({ ...formData, subject_id: v })}
-                      disabled={registeredSubjects.length === 0}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          !formData.class_id || !formData.session_id 
-                            ? "Select class & session first" 
-                            : registeredSubjects.length === 0 
-                              ? "No registered subjects" 
-                              : "Select subject"
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {registeredSubjects.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>{s.code} - {s.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {!editingExam && formData.class_id && formData.session_id && (
+                    <div className="col-span-2 space-y-2">
+                      <Label>Registered Subjects ({registeredSubjects.length})</Label>
+                      {registeredSubjects.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {registeredSubjects.map((s) => (
+                            <Badge key={s.id} variant="secondary">{s.code} - {s.name}</Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No subjects registered for this class and session</p>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label>Academic Year</Label>
                     <Select value={formData.academic_year_id} onValueChange={(v) => setFormData({ ...formData, academic_year_id: v })}>
