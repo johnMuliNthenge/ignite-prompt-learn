@@ -149,17 +149,18 @@ export default function MarksEntry() {
 
   // Fetch existing aggregate marks (for remarks and non-component mode)
   const { data: existingMarks } = useQuery({
-    queryKey: ["existing-marks", selectedExam],
+    queryKey: ["existing-marks", selectedExam, selectedSubject],
     queryFn: async () => {
-      if (!selectedExam) return [];
+      if (!selectedExam || !selectedSubject) return [];
       const { data, error } = await supabase
         .from("academic_marks")
         .select("*")
-        .eq("exam_id", selectedExam);
+        .eq("exam_id", selectedExam)
+        .eq("subject_id", selectedSubject);
       if (error) throw error;
       return data;
     },
-    enabled: !!selectedExam,
+    enabled: !!selectedExam && !!selectedSubject,
   });
 
   // Populate form state from existing data
@@ -293,6 +294,7 @@ export default function MarksEntry() {
           return {
             exam_id: selectedExam,
             student_id: student.id,
+            subject_id: selectedSubject || null,
             marks_obtained: absent ? 0 : finalMark,
             is_absent: absent,
             grade: absent ? "F" : calculateGrade(finalMark),
@@ -302,7 +304,7 @@ export default function MarksEntry() {
 
         const { error: aggError } = await supabase
           .from("academic_marks")
-          .upsert(aggregateRows, { onConflict: "exam_id,student_id" });
+          .upsert(aggregateRows, { onConflict: "exam_id,student_id,subject_id" });
         if (aggError) throw aggError;
       } else {
         // Simple mode (no components)
@@ -314,6 +316,7 @@ export default function MarksEntry() {
           return {
             exam_id: selectedExam,
             student_id: student.id,
+            subject_id: selectedSubject || null,
             marks_obtained: marksObtained,
             is_absent: entry.absent,
             grade: calculateGrade(percentage),
@@ -323,7 +326,7 @@ export default function MarksEntry() {
 
         const { error } = await supabase
           .from("academic_marks")
-          .upsert(marksToSave, { onConflict: "exam_id,student_id" });
+          .upsert(marksToSave, { onConflict: "exam_id,student_id,subject_id" });
         if (error) throw error;
       }
     },
