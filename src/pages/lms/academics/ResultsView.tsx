@@ -80,19 +80,23 @@ export default function ResultsView() {
     queryKey: ["all-results-summary", selectedClass, selectedSession],
     queryFn: async () => {
       if (!selectedClass || !selectedSession) return [];
+      // Get exams for this class+session
       const { data: exams, error: examError } = await (supabase as any)
         .from("academic_exams")
-        .select("id, name, total_marks, passing_marks, subject_id, subjects:subject_id(name, code)")
+        .select("id, name, total_marks, passing_marks")
         .eq("class_id", selectedClass)
         .eq("session_id", selectedSession);
       if (examError) throw examError;
       if (!exams || exams.length === 0) return [];
+
       const examIds = exams.map((e: any) => e.id);
-      const { data: marks, error: marksError } = await supabase
+      // Fetch marks with subject info via subject_id
+      const { data: marks, error: marksError } = await (supabase as any)
         .from("academic_marks")
-        .select("*")
+        .select("*, subjects:subject_id(id, name, code)")
         .in("exam_id", examIds);
       if (marksError) throw marksError;
+
       return (marks || []).map((m: any) => {
         const exam = exams.find((e: any) => e.id === m.exam_id);
         return { ...m, exam };
@@ -127,8 +131,8 @@ export default function ResultsView() {
         const total = r.exam?.total_marks || 100;
         const pct = r.is_absent ? 0 : ((r.marks_obtained || 0) / total) * 100;
         return {
-          subject_code: r.exam?.subjects?.code || "",
-          subject_name: r.exam?.subjects?.name || r.exam?.name || "Unknown",
+          subject_code: r.subjects?.code || "",
+          subject_name: r.subjects?.name || "Unknown Subject",
           marks_obtained: r.marks_obtained || 0,
           total_marks: total,
           percentage: Math.round(pct * 10) / 10,

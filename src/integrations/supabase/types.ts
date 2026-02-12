@@ -166,6 +166,7 @@ export type Database = {
           marks_obtained: number | null
           remarks: string | null
           student_id: string | null
+          subject_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -178,6 +179,7 @@ export type Database = {
           marks_obtained?: number | null
           remarks?: string | null
           student_id?: string | null
+          subject_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -190,6 +192,7 @@ export type Database = {
           marks_obtained?: number | null
           remarks?: string | null
           student_id?: string | null
+          subject_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -205,6 +208,13 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_marks_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
