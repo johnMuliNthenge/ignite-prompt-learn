@@ -1,51 +1,38 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Printer } from 'lucide-react';
-import { format } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
+import { Loader2, Printer, Award, TrendingUp, BookOpen, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
-interface Session {
-  id: string;
-  name: string;
-}
-
-interface ExamResult {
-  id: string;
-  marks_obtained: number | null;
-  grade: string | null;
-  remarks: string | null;
+interface SubjectResult {
+  subject_code: string;
+  subject_name: string;
+  marks_obtained: number;
+  total_marks: number;
+  percentage: number;
+  grade: string;
   is_absent: boolean;
-  exam: {
-    id: string;
-    name: string;
-    subject: string | null;
-    total_marks: number | null;
-    passing_marks: number | null;
-    exam_date: string | null;
-    session_id: string | null;
-    subjects: { name: string; code: string } | null;
-  } | null;
+  passed: boolean;
+  remarks: string;
 }
 
-interface StudentInfo {
-  id: string;
-  student_no: string;
-  other_name: string;
-  surname: string;
-  class_id: string | null;
-}
+const GRADE_COLORS: Record<string, string> = {
+  A: "#16a34a", B: "#2563eb", C: "#ca8a04", D: "#ea580c", E: "#c2410c", F: "#dc2626",
+};
+const PIE_COLORS = ["#16a34a", "#dc2626", "#94a3b8"];
 
 export default function ResultSlip() {
   const { user } = useAuth();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [selectedSession, setSelectedSession] = useState<string>('');
-  const [results, setResults] = useState<ExamResult[]>([]);
-  const [student, setStudent] = useState<StudentInfo | null>(null);
+  const [sessions, setSessions] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSession, setSelectedSession] = useState('');
+  const [student, setStudent] = useState<{ id: string; student_no: string; other_name: string; surname: string; class_id: string | null } | null>(null);
+  const [rawResults, setRawResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingResults, setLoadingResults] = useState(false);
 
@@ -64,14 +51,12 @@ export default function ResultSlip() {
         .select('id, student_no, other_name, surname, class_id')
         .eq('user_id', user?.id)
         .single();
-
       if (studentData) setStudent(studentData);
 
       const { data: sessionData } = await supabase
         .from('sessions')
         .select('id, name')
         .order('start_date', { ascending: false });
-
       setSessions(sessionData || []);
       if (sessionData && sessionData.length > 0) setSelectedSession(sessionData[0].id);
     } catch (error) {
@@ -85,31 +70,29 @@ export default function ResultSlip() {
     if (!student || !selectedSession) return;
     setLoadingResults(true);
     try {
-      // Get exams for student's class in this session
       const { data: exams } = await (supabase as any)
         .from('academic_exams')
-        .select('id')
+        .select('id, name, total_marks, passing_marks')
         .eq('class_id', student.class_id)
         .eq('session_id', selectedSession);
 
       if (!exams || exams.length === 0) {
-        setResults([]);
+        setRawResults([]);
         setLoadingResults(false);
         return;
       }
 
       const examIds = exams.map((e: any) => e.id);
-
-      const { data: resultData } = await (supabase as any)
+      const { data: marks } = await (supabase as any)
         .from('academic_marks')
-        .select(`
-          id, marks_obtained, grade, remarks, is_absent,
-          exam:exam_id (id, name, subject, total_marks, passing_marks, exam_date, session_id, subjects:subject_id(name, code))
-        `)
+        .select('*, subjects:subject_id(id, name, code)')
         .eq('student_id', student.id)
         .in('exam_id', examIds);
 
-      setResults(resultData || []);
+      setRawResults((marks || []).map((m: any) => {
+        const exam = exams.find((e: any) => e.id === m.exam_id);
+        return { ...m, exam };
+      }));
     } catch (error) {
       console.error('Error fetching results:', error);
     } finally {
@@ -117,88 +100,79 @@ export default function ResultSlip() {
     }
   };
 
-  const handlePrint = () => {
-    const sessionName = sessions.find(s => s.id === selectedSession)?.name || 'Unknown Session';
-    const totalMarks = results.reduce((sum, r) => sum + (r.exam?.total_marks || 0), 0);
-    const obtainedMarks = results.reduce((sum, r) => sum + (r.marks_obtained || 0), 0);
-    const percentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(2) : 0;
+  const studentResults: SubjectResult[] = useMemo(() => {
+    return rawResults.map((r: any) => {
+      const total = r.exam?.total_marks || 100;
+      const pct = r.is_absent ? 0 : ((r.marks_obtained || 0) / total) * 100;
+      return {
+        subject_code: r.subjects?.code || "",
+        subject_name: r.subjects?.name || "Unknown Subject",
+        marks_obtained: r.marks_obtained || 0,
+        total_marks: total,
+        percentage: Math.round(pct * 10) / 10,
+        grade: r.grade || "F",
+        is_absent: r.is_absent || false,
+        passed: !r.is_absent && (r.marks_obtained ?? 0) >= (r.exam?.passing_marks ?? 0),
+        remarks: r.remarks || "",
+      };
+    }).sort((a, b) => a.subject_code.localeCompare(b.subject_code));
+  }, [rawResults]);
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+  const detailStats = useMemo(() => {
+    if (!studentResults.length) return null;
+    const scored = studentResults.filter((r) => !r.is_absent);
+    const totalObtained = scored.reduce((s, r) => s + r.marks_obtained, 0);
+    const totalMax = scored.reduce((s, r) => s + r.total_marks, 0);
+    const avgPct = scored.length > 0 ? (totalObtained / totalMax) * 100 : 0;
+    const passed = scored.filter((r) => r.passed).length;
+    const failed = scored.filter((r) => !r.passed).length;
+    const absent = studentResults.filter((r) => r.is_absent).length;
+    const best = scored.length > 0 ? scored.reduce((a, b) => (a.percentage > b.percentage ? a : b)) : null;
+    const worst = scored.length > 0 ? scored.reduce((a, b) => (a.percentage < b.percentage ? a : b)) : null;
+    return { totalObtained, totalMax, avgPct: Math.round(avgPct * 10) / 10, passed, failed, absent, best, worst, total: studentResults.length };
+  }, [studentResults]);
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Result Slip - ${student?.student_no}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-            .title { font-size: 24px; font-weight: bold; }
-            .subtitle { font-size: 16px; color: #666; margin-top: 10px; }
-            .student-info { margin: 20px 0; display: flex; justify-content: space-between; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-            th { background-color: #f4f4f4; }
-            .text-center { text-align: center; }
-            .summary { margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px; }
-            .summary-row { display: flex; justify-content: space-between; padding: 5px 0; }
-            .pass { color: #16a34a; } .fail { color: #dc2626; } .absent { color: #9ca3af; }
-            @media print { body { print-color-adjust: exact; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">ACADEMIC RESULT SLIP</div>
-            <div class="subtitle">${sessionName}</div>
-          </div>
-          <div class="student-info">
-            <div>
-              <strong>Student Name:</strong> ${student?.other_name} ${student?.surname}<br/>
-              <strong>Student No:</strong> ${student?.student_no}
-            </div>
-            <div><strong>Date:</strong> ${format(new Date(), 'dd MMMM yyyy')}</div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Subject</th>
-                <th class="text-center">Total Marks</th>
-                <th class="text-center">Obtained</th>
-                <th class="text-center">Grade</th>
-                <th>Remarks</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${results.map((r) => `
-                <tr>
-                  <td>${r.exam?.subjects ? `${r.exam.subjects.code} - ${r.exam.subjects.name}` : r.exam?.subject || '-'}</td>
-                  <td class="text-center">${r.exam?.total_marks || '-'}</td>
-                  <td class="text-center ${r.is_absent ? 'absent' : (r.marks_obtained || 0) >= (r.exam?.passing_marks || 0) ? 'pass' : 'fail'}">
-                    ${r.is_absent ? 'Absent' : r.marks_obtained || '-'}
-                  </td>
-                  <td class="text-center">${r.grade || '-'}</td>
-                  <td>${r.remarks || '-'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="summary">
-            <div class="summary-row"><span>Total Marks:</span><strong>${obtainedMarks} / ${totalMarks}</strong></div>
-            <div class="summary-row"><span>Percentage:</span><strong>${percentage}%</strong></div>
-          </div>
-          <p style="text-align: center; margin-top: 40px; color: #666; font-size: 12px;">This is a computer-generated result slip.</p>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+  const barChartData = useMemo(() =>
+    studentResults.filter((r) => !r.is_absent).map((r) => ({
+      subject: r.subject_code || r.subject_name.substring(0, 8),
+      percentage: r.percentage,
+      grade: r.grade,
+    })),
+  [studentResults]);
+
+  const pieData = useMemo(() => {
+    if (!detailStats) return [];
+    return [
+      { name: "Passed", value: detailStats.passed },
+      { name: "Failed", value: detailStats.failed },
+      ...(detailStats.absent > 0 ? [{ name: "Absent", value: detailStats.absent }] : []),
+    ].filter((d) => d.value > 0);
+  }, [detailStats]);
+
+  const selectedSessionName = sessions.find((s) => s.id === selectedSession)?.name || "";
+
+  const getGradeBadgeClass = (grade: string) => {
+    switch (grade) {
+      case "A": return "bg-emerald-500 hover:bg-emerald-600 text-white border-0";
+      case "B": return "bg-blue-500 hover:bg-blue-600 text-white border-0";
+      case "C": return "bg-yellow-500 hover:bg-yellow-600 text-white border-0";
+      case "D": return "bg-orange-500 hover:bg-orange-600 text-white border-0";
+      case "E": return "bg-orange-700 hover:bg-orange-800 text-white border-0";
+      case "F": return "bg-red-500 hover:bg-red-600 text-white border-0";
+      default: return "";
+    }
   };
 
-  const getGradeBadge = (result: ExamResult) => {
-    if (result.is_absent) return <Badge variant="secondary">Absent</Badge>;
-    const passed = (result.marks_obtained || 0) >= (result.exam?.passing_marks || 0);
-    return <Badge className={passed ? 'bg-green-500' : 'bg-red-500'}>{result.grade || (passed ? 'Pass' : 'Fail')}</Badge>;
+  const getOverallGrade = (pct: number) => {
+    if (pct >= 90) return "A";
+    if (pct >= 80) return "B";
+    if (pct >= 70) return "C";
+    if (pct >= 60) return "D";
+    if (pct >= 50) return "E";
+    return "F";
   };
+
+  const handlePrint = () => window.print();
 
   if (loading) {
     return (
@@ -208,22 +182,16 @@ export default function ResultSlip() {
     );
   }
 
-  const totalMarks = results.reduce((sum, r) => sum + (r.exam?.total_marks || 0), 0);
-  const obtainedMarks = results.reduce((sum, r) => sum + (r.marks_obtained || 0), 0);
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex items-center justify-between print:hidden">
         <div>
           <h1 className="text-2xl font-bold">Result Slip</h1>
           <p className="text-muted-foreground">View and print your academic results per session</p>
         </div>
-        <Button onClick={handlePrint} disabled={results.length === 0}>
-          <Printer className="mr-2 h-4 w-4" /> Print Result Slip
-        </Button>
       </div>
 
-      <Card>
+      <Card className="print:hidden">
         <CardHeader><CardTitle>Select Session</CardTitle></CardHeader>
         <CardContent>
           <Select value={selectedSession} onValueChange={setSelectedSession}>
@@ -239,67 +207,228 @@ export default function ResultSlip() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Examination Results</CardTitle>
-              <CardDescription>
-                {student ? `${student.other_name} ${student.surname} - ${student.student_no}` : ''}
-              </CardDescription>
-            </div>
-            {results.length > 0 && (
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total Score</p>
-                <p className="text-xl font-bold">
-                  {obtainedMarks} / {totalMarks}
-                  <span className="text-sm font-normal text-muted-foreground ml-2">
-                    ({totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(1) : 0}%)
-                  </span>
+      {loadingResults ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : studentResults.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">No results found for the selected session</p>
+          </CardContent>
+        </Card>
+      ) : detailStats && student && (
+        <div id="student-result-slip">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-primary/90 to-primary p-4 sm:p-6 text-primary-foreground rounded-t-lg">
+            <div className="flex items-start sm:items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-2xl font-bold tracking-tight">Academic Result Slip</h2>
+                <p className="text-primary-foreground/80 text-xs sm:text-sm mt-1 truncate">
+                  {selectedSessionName}
                 </p>
               </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loadingResults ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <Button size="sm" variant="secondary" onClick={handlePrint} className="print:hidden shrink-0">
+                <Printer className="h-4 w-4 mr-1" /> Print
+              </Button>
             </div>
-          ) : results.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No results found for the selected session</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Subject</TableHead>
-                  <TableHead className="text-center">Total Marks</TableHead>
-                  <TableHead className="text-center">Obtained</TableHead>
-                  <TableHead className="text-center">Grade</TableHead>
-                  <TableHead>Remarks</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {results.map((result) => (
-                  <TableRow key={result.id}>
-                    <TableCell className="font-medium">
-                      {result.exam?.subjects
-                        ? `${result.exam.subjects.code} - ${result.exam.subjects.name}`
-                        : result.exam?.subject || '-'}
-                    </TableCell>
-                    <TableCell className="text-center">{result.exam?.total_marks || '-'}</TableCell>
-                    <TableCell className="text-center">
-                      {result.is_absent ? <span className="text-muted-foreground">Absent</span> : result.marks_obtained || '-'}
-                    </TableCell>
-                    <TableCell className="text-center">{getGradeBadge(result)}</TableCell>
-                    <TableCell className="text-muted-foreground">{result.remarks || '-'}</TableCell>
+            <Separator className="my-3 sm:my-4 bg-primary-foreground/20" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+              <div>
+                <span className="text-primary-foreground/60 block">Student Name</span>
+                <span className="font-semibold">{student.surname} {student.other_name}</span>
+              </div>
+              <div>
+                <span className="text-primary-foreground/60 block">Student No</span>
+                <span className="font-semibold font-mono">{student.student_no}</span>
+              </div>
+              <div>
+                <span className="text-primary-foreground/60 block">Subjects</span>
+                <span className="font-semibold">{detailStats.total}</span>
+              </div>
+              <div>
+                <span className="text-primary-foreground/60 block">Overall Average</span>
+                <span className="font-semibold text-base sm:text-lg">{detailStats.avgPct}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-4 sm:p-6 pb-0">
+            <div className="rounded-xl border bg-emerald-50 dark:bg-emerald-950/30 p-3 text-center">
+              <Award className="h-4 w-4 sm:h-5 sm:w-5 mx-auto text-emerald-600 mb-1" />
+              <p className="text-xl sm:text-2xl font-bold text-emerald-600">{detailStats.passed}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Passed</p>
+            </div>
+            <div className="rounded-xl border bg-red-50 dark:bg-red-950/30 p-3 text-center">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 mx-auto text-red-500 mb-1" />
+              <p className="text-xl sm:text-2xl font-bold text-red-500">{detailStats.failed}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Failed</p>
+            </div>
+            <div className="rounded-xl border bg-blue-50 dark:bg-blue-950/30 p-3 text-center">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 mx-auto text-blue-500 mb-1" />
+              <p className="text-lg sm:text-2xl font-bold text-blue-500">{detailStats.totalObtained}/{detailStats.totalMax}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Total Marks</p>
+            </div>
+            <div className="rounded-xl border bg-purple-50 dark:bg-purple-950/30 p-3 text-center">
+              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mx-auto text-purple-500 mb-1" />
+              <Badge className={`${getGradeBadgeClass(getOverallGrade(detailStats.avgPct))} text-base sm:text-lg px-2 sm:px-3`}>
+                {getOverallGrade(detailStats.avgPct)}
+              </Badge>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Overall Grade</p>
+            </div>
+          </div>
+
+          {/* Subject Results Table */}
+          <div className="p-4 sm:p-6">
+            <h3 className="text-xs sm:text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Subject Results</h3>
+            <div className="border rounded-xl overflow-hidden overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-semibold text-xs">#</TableHead>
+                    <TableHead className="font-semibold text-xs">Subject</TableHead>
+                    <TableHead className="text-center font-semibold text-xs">Marks</TableHead>
+                    <TableHead className="text-center font-semibold text-xs">%</TableHead>
+                    <TableHead className="text-center font-semibold text-xs">Grade</TableHead>
+                    <TableHead className="text-center font-semibold text-xs">Status</TableHead>
+                    <TableHead className="font-semibold text-xs hidden sm:table-cell">Remarks</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {studentResults.map((r, idx) => (
+                    <TableRow key={idx} className={r.is_absent ? "opacity-50" : ""}>
+                      <TableCell className="text-muted-foreground text-xs py-2">{idx + 1}</TableCell>
+                      <TableCell className="py-2">
+                        <span className="font-medium text-xs sm:text-sm">{r.subject_code && `${r.subject_code} - `}{r.subject_name}</span>
+                      </TableCell>
+                      <TableCell className="text-center font-mono text-xs py-2">
+                        {r.is_absent ? "-" : `${r.marks_obtained}/${r.total_marks}`}
+                      </TableCell>
+                      <TableCell className="text-center font-semibold text-xs py-2">
+                        {r.is_absent ? "-" : `${r.percentage}%`}
+                      </TableCell>
+                      <TableCell className="text-center py-2">
+                        <Badge className={`${getGradeBadgeClass(r.is_absent ? "-" : r.grade)} text-[10px] sm:text-xs`}>
+                          {r.is_absent ? "-" : r.grade}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center py-2">
+                        {r.is_absent ? (
+                          <Badge variant="outline" className="text-[10px] sm:text-xs">Absent</Badge>
+                        ) : r.passed ? (
+                          <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-0 text-[10px] sm:text-xs">Pass</Badge>
+                        ) : (
+                          <Badge className="bg-red-500 hover:bg-red-600 text-white border-0 text-[10px] sm:text-xs">Fail</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground py-2 hidden sm:table-cell">{r.remarks || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Best & Worst */}
+          {(detailStats.best || detailStats.worst) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-4 sm:px-6">
+              {detailStats.best && (
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">🏆 Best Subject</p>
+                  <p className="font-semibold text-xs sm:text-sm">{detailStats.best.subject_code} - {detailStats.best.subject_name}</p>
+                  <p className="text-emerald-600 font-bold text-sm">{detailStats.best.percentage}% ({detailStats.best.grade})</p>
+                </div>
+              )}
+              {detailStats.worst && (
+                <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20 p-3">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">📉 Needs Improvement</p>
+                  <p className="font-semibold text-xs sm:text-sm">{detailStats.worst.subject_code} - {detailStats.worst.subject_name}</p>
+                  <p className="text-red-500 font-bold text-sm">{detailStats.worst.percentage}% ({detailStats.worst.grade})</p>
+                </div>
+              )}
+            </div>
           )}
-        </CardContent>
-      </Card>
+
+          {/* Charts */}
+          <div className="p-4 sm:p-6 space-y-4">
+            <h3 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Performance Analytics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2 border rounded-xl p-3 sm:p-4">
+                <h4 className="text-[10px] sm:text-xs font-semibold mb-2 text-muted-foreground uppercase">Performance by Subject</h4>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={barChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis dataKey="subject" tick={{ fontSize: 9 }} interval={0} angle={-30} textAnchor="end" height={50} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
+                    <Tooltip formatter={(value: number) => [`${value}%`, "Score"]} contentStyle={{ borderRadius: "8px", fontSize: "11px" }} />
+                    <Bar dataKey="percentage" radius={[4, 4, 0, 0]} maxBarSize={36}>
+                      {barChartData.map((entry, idx) => (
+                        <Cell key={idx} fill={GRADE_COLORS[entry.grade] || "#94a3b8"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="border rounded-xl p-3 sm:p-4">
+                <h4 className="text-[10px] sm:text-xs font-semibold mb-2 text-muted-foreground uppercase">Pass / Fail</h4>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={35}
+                      outerRadius={60}
+                      paddingAngle={4}
+                      dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}`}
+                      labelLine={false}
+                    >
+                      {pieData.map((_, idx) => (
+                        <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Legend iconSize={8} wrapperStyle={{ fontSize: "10px" }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-[10px] sm:text-xs text-muted-foreground border-t pt-3 gap-1">
+              <span>Generated on {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>
+              <span>Total: {detailStats.totalObtained}/{detailStats.totalMax} • Average: {detailStats.avgPct}% • Grade: {getOverallGrade(detailStats.avgPct)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #student-result-slip, #student-result-slip * { visibility: visible; }
+          #student-result-slip {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          .print\\:hidden { display: none !important; }
+          table { font-size: 11px; }
+          .recharts-responsive-container { page-break-inside: avoid; }
+        }
+      `}</style>
     </div>
   );
 }

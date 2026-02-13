@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Printer, Loader2, Eye, TrendingUp, Award, BookOpen, BarChart3 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
 
 interface StudentRow {
   id: string;
@@ -176,13 +176,6 @@ export default function ResultsView() {
     ].filter((d) => d.value > 0);
   }, [detailStats]);
 
-  const radarData = useMemo(() =>
-    studentResults.filter((r) => !r.is_absent).map((r) => ({
-      subject: r.subject_code || r.subject_name.substring(0, 6),
-      score: r.percentage,
-      fullMark: 100,
-    })),
-  [studentResults]);
 
   const selectedClassName = classes?.find((c) => c.id === selectedClass)?.name || "";
   const selectedSessionName = sessions?.find((s) => s.id === selectedSession)?.name || "";
@@ -500,20 +493,6 @@ export default function ResultsView() {
                     </div>
                   </div>
 
-                  {/* Radar Chart */}
-                  {radarData.length >= 3 && (
-                    <div className="border rounded-xl p-3 sm:p-4">
-                      <h4 className="text-[10px] sm:text-xs font-semibold mb-2 text-muted-foreground uppercase">Competency Radar</h4>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <RadarChart data={radarData}>
-                          <PolarGrid strokeDasharray="3 3" />
-                          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9 }} />
-                          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} />
-                          <Radar name="Score" dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.25} strokeWidth={2} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
                 </div>
 
                 {/* Footer */}
@@ -541,6 +520,14 @@ export default function ResultsView() {
             width: 100%;
             padding: 0;
             margin: 0;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
           }
           .print\\:hidden { display: none !important; }
           [data-radix-dialog-overlay] { display: none !important; }
@@ -559,6 +546,12 @@ export default function ResultsView() {
           }
           table { font-size: 11px; }
           .recharts-responsive-container { page-break-inside: avoid; }
+          .bg-emerald-50, .bg-red-50, .bg-blue-50, .bg-purple-50,
+          .bg-emerald-500, .bg-red-500, .bg-blue-500, .bg-yellow-500, .bg-orange-500, .bg-orange-700,
+          .bg-emerald-50\\/50, .bg-red-50\\/50 {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
         }
       `}</style>
     </ProtectedPage>

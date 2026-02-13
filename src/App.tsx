@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 
 // LMS pages
 import LMSAuthPage from "./pages/lms/LMSAuthPage";
+import ResetPasswordPage from "./pages/lms/ResetPasswordPage";
 import { LMSLayout } from "./components/lms/LMSLayout";
 import LMSDashboard from "./pages/lms/LMSDashboard";
 import UserManagement from "./pages/lms/admin/UserManagement";
@@ -164,6 +165,7 @@ const App = () => (
 
             {/* LMS Routes */}
             <Route path="/lms/auth" element={<LMSAuthPage />} />
+            <Route path="/lms/reset-password" element={<ResetPasswordPage />} />
             <Route path="/lms" element={<LMSLayout />}>
               <Route path="dashboard" element={<LMSDashboard />} />
               <Route path="courses" element={<MyCourses />} />
