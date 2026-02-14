@@ -3895,6 +3895,66 @@ export type Database = {
           },
         ]
       }
+      institution_settings: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          institution_name: string
+          logo_url: string | null
+          phone: string | null
+          postal_code: string | null
+          primary_color: string
+          secondary_color: string
+          state: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          institution_name?: string
+          logo_url?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          primary_color?: string
+          secondary_color?: string
+          state?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          institution_name?: string
+          logo_url?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          primary_color?: string
+          secondary_color?: string
+          state?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           approved_by: string | null

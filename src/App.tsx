@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { InstitutionProvider } from "@/contexts/InstitutionContext";
 
 // Original pages
 import LandingPage from "./pages/LandingPage";
@@ -29,6 +30,7 @@ import ClassManagement from "./pages/lms/admin/ClassManagement";
 import RoleManagement from "./pages/lms/admin/RoleManagement";
 import UserRoleAssignment from "./pages/lms/admin/UserRoleAssignment";
 import MpesaSettings from "./pages/lms/admin/MpesaSettings";
+import AccountSetup from "./pages/lms/admin/AccountSetup";
 import CreateCourse from "./pages/lms/courses/CreateCourse";
 import CourseEditor from "./pages/lms/courses/CourseEditor";
 import CourseCatalog from "./pages/lms/courses/CourseCatalog";
@@ -155,6 +157,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <InstitutionProvider>
           <Routes>
             {/* Original routes */}
             <Route path="/" element={<LandingPage />} />
@@ -187,6 +190,7 @@ const App = () => (
               <Route path="admin/settings" element={<SiteSettings />} />
               <Route path="admin/smtp" element={<SmtpSettings />} />
               <Route path="admin/mpesa" element={<MpesaSettings />} />
+              <Route path="admin/setup/account" element={<AccountSetup />} />
               <Route path="admin/poe-review" element={<POEReview />} />
               
               {/* Student Academics Routes */}
@@ -305,6 +309,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </InstitutionProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

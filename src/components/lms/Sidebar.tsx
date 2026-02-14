@@ -202,6 +202,20 @@ const administrationModule: NavModule = {
       moduleCode: 'admin.administration',
     },
     {
+      title: 'Setup',
+      href: '/lms/admin/setup',
+      icon: Cog,
+      moduleCode: 'admin.setup',
+      subItems: [
+        {
+          title: 'Account Setup',
+          href: '/lms/admin/setup/account',
+          icon: Building2,
+          moduleCode: 'admin.setup.account',
+        },
+      ],
+    },
+    {
       title: 'Site Settings',
       href: '/lms/admin/settings',
       icon: Settings,
