@@ -3906,12 +3906,17 @@ export type Database = {
           email: string | null
           id: string
           institution_name: string
+          is_active: boolean
           logo_url: string | null
+          max_users: number | null
           phone: string | null
           postal_code: string | null
           primary_color: string
           secondary_color: string
           state: string | null
+          subscription_end: string | null
+          subscription_plan: string | null
+          subscription_start: string | null
           updated_at: string
           website: string | null
         }
@@ -3925,12 +3930,17 @@ export type Database = {
           email?: string | null
           id?: string
           institution_name?: string
+          is_active?: boolean
           logo_url?: string | null
+          max_users?: number | null
           phone?: string | null
           postal_code?: string | null
           primary_color?: string
           secondary_color?: string
           state?: string | null
+          subscription_end?: string | null
+          subscription_plan?: string | null
+          subscription_start?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -3944,12 +3954,17 @@ export type Database = {
           email?: string | null
           id?: string
           institution_name?: string
+          is_active?: boolean
           logo_url?: string | null
+          max_users?: number | null
           phone?: string | null
           postal_code?: string | null
           primary_color?: string
           secondary_color?: string
           state?: string | null
+          subscription_end?: string | null
+          subscription_plan?: string | null
+          subscription_start?: string | null
           updated_at?: string
           website?: string | null
         }

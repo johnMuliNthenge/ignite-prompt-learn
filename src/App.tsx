@@ -31,6 +31,7 @@ import RoleManagement from "./pages/lms/admin/RoleManagement";
 import UserRoleAssignment from "./pages/lms/admin/UserRoleAssignment";
 import MpesaSettings from "./pages/lms/admin/MpesaSettings";
 import AccountSetup from "./pages/lms/admin/AccountSetup";
+import TenantManagement from "./pages/lms/admin/TenantManagement";
 import CreateCourse from "./pages/lms/courses/CreateCourse";
 import CourseEditor from "./pages/lms/courses/CourseEditor";
 import CourseCatalog from "./pages/lms/courses/CourseCatalog";
@@ -191,6 +192,7 @@ const App = () => (
               <Route path="admin/smtp" element={<SmtpSettings />} />
               <Route path="admin/mpesa" element={<MpesaSettings />} />
               <Route path="admin/setup/account" element={<AccountSetup />} />
+              <Route path="admin/setup/tenants" element={<TenantManagement />} />
               <Route path="admin/poe-review" element={<POEReview />} />
               
               {/* Student Academics Routes */}
