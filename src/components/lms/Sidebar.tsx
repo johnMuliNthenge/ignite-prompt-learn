@@ -213,6 +213,12 @@ const administrationModule: NavModule = {
           icon: Building2,
           moduleCode: 'admin.setup.account',
         },
+        {
+          title: 'Tenant Management',
+          href: '/lms/admin/setup/tenants',
+          icon: Building,
+          moduleCode: 'admin.setup.tenants',
+        },
       ],
     },
     {
