@@ -53,13 +53,36 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
     }
   }, [user]);
 
+  // Helper: darken/lighten an HSL string
+  const adjustLightness = (hsl: string, amount: number): string => {
+    const parts = hsl.match(/([\d.]+)\s+([\d.]+)%\s+([\d.]+)%/);
+    if (!parts) return hsl;
+    const h = parts[1], s = parts[2];
+    const l = Math.max(0, Math.min(100, parseFloat(parts[3]) + amount));
+    return `${h} ${s}% ${l}%`;
+  };
+
   // Apply dynamic theme colors
   useEffect(() => {
     if (settings) {
       const root = document.documentElement;
+      // Primary
       root.style.setProperty('--primary', settings.primary_color);
-      root.style.setProperty('--sidebar-ring', settings.primary_color);
+      root.style.setProperty('--ring', settings.primary_color);
+
+      // Secondary
       root.style.setProperty('--secondary', settings.secondary_color);
+      root.style.setProperty('--accent', settings.secondary_color);
+
+      // Sidebar — use primary as sidebar background with white text
+      root.style.setProperty('--sidebar-background', adjustLightness(settings.primary_color, -5));
+      root.style.setProperty('--sidebar-foreground', '0 0% 98%');
+      root.style.setProperty('--sidebar-primary', '0 0% 100%');
+      root.style.setProperty('--sidebar-primary-foreground', settings.primary_color);
+      root.style.setProperty('--sidebar-accent', adjustLightness(settings.primary_color, 5));
+      root.style.setProperty('--sidebar-accent-foreground', '0 0% 98%');
+      root.style.setProperty('--sidebar-border', adjustLightness(settings.primary_color, 10));
+      root.style.setProperty('--sidebar-ring', settings.primary_color);
     }
   }, [settings]);
 
