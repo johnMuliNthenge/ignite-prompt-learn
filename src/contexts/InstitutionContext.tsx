@@ -23,6 +23,7 @@ interface InstitutionContextType {
   settings: InstitutionSettings | null;
   loading: boolean;
   refetch: () => Promise<void>;
+  switchTenant: (tenantId: string) => Promise<void>;
 }
 
 const InstitutionContext = createContext<InstitutionContextType | undefined>(undefined);
@@ -86,8 +87,19 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
     }
   }, [settings]);
 
+  const switchTenant = async (tenantId: string) => {
+    const { data } = await supabase
+      .from('institution_settings')
+      .select('*')
+      .eq('id', tenantId)
+      .single();
+    if (data) {
+      setSettings(data as InstitutionSettings);
+    }
+  };
+
   return (
-    <InstitutionContext.Provider value={{ settings, loading, refetch: fetchSettings }}>
+    <InstitutionContext.Provider value={{ settings, loading, refetch: fetchSettings, switchTenant }}>
       {children}
     </InstitutionContext.Provider>
   );

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useInstitution } from '@/contexts/InstitutionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Loader2, Plus, Building2, Pencil, Eye, Search, Users, Calendar, CreditCard,
+  Loader2, Plus, Building2, Pencil, Eye, Search, Users, Calendar, CreditCard, KeyRound,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -46,6 +47,7 @@ const PLAN_OPTIONS = [
 export default function TenantManagement() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { switchTenant } = useInstitution();
   const { toast } = useToast();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -336,6 +338,18 @@ export default function TenantManagement() {
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(tenant)}>
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Login as this tenant"
+                            onClick={async () => {
+                              await switchTenant(tenant.id);
+                              toast({ title: `Switched to ${tenant.institution_name}` });
+                              navigate('/lms/dashboard');
+                            }}
+                          >
+                            <KeyRound className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
