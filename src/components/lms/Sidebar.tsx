@@ -889,8 +889,8 @@ function SidebarContent({
               className={cn(
                 'flex items-center justify-center rounded-lg p-2 transition-colors',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -915,8 +915,8 @@ function SidebarContent({
               className={cn(
                 'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                 isActive
-                  ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                 depth > 0 && 'text-xs'
               )}
             >
@@ -946,8 +946,8 @@ function SidebarContent({
         className={cn(
           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
           location.pathname === item.href
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
           depth > 0 && 'text-xs'
         )}
       >
@@ -970,8 +970,8 @@ function SidebarContent({
               className={cn(
                 'flex items-center justify-center rounded-lg p-2 transition-colors',
                 isActive
-                  ? 'bg-muted/50 text-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
             >
               <module.icon className="h-5 w-5" />
@@ -995,8 +995,8 @@ function SidebarContent({
             className={cn(
               'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
               isActive
-                ? 'bg-muted/50 text-foreground'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
             <div className="flex items-center gap-3">
@@ -1024,11 +1024,11 @@ function SidebarContent({
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className={cn(
-        "flex h-16 items-center gap-2 border-b shrink-0",
+        "flex h-16 items-center gap-2 border-b border-sidebar-border shrink-0",
         collapsed ? "justify-center px-2" : "px-6"
       )}>
-        <GraduationCap className="h-8 w-8 text-primary shrink-0" />
-        {!collapsed && <span className="text-xl font-bold">LearnHub</span>}
+        <GraduationCap className="h-8 w-8 text-sidebar-primary shrink-0" />
+        {!collapsed && <span className="text-xl font-bold text-sidebar-foreground">LearnHub</span>}
       </div>
 
       {/* Navigation */}
@@ -1089,26 +1089,26 @@ function SidebarContent({
       </ScrollArea>
 
       {/* User section */}
-      <div className="border-t p-4 shrink-0">
+      <div className="border-t border-sidebar-border p-4 shrink-0">
         {collapsed ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 mx-auto cursor-pointer">
-                <span className="text-sm font-medium text-primary">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent mx-auto cursor-pointer">
+                <span className="text-sm font-medium text-sidebar-accent-foreground">
                   {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
                 </span>
               </div>
             </TooltipTrigger>
             <TooltipContent side="right">
               <p>{profile?.full_name || 'User'}</p>
-              <p className="text-xs text-muted-foreground">{appRole?.name || role || 'No role'}</p>
+              <p className="text-xs text-sidebar-foreground/60">{appRole?.name || role || 'No role'}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
           <>
             <div className="mb-3 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
-                <span className="text-sm font-medium text-primary">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent shrink-0">
+                <span className="text-sm font-medium text-sidebar-accent-foreground">
                   {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
                 </span>
               </div>
@@ -1118,7 +1118,7 @@ function SidebarContent({
                 </p>
                 <div className="flex items-center gap-1">
                   {isAdmin && <Shield className="h-3 w-3 text-destructive shrink-0" />}
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-xs text-sidebar-foreground/60">
                     {appRole?.name || role || 'No role'}
                   </p>
                 </div>
@@ -1146,7 +1146,7 @@ export function Sidebar({ open, onOpenChange, collapsed, onCollapsedChange }: Si
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-64 p-0 bg-sidebar text-sidebar-foreground">
           <SidebarContent onNavigate={() => onOpenChange?.(false)} />
         </SheetContent>
       </Sheet>
@@ -1156,7 +1156,8 @@ export function Sidebar({ open, onOpenChange, collapsed, onCollapsedChange }: Si
   // Desktop: Fixed sidebar with collapse toggle
   return (
     <div className={cn(
-      "hidden md:flex h-screen flex-col border-r bg-card shrink-0 transition-all duration-300 relative",
+      "hidden md:flex h-screen flex-col border-r shrink-0 transition-all duration-300 relative",
+      "bg-sidebar text-sidebar-foreground border-sidebar-border",
       collapsed ? "w-16" : "w-64"
     )}>
       <SidebarContent collapsed={collapsed} />
@@ -1180,7 +1181,7 @@ export function Sidebar({ open, onOpenChange, collapsed, onCollapsedChange }: Si
 
 export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   return (
-    <header className="flex md:hidden h-14 items-center gap-4 border-b bg-card px-4 shrink-0">
+    <header className="flex md:hidden h-14 items-center gap-4 border-b bg-sidebar text-sidebar-foreground px-4 shrink-0">
       <Button variant="ghost" size="icon" onClick={onMenuClick}>
         <Menu className="h-5 w-5" />
         <span className="sr-only">Toggle menu</span>
