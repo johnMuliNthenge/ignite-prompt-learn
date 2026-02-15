@@ -357,12 +357,12 @@ export default function ResultSlip() {
               <div className="md:col-span-2 border rounded-xl p-3 sm:p-4">
                 <h4 className="text-[10px] sm:text-xs font-semibold mb-2 text-muted-foreground uppercase">Performance by Subject</h4>
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={barChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                  <BarChart data={barChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }} barCategoryGap="15%" barGap={2}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                     <XAxis dataKey="subject" tick={{ fontSize: 9 }} interval={0} angle={-30} textAnchor="end" height={50} />
                     <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
                     <Tooltip formatter={(value: number) => [`${value}%`, "Score"]} contentStyle={{ borderRadius: "8px", fontSize: "11px" }} />
-                    <Bar dataKey="percentage" radius={[4, 4, 0, 0]} maxBarSize={36}>
+                    <Bar dataKey="percentage" radius={[4, 4, 0, 0]} maxBarSize={28}>
                       {barChartData.map((entry, idx) => (
                         <Cell key={idx} fill={GRADE_COLORS[entry.grade] || "#94a3b8"} />
                       ))}
@@ -370,16 +370,16 @@ export default function ResultSlip() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="border rounded-xl p-3 sm:p-4">
-                <h4 className="text-[10px] sm:text-xs font-semibold mb-2 text-muted-foreground uppercase">Pass / Fail</h4>
-                <ResponsiveContainer width="100%" height={180}>
+              <div className="border rounded-xl p-3 sm:p-4 flex flex-col items-center">
+                <h4 className="text-[10px] sm:text-xs font-semibold mb-2 text-muted-foreground uppercase self-start">Pass / Fail</h4>
+                <ResponsiveContainer width="100%" height={150}>
                   <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={60}
+                      cy="45%"
+                      innerRadius={30}
+                      outerRadius={50}
                       paddingAngle={4}
                       dataKey="value"
                       label={({ name, value }) => `${name}: ${value}`}
