@@ -338,8 +338,8 @@ export default function ResultsView() {
                       <span className="font-semibold font-mono">{selectedStudent.student_no}</span>
                     </div>
                     <div>
-                      <span className="text-primary-foreground/60 block">Subjects</span>
-                      <span className="font-semibold">{detailStats.total}</span>
+                      <span className="text-primary-foreground/60 block">Class</span>
+                      <span className="font-semibold">{classes?.find(c => c.id === selectedClass)?.name || '-'}</span>
                     </div>
                     <div>
                       <span className="text-primary-foreground/60 block">Overall Average</span>

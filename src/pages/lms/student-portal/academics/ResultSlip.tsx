@@ -32,6 +32,7 @@ export default function ResultSlip() {
   const [sessions, setSessions] = useState<{ id: string; name: string }[]>([]);
   const [selectedSession, setSelectedSession] = useState('');
   const [student, setStudent] = useState<{ id: string; student_no: string; other_name: string; surname: string; class_id: string | null } | null>(null);
+  const [className, setClassName] = useState('');
   const [rawResults, setRawResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingResults, setLoadingResults] = useState(false);
@@ -51,7 +52,13 @@ export default function ResultSlip() {
         .select('id, student_no, other_name, surname, class_id')
         .eq('user_id', user?.id)
         .single();
-      if (studentData) setStudent(studentData);
+      if (studentData) {
+        setStudent(studentData);
+        if (studentData.class_id) {
+          const { data: classData } = await supabase.from('classes').select('name').eq('id', studentData.class_id).single();
+          if (classData) setClassName(classData.name);
+        }
+      }
 
       const { data: sessionData } = await supabase
         .from('sessions')
@@ -243,8 +250,8 @@ export default function ResultSlip() {
                 <span className="font-semibold font-mono">{student.student_no}</span>
               </div>
               <div>
-                <span className="text-primary-foreground/60 block">Subjects</span>
-                <span className="font-semibold">{detailStats.total}</span>
+                <span className="text-primary-foreground/60 block">Class</span>
+                <span className="font-semibold">{className || '-'}</span>
               </div>
               <div>
                 <span className="text-primary-foreground/60 block">Overall Average</span>
