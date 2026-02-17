@@ -46,40 +46,39 @@ export default function SummarizedFeeStatement() {
   const fetchSummary = async () => {
     setLoading(true);
     try {
-      // Aggregate invoices by fee accounts
+      // Fetch invoices (DEBIT side)
       const { data: invoiceData, error } = await supabase
         .from('fee_invoices')
-        .select(`
-          id,
-          total_amount,
-          amount_paid,
-          balance_due,
-          student_id
-        `);
+        .select('id, total_amount, student_id');
 
       if (error) throw error;
 
-      // Group by fee type (simplified - in production would join with fee_invoice_items)
-      const summary: FeeSummary = {
-        fee_type: 'All Fees',
-        total_invoiced: 0,
-        total_paid: 0,
-        total_balance: 0,
-        student_count: new Set<string>(),
-      } as any;
+      // Fetch actual payments (CREDIT side) - captures every cent including overpayments
+      const { data: paymentsData } = await supabase
+        .from('fee_payments')
+        .select('student_id, amount')
+        .eq('status', 'Completed');
+
+      const studentIds = new Set<string>();
+      let totalInvoiced = 0;
+      let totalPaid = 0;
 
       (invoiceData || []).forEach((inv: any) => {
-        summary.total_invoiced += Number(inv.total_amount) || 0;
-        summary.total_paid += Number(inv.amount_paid) || 0;
-        summary.total_balance += Number(inv.balance_due) || 0;
-        if (inv.student_id) {
-          (summary.student_count as any).add(inv.student_id);
-        }
+        totalInvoiced += Number(inv.total_amount) || 0;
+        if (inv.student_id) studentIds.add(inv.student_id);
+      });
+
+      (paymentsData || []).forEach((pay: any) => {
+        totalPaid += Number(pay.amount) || 0;
+        if (pay.student_id) studentIds.add(pay.student_id);
       });
 
       const finalSummary: FeeSummary = {
-        ...summary,
-        student_count: (summary.student_count as any).size,
+        fee_type: 'All Fees',
+        total_invoiced: totalInvoiced,
+        total_paid: totalPaid,
+        total_balance: totalInvoiced - totalPaid, // Negative = net overpayment
+        student_count: studentIds.size,
       };
 
       setSummaries([finalSummary]);

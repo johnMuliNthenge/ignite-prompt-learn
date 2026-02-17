@@ -47,17 +47,23 @@ export default function StudentSchedules() {
 
       if (studentsError) throw studentsError;
 
-      // Fetch all invoices separately (more reliable than nested joins)
+      // Fetch all invoices (DEBIT side)
       const { data: invoicesData } = await supabase
         .from('fee_invoices')
-        .select('student_id, total_amount, amount_paid, balance_due');
+        .select('student_id, total_amount');
+
+      // Fetch ALL completed payments (CREDIT side) - this captures overpayments correctly
+      const { data: paymentsData } = await supabase
+        .from('fee_payments')
+        .select('student_id, amount')
+        .eq('status', 'Completed');
 
       const formattedSchedules: StudentSchedule[] = (studentsData || []).map((student: any) => {
-        // Filter invoices for this student
         const studentInvoices = (invoicesData || []).filter((inv: any) => inv.student_id === student.id);
+        const studentPayments = (paymentsData || []).filter((pay: any) => pay.student_id === student.id);
         const totalInvoiced = studentInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.total_amount) || 0), 0);
-        const totalPaid = studentInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.amount_paid) || 0), 0);
-        const balance = studentInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.balance_due) || 0), 0);
+        const totalPaid = studentPayments.reduce((sum: number, pay: any) => sum + (Number(pay.amount) || 0), 0);
+        const balance = totalInvoiced - totalPaid; // Negative = overpayment/prepayment
 
         return {
           id: student.id,
@@ -66,7 +72,7 @@ export default function StudentSchedules() {
           total_invoiced: totalInvoiced,
           total_paid: totalPaid,
           balance: balance,
-          status: balance > 0 ? 'Outstanding' : (totalInvoiced > 0 ? 'Cleared' : 'No Invoices'),
+          status: balance < 0 ? 'Overpaid' : (balance > 0 ? 'Outstanding' : (totalInvoiced > 0 ? 'Cleared' : 'No Invoices')),
         };
       });
 
@@ -92,6 +98,8 @@ export default function StudentSchedules() {
         return <Badge className="bg-green-600 hover:bg-green-700">Cleared</Badge>;
       case 'Outstanding':
         return <Badge variant="destructive">Outstanding</Badge>;
+      case 'Overpaid':
+        return <Badge className="bg-blue-600 hover:bg-blue-700">Overpaid</Badge>;
       default:
         return <Badge variant="secondary">No Invoices</Badge>;
     }
@@ -210,8 +218,8 @@ export default function StudentSchedules() {
                       <TableCell className="font-medium">{schedule.student_name}</TableCell>
                       <TableCell className="text-right">{formatCurrency(schedule.total_invoiced)}</TableCell>
                       <TableCell className="text-right text-green-600">{formatCurrency(schedule.total_paid)}</TableCell>
-                      <TableCell className="text-right font-medium text-red-600">
-                        {schedule.balance > 0 ? formatCurrency(schedule.balance) : '-'}
+                      <TableCell className={`text-right font-medium ${schedule.balance < 0 ? 'text-blue-600' : schedule.balance > 0 ? 'text-red-600' : ''}`}>
+                        {schedule.balance < 0 ? `(${formatCurrency(Math.abs(schedule.balance))})` : schedule.balance > 0 ? formatCurrency(schedule.balance) : '-'}
                       </TableCell>
                       <TableCell>{getStatusBadge(schedule.status)}</TableCell>
                       <TableCell>

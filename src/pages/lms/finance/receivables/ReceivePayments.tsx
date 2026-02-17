@@ -130,27 +130,44 @@ export default function ReceivePayments() {
       return;
     }
 
-    const { data: invoicesData, error: invoicesError } = await supabase
+    // Fetch ALL invoices (DEBIT side)
+    const { data: invoicesData } = await supabase
       .from('fee_invoices')
-      .select('student_id, balance_due')
-      .gt('balance_due', 0);
+      .select('student_id, total_amount');
 
-    if (!invoicesError && studentsData) {
-      const balanceMap = new Map<string, number>();
+    // Fetch ALL completed payments (CREDIT side)
+    const { data: paymentsData } = await supabase
+      .from('fee_payments')
+      .select('student_id, amount')
+      .eq('status', 'Completed');
+
+    if (studentsData) {
+      const invoiceMap = new Map<string, number>();
       (invoicesData || []).forEach((inv: any) => {
-        const current = balanceMap.get(inv.student_id) || 0;
-        balanceMap.set(inv.student_id, current + Number(inv.balance_due));
+        const current = invoiceMap.get(inv.student_id) || 0;
+        invoiceMap.set(inv.student_id, current + (Number(inv.total_amount) || 0));
       });
 
-      const studentsWithBalance: Student[] = studentsData.map((s: any) => ({
-        id: s.id,
-        student_no: s.student_no || '',
-        other_name: s.other_name,
-        surname: s.surname,
-        total_balance: balanceMap.get(s.id) || 0,
-      }));
+      const paymentMap = new Map<string, number>();
+      (paymentsData || []).forEach((pay: any) => {
+        const current = paymentMap.get(pay.student_id) || 0;
+        paymentMap.set(pay.student_id, current + (Number(pay.amount) || 0));
+      });
 
-      setStudents(studentsWithBalance.filter(s => s.total_balance > 0));
+      const studentsWithBalance: Student[] = studentsData.map((s: any) => {
+        const totalInvoiced = invoiceMap.get(s.id) || 0;
+        const totalPaid = paymentMap.get(s.id) || 0;
+        return {
+          id: s.id,
+          student_no: s.student_no || '',
+          other_name: s.other_name,
+          surname: s.surname,
+          total_balance: totalInvoiced - totalPaid, // Negative = overpayment
+        };
+      });
+
+      // Show all students with invoices (including overpaid with negative balance)
+      setStudents(studentsWithBalance.filter(s => s.total_balance !== 0 || invoiceMap.has(s.id)));
     }
   };
 
@@ -296,14 +313,16 @@ export default function ReceivePayments() {
       if (paymentData.invoice_id) {
         const invoice = invoices.find(i => i.id === paymentData.invoice_id);
         if (invoice) {
-          const newBalance = invoice.balance_due - amount;
-          const newStatus = newBalance <= 0 ? 'Paid' : 'Partial';
+          const allocatedToInvoice = Math.min(amount, invoice.balance_due);
+          const newBalanceDue = Math.max(0, invoice.balance_due - amount);
+          const newAmountPaid = Math.min(invoice.total_amount, (invoice.total_amount - invoice.balance_due) + allocatedToInvoice);
+          const newStatus = newBalanceDue <= 0 ? 'Paid' : 'Partial';
 
           await supabase
             .from('fee_invoices')
             .update({
-              amount_paid: invoice.total_amount - newBalance,
-              balance_due: Math.max(0, newBalance),
+              amount_paid: newAmountPaid,
+              balance_due: newBalanceDue,
               status: newStatus,
             })
             .eq('id', paymentData.invoice_id);
@@ -334,7 +353,7 @@ export default function ReceivePayments() {
           await supabase
             .from('fee_invoices')
             .update({
-              amount_paid: invoice.total_amount - newBalance,
+              amount_paid: Math.min(invoice.total_amount, (invoice.total_amount - invoice.balance_due) + paymentToInvoice),
               balance_due: Math.max(0, newBalance),
               status: newStatus,
             })
@@ -360,6 +379,8 @@ export default function ReceivePayments() {
 
           remainingAmount -= paymentToInvoice;
         }
+        // Any remainingAmount > 0 is an overpayment - it's already fully recorded in fee_payments
+        // The student's balance will correctly show as negative (prepayment/credit)
       }
 
       // Get payment mode name
@@ -495,8 +516,8 @@ export default function ReceivePayments() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Students with Outstanding Balance</CardTitle>
-              <CardDescription>Select a student to receive payment</CardDescription>
+              <CardTitle>Student Fee Balances</CardTitle>
+              <CardDescription>Select a student to receive payment (negative balance = overpayment/prepayment)</CardDescription>
             </div>
             <div className="relative w-72">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -528,8 +549,8 @@ export default function ReceivePayments() {
                   <TableRow key={student.id}>
                     <TableCell className="font-mono">{student.student_no}</TableCell>
                     <TableCell className="font-medium">{student.other_name} {student.surname}</TableCell>
-                    <TableCell className="text-right font-bold text-destructive">
-                      {formatCurrency(student.total_balance)}
+                    <TableCell className={`text-right font-bold ${student.total_balance < 0 ? 'text-blue-600' : 'text-destructive'}`}>
+                      {student.total_balance < 0 ? `(${formatCurrency(Math.abs(student.total_balance))})` : formatCurrency(student.total_balance)}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
@@ -564,8 +585,8 @@ export default function ReceivePayments() {
               <div className="p-4 bg-muted rounded-lg">
                 <p className="font-medium">{selectedStudent.other_name} {selectedStudent.surname}</p>
                 <p className="text-sm text-muted-foreground">ID: {selectedStudent.student_no}</p>
-                <p className="text-lg font-bold text-destructive mt-2">
-                  Outstanding: {formatCurrency(selectedStudent.total_balance)}
+                <p className={`text-lg font-bold mt-2 ${selectedStudent.total_balance < 0 ? 'text-blue-600' : 'text-destructive'}`}>
+                  {selectedStudent.total_balance < 0 ? `Prepayment: (${formatCurrency(Math.abs(selectedStudent.total_balance))})` : `Outstanding: ${formatCurrency(selectedStudent.total_balance)}`}
                 </p>
               </div>
 
