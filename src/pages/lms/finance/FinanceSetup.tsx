@@ -195,7 +195,7 @@ export default function FinanceSetup() {
                     </SelectTrigger>
                     <SelectContent>
                       {relevantAccounts.length === 0 ? (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="none" disabled>
                           No {field.type} accounts found
                         </SelectItem>
                       ) : (
