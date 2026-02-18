@@ -590,6 +590,31 @@ export default function ReceivePayments() {
                 </p>
               </div>
 
+              {/* Payment Mode — required, shown first and prominently */}
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Payment Mode *</Label>
+                {paymentModes.length === 0 ? (
+                  <p className="text-sm text-destructive">No payment modes configured. Please set up payment modes under Finance → Utilities → Payment Modes.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {paymentModes.map((pm) => (
+                      <button
+                        key={pm.id}
+                        type="button"
+                        onClick={() => setPaymentData({ ...paymentData, payment_mode_id: pm.id })}
+                        className={`px-3 py-2 rounded-md border text-sm font-medium transition-colors text-left ${
+                          paymentData.payment_mode_id === pm.id
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-input hover:bg-accent hover:text-accent-foreground'
+                        }`}
+                      >
+                        {pm.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Payment Date *</Label>
@@ -608,29 +633,6 @@ export default function ReceivePayments() {
                     placeholder="0.00"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Payment Mode *</Label>
-                <Select value={paymentData.payment_mode_id} onValueChange={(v) => setPaymentData({ ...paymentData, payment_mode_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select payment mode" /></SelectTrigger>
-                  <SelectContent>
-                    {paymentModes.map((pm) => <SelectItem key={pm.id} value={pm.id}>{pm.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Bank Account (if applicable)</Label>
-                <Select value={paymentData.bank_account_id || "none"} onValueChange={(v) => setPaymentData({ ...paymentData, bank_account_id: v === "none" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Bank Account</SelectItem>
-                    {bankAccounts.map((ba) => (
-                      <SelectItem key={ba.id} value={ba.id}>{ba.bank_name} - {ba.account_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="space-y-2">

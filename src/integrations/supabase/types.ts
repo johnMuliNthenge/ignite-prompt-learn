@@ -4740,6 +4740,88 @@ export type Database = {
           },
         ]
       }
+      payment_vouchers: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          description: string | null
+          id: string
+          journal_entry_id: string | null
+          paid_at: string | null
+          payment_mode_id: string | null
+          prepared_by: string | null
+          reference_number: string | null
+          status: string
+          updated_at: string
+          vendor_id: string | null
+          vendor_name: string
+          voucher_date: string
+          voucher_number: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          paid_at?: string | null
+          payment_mode_id?: string | null
+          prepared_by?: string | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name: string
+          voucher_date?: string
+          voucher_number: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          paid_at?: string | null
+          payment_mode_id?: string | null
+          prepared_by?: string | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name?: string
+          voucher_date?: string
+          voucher_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_vouchers_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_vouchers_payment_mode_id_fkey"
+            columns: ["payment_mode_id"]
+            isOneToOne: false
+            referencedRelation: "payment_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_vouchers_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poe_assignments: {
         Row: {
           allowed_file_types: string[] | null
@@ -5796,6 +5878,7 @@ export type Database = {
       generate_invoice_number: { Args: never; Returns: string }
       generate_journal_number: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
+      generate_voucher_number: { Args: never; Returns: string }
       get_user_app_role: { Args: { _user_id: string }; Returns: string }
       get_user_permissions: {
         Args: { _user_id: string }
