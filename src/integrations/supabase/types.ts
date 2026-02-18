@@ -4707,6 +4707,7 @@ export type Database = {
       }
       payment_modes: {
         Row: {
+          asset_account_id: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -4714,6 +4715,7 @@ export type Database = {
           name: string
         }
         Insert: {
+          asset_account_id?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -4721,13 +4723,22 @@ export type Database = {
           name: string
         }
         Update: {
+          asset_account_id?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_modes_asset_account_id_fkey"
+            columns: ["asset_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       poe_assignments: {
         Row: {
