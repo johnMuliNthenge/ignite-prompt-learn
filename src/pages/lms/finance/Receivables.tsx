@@ -1,124 +1,91 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
-import { Search, DollarSign, Loader2, Receipt, Printer, ChevronLeft, ChevronRight, Smartphone } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Search, DollarSign, Loader2, Receipt, Printer, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
-import PaymentReceipt from '@/components/lms/finance/PaymentReceipt';
 
 const MODULE_CODE = 'finance.receivables';
 
-interface Payment {
-  id: string;
-  receipt_number: string;
-  student_id: string;
-  student_name: string;
-  student_no: string;
-  payment_date: string;
-  amount: number;
-  reference_number: string | null;
-  notes: string | null;
-  status: string;
-}
-
 interface Student {
   id: string;
-  student_no: string | null;
+  student_no: string;
   other_name: string;
   surname: string;
+  total_balance: number;
 }
 
-interface FeeAccount {
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  total_amount: number;
+  balance_due: number;
+}
+
+interface PaymentMode {
   id: string;
   name: string;
+  asset_account_id: string | null;
 }
 
-interface IncomeAccount {
-  id: string;
-  account_code: string;
-  account_name: string;
+interface PaymentReceipt {
+  receipt_number: string;
+  payment_date: string;
+  student_name: string;
+  student_no: string;
+  amount: number;
+  payment_mode: string;
+  reference_number: string;
+  vote_heads: { name: string; amount: number }[];
+  notes: string;
 }
 
 export default function Receivables() {
   const { user } = useAuth();
-  const { canAdd, canEdit } = useModulePermissions(MODULE_CODE);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const { canAdd } = useModulePermissions(MODULE_CODE);
   const [students, setStudents] = useState<Student[]>([]);
-  const [feeAccounts, setFeeAccounts] = useState<FeeAccount[]>([]);
-  const [incomeAccounts, setIncomeAccounts] = useState<IncomeAccount[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [receivePaymentDialogOpen, setReceivePaymentDialogOpen] = useState(false);
-  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<PaymentReceipt | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
-  // M-Pesa state
+  // M-Pesa
   const [mpesaDialogOpen, setMpesaDialogOpen] = useState(false);
   const [mpesaEnabled, setMpesaEnabled] = useState(false);
   const [mpesaPhone, setMpesaPhone] = useState('');
   const [mpesaAmount, setMpesaAmount] = useState('');
-  const [mpesaStudentId, setMpesaStudentId] = useState('');
   const [mpesaSubmitting, setMpesaSubmitting] = useState(false);
 
-  // Receipt data state
-  const [receiptData, setReceiptData] = useState<{
-    receiptNumber: string;
-    studentName: string;
-    studentNo: string;
-    paymentDate: string;
-    amount: number;
-    referenceNumber?: string;
-    notes?: string;
-    voteHeads: { name: string; amount: number }[];
-  } | null>(null);
-
-  // Receive Payment form state
-  const [newPayment, setNewPayment] = useState({
-    student_id: '',
-    income_account_id: '',
+  const [paymentData, setPaymentData] = useState({
     amount: '',
+    payment_mode_id: '',
     reference_number: '',
     notes: '',
+    payment_date: format(new Date(), 'yyyy-MM-dd'),
+    invoice_id: '',
   });
 
   useEffect(() => {
@@ -133,777 +100,585 @@ export default function Receivables() {
       .eq('is_active', true)
       .limit(1)
       .maybeSingle();
-    
     setMpesaEnabled(!!data?.is_active);
   };
 
+  const fetchData = async () => {
+    try {
+      await Promise.all([fetchStudentsWithBalance(), fetchPaymentModes()]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStudentsWithBalance = async () => {
+    const { data: studentsData } = await supabase
+      .from('students')
+      .select('id, student_no, other_name, surname')
+      .order('surname');
+
+    const { data: invoicesData } = await supabase
+      .from('fee_invoices')
+      .select('student_id, total_amount');
+
+    const { data: paymentsData } = await supabase
+      .from('fee_payments')
+      .select('student_id, amount')
+      .eq('status', 'Completed');
+
+    if (studentsData) {
+      const invoiceMap = new Map<string, number>();
+      (invoicesData || []).forEach((inv: any) => {
+        invoiceMap.set(inv.student_id, (invoiceMap.get(inv.student_id) || 0) + (Number(inv.total_amount) || 0));
+      });
+
+      const paymentMap = new Map<string, number>();
+      (paymentsData || []).forEach((pay: any) => {
+        paymentMap.set(pay.student_id, (paymentMap.get(pay.student_id) || 0) + (Number(pay.amount) || 0));
+      });
+
+      const studentsWithBalance: Student[] = studentsData
+        .filter((s: any) => invoiceMap.has(s.id))
+        .map((s: any) => ({
+          id: s.id,
+          student_no: s.student_no || '',
+          other_name: s.other_name,
+          surname: s.surname,
+          total_balance: (invoiceMap.get(s.id) || 0) - (paymentMap.get(s.id) || 0),
+        }));
+
+      setStudents(studentsWithBalance);
+    }
+  };
+
+  const fetchStudentInvoices = async (studentId: string) => {
+    const { data } = await supabase
+      .from('fee_invoices')
+      .select('id, invoice_number, invoice_date, total_amount, balance_due')
+      .eq('student_id', studentId)
+      .gt('balance_due', 0)
+      .order('invoice_date');
+    setInvoices((data || []).map((inv: any) => ({
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      invoice_date: inv.invoice_date,
+      total_amount: Number(inv.total_amount),
+      balance_due: Number(inv.balance_due),
+    })));
+  };
+
+  const fetchPaymentModes = async () => {
+    const { data } = await supabase
+      .from('payment_modes')
+      .select('id, name, asset_account_id')
+      .eq('is_active', true)
+      .order('name');
+    setPaymentModes((data as any) || []);
+  };
+
+  const openPaymentDialog = async (student: Student) => {
+    setSelectedStudent(student);
+    setPaymentData(prev => ({ ...prev, amount: student.total_balance > 0 ? student.total_balance.toString() : '', payment_mode_id: '' }));
+    await fetchStudentInvoices(student.id);
+    setPaymentDialogOpen(true);
+  };
+
+  const openMpesaDialog = async (student: Student) => {
+    setSelectedStudent(student);
+    setMpesaAmount(student.total_balance > 0 ? student.total_balance.toString() : '');
+    setMpesaPhone('');
+    setMpesaDialogOpen(true);
+  };
+
   const handleMpesaPayment = async () => {
-    if (!mpesaStudentId || !mpesaPhone || !mpesaAmount) {
-      toast.error('Please fill in all required fields');
+    if (!selectedStudent || !mpesaPhone || !mpesaAmount) {
+      toast.error('Please enter phone number and amount');
       return;
     }
-
     const amount = parseFloat(mpesaAmount);
-    if (amount < 1) {
-      toast.error('Minimum amount is KES 1');
-      return;
-    }
-
+    if (amount < 1) { toast.error('Minimum amount is KES 1'); return; }
     setMpesaSubmitting(true);
     try {
-      // Get student's oldest unpaid invoice for reference
-      const { data: invoices } = await supabase
-        .from('fee_invoices')
-        .select('id')
-        .eq('student_id', mpesaStudentId)
-        .gt('balance_due', 0)
-        .order('invoice_date', { ascending: true })
-        .limit(1);
-
-      const student = students.find(s => s.id === mpesaStudentId);
-
       const { data, error } = await supabase.functions.invoke('mpesa-stk-push', {
         body: {
           phone_number: mpesaPhone,
-          amount: amount,
-          student_id: mpesaStudentId,
-          invoice_id: invoices && invoices.length > 0 ? invoices[0].id : null,
-          account_reference: student?.student_no || 'SchoolFees',
-          transaction_desc: `Fee payment for ${student?.other_name} ${student?.surname}`,
+          amount,
+          student_id: selectedStudent.id,
+          invoice_id: invoices.length > 0 ? invoices[0].id : null,
+          account_reference: selectedStudent.student_no || 'SchoolFees',
+          transaction_desc: `Fee payment for ${selectedStudent.other_name} ${selectedStudent.surname}`,
         },
       });
-
       if (error) throw error;
-
       if (data?.success) {
         toast.success('STK Push sent! Please check your phone and enter your M-Pesa PIN.');
         setMpesaDialogOpen(false);
-        setMpesaPhone('');
-        setMpesaAmount('');
-        setMpesaStudentId('');
       } else {
         toast.error(data?.error || 'Failed to initiate M-Pesa payment');
       }
     } catch (error: any) {
-      console.error('M-Pesa error:', error);
       toast.error(error.message || 'Failed to initiate M-Pesa payment');
     } finally {
       setMpesaSubmitting(false);
     }
   };
 
-  const fetchData = async () => {
-    try {
-      await Promise.all([fetchPayments(), fetchStudents(), fetchFeeAccounts(), fetchIncomeAccounts()]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPayments = async () => {
-    const { data, error } = await supabase
-      .from('fee_payments')
-      .select(`
-        id,
-        receipt_number,
-        student_id,
-        payment_date,
-        amount,
-        reference_number,
-        notes,
-        status,
-        students(student_no, other_name, surname)
-      `)
-      .order('payment_date', { ascending: false })
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching payments:', error);
-      toast.error('Failed to load payments');
-      return;
-    }
-
-    const formattedPayments: Payment[] = (data || []).map((pay: any) => ({
-      id: pay.id,
-      receipt_number: pay.receipt_number,
-      student_id: pay.student_id,
-      student_name: pay.students ? `${pay.students.other_name} ${pay.students.surname}` : 'Unknown',
-      student_no: pay.students?.student_no || '',
-      payment_date: pay.payment_date,
-      amount: Number(pay.amount) || 0,
-      reference_number: pay.reference_number,
-      notes: pay.notes,
-      status: pay.status || 'Completed',
-    }));
-
-    setPayments(formattedPayments);
-  };
-
-  const fetchStudents = async () => {
-    const { data, error } = await supabase
-      .from('students')
-      .select('id, student_no, other_name, surname')
-      .order('surname');
-
-    if (error) {
-      console.error('Error fetching students:', error);
-      return;
-    }
-
-    setStudents(data || []);
-  };
-
-  const fetchFeeAccounts = async () => {
-    const { data, error } = await supabase
-      .from('fee_accounts')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) {
-      console.error('Error fetching fee accounts:', error);
-      return;
-    }
-
-    setFeeAccounts(data || []);
-  };
-
-  const fetchIncomeAccounts = async () => {
-    const { data, error } = await supabase
-      .from('chart_of_accounts')
-      .select('id, account_code, account_name')
-      .eq('account_type', 'Income')
-      .eq('is_active', true)
-      .order('account_code');
-
-    if (error) {
-      console.error('Error fetching income accounts:', error);
-      return;
-    }
-
-    setIncomeAccounts(data || []);
-  };
-
-  // Fetch vote heads (fee accounts) for a student's invoices
-  const fetchVoteHeadsForStudent = async (studentId: string, paymentAmount: number): Promise<{ name: string; amount: number }[]> => {
-    // Get invoice items from unpaid/partial invoices for the student
-    const { data: invoices } = await supabase
-      .from('fee_invoices')
-      .select('id')
-      .eq('student_id', studentId)
-      .order('invoice_date', { ascending: true });
-
-    if (!invoices || invoices.length === 0) {
-      if (newPayment.income_account_id) {
-        const account = incomeAccounts.find(a => a.id === newPayment.income_account_id);
-        if (account) {
-          return [{ name: `${account.account_code} - ${account.account_name}`, amount: paymentAmount }];
-        }
-      }
-      return [];
-    }
-
-    const invoiceIds = invoices.map(inv => inv.id);
-
-    // Get invoice items with fee account details
-    const { data: items } = await supabase
-      .from('fee_invoice_items')
-      .select(`
-        description,
-        total,
-        fee_account_id,
-        fee_accounts(name)
-      `)
-      .in('invoice_id', invoiceIds);
-
-    if (!items || items.length === 0) {
-      if (newPayment.income_account_id) {
-        const account = incomeAccounts.find(a => a.id === newPayment.income_account_id);
-        if (account) {
-          return [{ name: `${account.account_code} - ${account.account_name}`, amount: paymentAmount }];
-        }
-      }
-      return [];
-    }
-
-    // Aggregate by fee account
-    const voteHeadMap = new Map<string, number>();
-    let remainingPayment = paymentAmount;
-
-    for (const item of items) {
-      if (remainingPayment <= 0) break;
-      const itemAmount = Number(item.total) || 0;
-      const amountToAllocate = Math.min(remainingPayment, itemAmount);
-      const accountName = (item as any).fee_accounts?.name || item.description || 'General Fee';
-      
-      voteHeadMap.set(accountName, (voteHeadMap.get(accountName) || 0) + amountToAllocate);
-      remainingPayment -= amountToAllocate;
-    }
-
-    return Array.from(voteHeadMap.entries()).map(([name, amount]) => ({ name, amount }));
-  };
-
-  // Handle Receive Payment - standalone payment not tied to a specific invoice
   const handleReceivePayment = async () => {
-    if (!newPayment.student_id || !newPayment.amount) {
-      toast.error('Please select a student and enter the payment amount');
+    if (!selectedStudent || !paymentData.amount) {
+      toast.error('Please fill in all required fields');
       return;
     }
-
-    const amount = parseFloat(newPayment.amount);
-    if (amount <= 0) {
-      toast.error('Payment amount must be greater than zero');
+    if (!paymentData.payment_mode_id) {
+      toast.error('Please select a payment mode');
       return;
     }
+    const amount = parseFloat(paymentData.amount);
+    if (amount <= 0) { toast.error('Amount must be greater than zero'); return; }
 
     setSubmitting(true);
     try {
-      // Generate receipt number
       const { data: receiptNumber } = await supabase.rpc('generate_receipt_number');
 
-      // Create the payment record
       const { error: paymentError } = await supabase.from('fee_payments').insert({
         receipt_number: receiptNumber,
-        student_id: newPayment.student_id,
-        invoice_id: null, // Standalone payment - will be allocated via FIFO
-        payment_date: new Date().toISOString().split('T')[0],
-        amount: amount,
-        reference_number: newPayment.reference_number || null,
-        notes: newPayment.notes || null,
+        student_id: selectedStudent.id,
+        invoice_id: paymentData.invoice_id || null,
+        payment_date: paymentData.payment_date,
+        amount,
+        payment_mode_id: paymentData.payment_mode_id,
+        reference_number: paymentData.reference_number || null,
+        notes: paymentData.notes || null,
         status: 'Completed',
         received_by: user?.id,
       });
-
       if (paymentError) throw paymentError;
 
-      // Now apply FIFO allocation - update oldest unpaid invoices first
-      await applyFIFOPaymentAllocation(newPayment.student_id, amount);
+      const voteHeads: { name: string; amount: number }[] = [];
 
-      // Get student details for receipt
-      const student = students.find(s => s.id === newPayment.student_id);
-      const studentName = student ? `${student.other_name} ${student.surname}` : 'Unknown';
-      const studentNo = student?.student_no || '';
+      if (paymentData.invoice_id) {
+        const invoice = invoices.find(i => i.id === paymentData.invoice_id);
+        if (invoice) {
+          const allocated = Math.min(amount, invoice.balance_due);
+          const newBalance = Math.max(0, invoice.balance_due - amount);
+          await supabase.from('fee_invoices').update({
+            amount_paid: Math.min(invoice.total_amount, (invoice.total_amount - invoice.balance_due) + allocated),
+            balance_due: newBalance,
+            status: newBalance <= 0 ? 'Paid' : 'Partial',
+          }).eq('id', paymentData.invoice_id);
 
-      // Fetch vote heads for the receipt
-      const voteHeads = await fetchVoteHeadsForStudent(newPayment.student_id, amount);
+          const { data: items } = await supabase
+            .from('fee_invoice_items')
+            .select('description, total, fee_accounts(name)')
+            .eq('invoice_id', paymentData.invoice_id);
+          (items || []).forEach((item: any) => {
+            voteHeads.push({ name: item.fee_accounts?.name || item.description, amount: Number(item.total) });
+          });
+        }
+      } else {
+        let remaining = amount;
+        for (const inv of invoices) {
+          if (remaining <= 0) break;
+          const toApply = Math.min(remaining, inv.balance_due);
+          const newBalance = inv.balance_due - toApply;
+          await supabase.from('fee_invoices').update({
+            amount_paid: Math.min(inv.total_amount, (inv.total_amount - inv.balance_due) + toApply),
+            balance_due: Math.max(0, newBalance),
+            status: newBalance <= 0 ? 'Paid' : 'Partial',
+          }).eq('id', inv.id);
 
-      // Set receipt data for printing
+          const { data: items } = await supabase
+            .from('fee_invoice_items')
+            .select('description, total, fee_accounts(name)')
+            .eq('invoice_id', inv.id);
+          (items || []).forEach((item: any) => {
+            const name = item.fee_accounts?.name || item.description;
+            const existing = voteHeads.find(v => v.name === name);
+            if (existing) existing.amount += Number(item.total);
+            else voteHeads.push({ name, amount: Number(item.total) });
+          });
+          remaining -= toApply;
+        }
+      }
+
+      // Post to general ledger via payment mode asset account
+      const selectedMode = paymentModes.find(pm => pm.id === paymentData.payment_mode_id);
+      if (selectedMode?.asset_account_id) {
+        const { data: jeNum } = await supabase.rpc('generate_journal_number');
+        const { data: jeData } = await supabase.from('journal_entries').insert({
+          entry_number: jeNum || `JE-RCP-${Date.now()}`,
+          transaction_date: paymentData.payment_date,
+          reference: receiptNumber,
+          narration: `Fee receipt from ${selectedStudent.other_name} ${selectedStudent.surname}`,
+          entry_type: 'fee_receipt',
+          status: 'Posted',
+          total_debit: amount,
+          total_credit: amount,
+          prepared_by: user?.id,
+        }).select('id').single();
+
+        if (jeData) {
+          await supabase.from('general_ledger').insert({
+            journal_entry_id: jeData.id,
+            account_id: selectedMode.asset_account_id,
+            transaction_date: paymentData.payment_date,
+            debit: amount,
+            credit: 0,
+            balance: amount,
+            description: `Fee receipt from ${selectedStudent.other_name} ${selectedStudent.surname} via ${selectedMode.name}`,
+          });
+        }
+      }
+
+      const paymentMode = paymentModes.find(pm => pm.id === paymentData.payment_mode_id);
       setReceiptData({
-        receiptNumber: receiptNumber || 'N/A',
-        studentName,
-        studentNo,
-        paymentDate: new Date().toISOString().split('T')[0],
+        receipt_number: receiptNumber || 'N/A',
+        payment_date: paymentData.payment_date,
+        student_name: `${selectedStudent.other_name} ${selectedStudent.surname}`,
+        student_no: selectedStudent.student_no,
         amount,
-        referenceNumber: newPayment.reference_number || undefined,
-        notes: newPayment.notes || undefined,
-        voteHeads,
+        payment_mode: paymentMode?.name || '',
+        reference_number: paymentData.reference_number || '',
+        vote_heads: voteHeads.length > 0 ? voteHeads : [{ name: 'School Fees', amount }],
+        notes: paymentData.notes || '',
       });
 
-      toast.success(`Payment of ${formatCurrency(amount)} received successfully`);
-      setReceivePaymentDialogOpen(false);
-      setNewPayment({ student_id: '', income_account_id: '', amount: '', reference_number: '', notes: '' });
-      setReceiptDialogOpen(true); // Open receipt dialog
-      fetchPayments(); // Refresh the list
+      toast.success(`Payment of KES ${amount.toLocaleString()} received. Receipt: ${receiptNumber}`);
+      setPaymentDialogOpen(false);
+      setPrintDialogOpen(true);
+      setPaymentData({ amount: '', payment_mode_id: '', reference_number: '', notes: '', payment_date: format(new Date(), 'yyyy-MM-dd'), invoice_id: '' });
+      setSelectedStudent(null);
+      fetchStudentsWithBalance();
     } catch (error: any) {
-      console.error('Error receiving payment:', error);
-      toast.error(error.message || 'Failed to receive payment');
+      toast.error(error.message || 'Failed to record payment');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // FIFO Payment Allocation - apply payment to oldest invoices first
-  const applyFIFOPaymentAllocation = async (studentId: string, paymentAmount: number) => {
-    // Fetch all unpaid/partial invoices for the student, ordered by date (oldest first)
-    const { data: unpaidInvoices, error } = await supabase
-      .from('fee_invoices')
-      .select('id, total_amount, amount_paid, balance_due')
-      .eq('student_id', studentId)
-      .gt('balance_due', 0)
-      .order('invoice_date', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching unpaid invoices:', error);
-      return;
-    }
-
-    let remainingPayment = paymentAmount;
-
-    for (const invoice of (unpaidInvoices || [])) {
-      if (remainingPayment <= 0) break;
-
-      const invoiceBalance = Number(invoice.balance_due) || 0;
-      const amountToApply = Math.min(remainingPayment, invoiceBalance);
-      const newAmountPaid = (Number(invoice.amount_paid) || 0) + amountToApply;
-      const newBalanceDue = (Number(invoice.total_amount) || 0) - newAmountPaid;
-      const newStatus = newBalanceDue < 0 ? 'Overpaid' : newBalanceDue === 0 ? 'Paid' : 'Partial';
-
-      await supabase
-        .from('fee_invoices')
-        .update({
-          amount_paid: newAmountPaid,
-          balance_due: newBalanceDue,
-          status: newStatus,
-        })
-        .eq('id', invoice.id);
-
-      remainingPayment -= amountToApply;
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-    }).format(amount);
-  };
-
   const handlePrintReceipt = () => {
-    const printContent = receiptRef.current;
+    const printContent = printRef.current;
     if (!printContent) return;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.error('Please allow pop-ups to print the receipt');
-      return;
-    }
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Payment Receipt</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-            .receipt-container { max-width: 400px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .font-bold { font-weight: bold; }
-            .mb-4 { margin-bottom: 1rem; }
-            .mt-4 { margin-top: 1rem; }
-            .border-t { border-top: 1px solid #ddd; padding-top: 0.5rem; }
-            @media print { body { margin: 0; } }
-          </style>
-        </head>
-        <body>
-          ${printContent.innerHTML}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><title>Receipt - ${receiptData?.receipt_number}</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;max-width:400px;margin:0 auto}
+      .header{text-align:center;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:16px}
+      .info-row{display:flex;justify-content:space-between;margin:6px 0;font-size:12px}
+      .vote-heads{margin:12px 0;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:8px 0}
+      .total-row{display:flex;justify-content:space-between;font-weight:bold;font-size:14px;border-top:2px solid #000;padding-top:8px;margin-top:8px}
+      .footer{text-align:center;margin-top:16px;font-size:10px;color:#666}</style></head>
+      <body>${printContent.innerHTML}</body></html>`);
+    win.document.close();
+    win.print();
   };
 
-  const handleViewReceipt = async (payment: Payment) => {
-    // Fetch vote heads for the receipt
-    const voteHeads = await fetchVoteHeadsForStudent(payment.student_id, payment.amount);
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
 
-    setReceiptData({
-      receiptNumber: payment.receipt_number,
-      studentName: payment.student_name,
-      studentNo: payment.student_no,
-      paymentDate: payment.payment_date,
-      amount: payment.amount,
-      referenceNumber: payment.reference_number || undefined,
-      notes: payment.notes || undefined,
-      voteHeads,
-    });
-    setReceiptDialogOpen(true);
-  };
-
-  // Filter payments based on search
-  const filteredPayments = payments.filter(payment =>
-    payment.receipt_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.student_no.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = students.filter(s =>
+    s.student_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    `${s.other_name} ${s.surname}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Pagination
-  const totalPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedPayments = filteredPayments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-  // Reset to page 1 when search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return <Badge variant="default">Completed</Badge>;
-      case 'Pending':
-        return <Badge variant="secondary">Pending</Badge>;
-      case 'Cancelled':
-        return <Badge variant="destructive">Cancelled</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  // Calculate totals
-  const totalReceived = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalReceivables = students.reduce((sum, s) => sum + Math.max(0, s.total_balance), 0);
 
   return (
-    <ProtectedPage moduleCode={MODULE_CODE}>
+    <ProtectedPage moduleCode={MODULE_CODE} title="Receivables">
       <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Receivables</h1>
-            <p className="text-muted-foreground">Manage student fee payments and receipts</p>
-          </div>
-          <div className="flex gap-2">
-            {mpesaEnabled && (
-              <Dialog open={mpesaDialogOpen} onOpenChange={setMpesaDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="secondary">
-                    <Smartphone className="mr-2 h-4 w-4" />
-                    Prompt Payment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>M-Pesa Payment Prompt</DialogTitle>
-                    <DialogDescription>Send an STK push to the student's phone</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Student *</Label>
-                      <Select
-                        value={mpesaStudentId}
-                        onValueChange={setMpesaStudentId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select student" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {students.map((student) => (
-                            <SelectItem key={student.id} value={student.id}>
-                              {student.student_no} - {student.other_name} {student.surname}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Phone Number *</Label>
-                      <Input
-                        placeholder="e.g., 0712345678"
-                        value={mpesaPhone}
-                        onChange={(e) => setMpesaPhone(e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground">Enter the M-Pesa registered phone number</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Amount (KES) *</Label>
-                      <Input
-                        type="number"
-                        placeholder="Enter amount"
-                        value={mpesaAmount}
-                        onChange={(e) => setMpesaAmount(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setMpesaDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleMpesaPayment} disabled={mpesaSubmitting}>
-                      {mpesaSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Send STK Push
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
-            <ActionButton moduleCode={MODULE_CODE} action="add">
-              <Dialog open={receivePaymentDialogOpen} onOpenChange={setReceivePaymentDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <DollarSign className="mr-2 h-4 w-4" />
-                    Receive Payment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Receive Payment</DialogTitle>
-                    <DialogDescription>Record a fee payment from a student</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Student *</Label>
-                      <Select
-                        value={newPayment.student_id}
-                        onValueChange={(value) => setNewPayment({ ...newPayment, student_id: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a student" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {students.map((student) => (
-                            <SelectItem key={student.id} value={student.id}>
-                              {student.other_name} {student.surname} ({student.student_no})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Income Account</Label>
-                      <Select
-                        value={newPayment.income_account_id}
-                        onValueChange={(value) => setNewPayment({ ...newPayment, income_account_id: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an income account (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {incomeAccounts.map((account) => (
-                            <SelectItem key={account.id} value={account.id}>
-                              {account.account_code} - {account.account_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Amount (KES) *</Label>
-                      <Input
-                        type="number"
-                        placeholder="Enter payment amount"
-                        value={newPayment.amount}
-                        onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Reference Number</Label>
-                      <Input
-                        placeholder="Bank/MPESA reference (optional)"
-                        value={newPayment.reference_number}
-                        onChange={(e) => setNewPayment({ ...newPayment, reference_number: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Notes</Label>
-                      <Input
-                        placeholder="Additional notes (optional)"
-                        value={newPayment.notes}
-                        onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setReceivePaymentDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleReceivePayment} disabled={submitting}>
-                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Receive Payment
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </ActionButton>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold">Receivables — Receive Payments</h1>
+          <p className="text-muted-foreground">Record fee payments from students</p>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Total Receipts</div>
-              <div className="text-2xl font-bold">{filteredPayments.length}</div>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <DollarSign className="h-4 w-4" />
+                Total Receivables
+              </div>
+              <div className="text-2xl font-bold mt-1">{formatCurrency(totalReceivables)}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Total Amount Received</div>
-          <div className="text-2xl font-bold text-primary">{formatCurrency(totalReceived)}</div>
-        </CardContent>
+              <div className="text-sm text-muted-foreground">Students with Balance</div>
+              <div className="text-2xl font-bold mt-1">{students.filter(s => s.total_balance > 0).length}</div>
+            </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Showing</div>
-              <div className="text-2xl font-bold">{paginatedPayments.length} of {filteredPayments.length}</div>
+              <div className="text-sm text-muted-foreground">Payment Modes Available</div>
+              <div className="text-2xl font-bold mt-1">{paymentModes.length}</div>
+              {paymentModes.length === 0 && (
+                <p className="text-xs text-destructive mt-1">Set up payment modes under Finance → Utilities → Payment Modes</p>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Search */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by receipt number, student name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Payments Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Payment Receipts ({filteredPayments.length})
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Student Fee Balances</CardTitle>
+                <CardDescription>Click "Receive" to collect payment from a student</CardDescription>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-            ) : paginatedPayments.length === 0 ? (
-              <div className="text-center py-12">
-                <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No Receipts Found</h3>
-                <p className="text-muted-foreground">
-                  {searchTerm ? 'No receipts match your search' : 'No payments have been recorded yet'}
-                </p>
-              </div>
+              <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No students with outstanding balances</div>
             ) : (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Receipt No.</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Student</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Reference</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student No</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead className="text-right">Outstanding Balance</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-mono">{student.student_no}</TableCell>
+                      <TableCell className="font-medium">{student.other_name} {student.surname}</TableCell>
+                      <TableCell className={`text-right font-bold ${student.total_balance < 0 ? 'text-blue-600' : 'text-destructive'}`}>
+                        {student.total_balance < 0
+                          ? `(${formatCurrency(Math.abs(student.total_balance))}) Prepaid`
+                          : formatCurrency(student.total_balance)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          {mpesaEnabled && (
+                            <Button size="sm" variant="secondary" onClick={() => openMpesaDialog(student)}>
+                              <Smartphone className="mr-1 h-4 w-4" />
+                              M-Pesa
+                            </Button>
+                          )}
+                          <ActionButton moduleCode={MODULE_CODE} action="add">
+                            <Button size="sm" onClick={() => openPaymentDialog(student)}>
+                              <DollarSign className="mr-1 h-4 w-4" />
+                              Receive
+                            </Button>
+                          </ActionButton>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedPayments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-mono font-medium">{payment.receipt_number}</TableCell>
-                        <TableCell>{format(new Date(payment.payment_date), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{payment.student_name}</p>
-                            <p className="text-xs text-muted-foreground">{payment.student_no}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-primary">
-                          {formatCurrency(payment.amount)}
-                        </TableCell>
-                        <TableCell>{payment.reference_number || '-'}</TableCell>
-                        <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewReceipt(payment)}
-                          >
-                            <Printer className="h-4 w-4 mr-1" />
-                            Print Receipt
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                    <div className="text-sm text-muted-foreground">
-                      Page {currentPage} of {totalPages}
-                    </div>
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                          >
-                            <ChevronLeft className="h-4 w-4 mr-1" />
-                            Previous
-                          </Button>
-                        </PaginationItem>
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          let pageNum;
-                          if (totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
-                          } else {
-                            pageNum = currentPage - 2 + i;
-                          }
-                          return (
-                            <PaginationItem key={pageNum}>
-                              <PaginationLink
-                                onClick={() => setCurrentPage(pageNum)}
-                                isActive={currentPage === pageNum}
-                                className="cursor-pointer"
-                              >
-                                {pageNum}
-                              </PaginationLink>
-                            </PaginationItem>
-                          );
-                        })}
-                        <PaginationItem>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                          >
-                            Next
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
-                )}
-              </>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
 
-        {/* Receipt Dialog */}
-        <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+        {/* ── Receive Payment Dialog ── */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Receive Payment</DialogTitle>
+            </DialogHeader>
+            {selectedStudent && (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="font-semibold">{selectedStudent.other_name} {selectedStudent.surname}</p>
+                  <p className="text-sm text-muted-foreground">ID: {selectedStudent.student_no}</p>
+                  <p className={`text-lg font-bold mt-1 ${selectedStudent.total_balance < 0 ? 'text-blue-600' : 'text-destructive'}`}>
+                    {selectedStudent.total_balance < 0
+                      ? `Prepayment: (${formatCurrency(Math.abs(selectedStudent.total_balance))})`
+                      : `Outstanding: ${formatCurrency(selectedStudent.total_balance)}`}
+                  </p>
+                </div>
+
+                {/* Payment Mode — REQUIRED, shown prominently */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">
+                    Payment Mode <span className="text-destructive">*</span>
+                  </Label>
+                  {paymentModes.length === 0 ? (
+                    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                      No payment modes configured. Please set up payment modes under Finance → Utilities → Payment Modes.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {paymentModes.map((pm) => (
+                        <button
+                          key={pm.id}
+                          type="button"
+                          onClick={() => setPaymentData({ ...paymentData, payment_mode_id: pm.id })}
+                          className={`px-3 py-2.5 rounded-md border text-sm font-medium transition-colors text-left ${
+                            paymentData.payment_mode_id === pm.id
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background border-input hover:bg-accent hover:text-accent-foreground'
+                          }`}
+                        >
+                          {pm.name}
+                          {!pm.asset_account_id && <span className="ml-1 text-destructive">⚠</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Payment Date *</Label>
+                    <Input
+                      type="date"
+                      value={paymentData.payment_date}
+                      onChange={(e) => setPaymentData({ ...paymentData, payment_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Amount (KES) *</Label>
+                    <Input
+                      type="number"
+                      value={paymentData.amount}
+                      onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Reference / Transaction No.</Label>
+                  <Input
+                    value={paymentData.reference_number}
+                    onChange={(e) => setPaymentData({ ...paymentData, reference_number: e.target.value })}
+                    placeholder="M-Pesa code, cheque no., etc."
+                  />
+                </div>
+
+                {invoices.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Allocate to Invoice (optional)</Label>
+                    <Select
+                      value={paymentData.invoice_id || 'auto'}
+                      onValueChange={(v) => setPaymentData({ ...paymentData, invoice_id: v === 'auto' ? '' : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Auto-allocate (FIFO)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto-allocate (oldest first)</SelectItem>
+                        {invoices.map((inv) => (
+                          <SelectItem key={inv.id} value={inv.id}>
+                            {inv.invoice_number} — Balance: {formatCurrency(inv.balance_due)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={paymentData.notes}
+                    onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
+                    placeholder="Additional notes..."
+                    rows={2}
+                  />
+                </div>
+
+                <Button onClick={handleReceivePayment} className="w-full" disabled={submitting || !paymentData.payment_mode_id}>
+                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
+                  {paymentData.payment_mode_id ? 'Receive Payment' : 'Select a Payment Mode to Continue'}
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Print Receipt Dialog ── */}
+        <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Payment Receipt</DialogTitle></DialogHeader>
+            {receiptData && (
+              <>
+                <div ref={printRef} className="p-4 border rounded-lg bg-background">
+                  <div className="header text-center border-b-2 border-foreground pb-3 mb-4">
+                    <h1 className="text-xl font-bold">OFFICIAL RECEIPT</h1>
+                  </div>
+                  <div className="text-center font-bold text-lg mb-4">Receipt No: {receiptData.receipt_number}</div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Date:</span><span>{format(new Date(receiptData.payment_date), 'dd MMMM yyyy')}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Student:</span><span>{receiptData.student_name}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Student No:</span><span>{receiptData.student_no}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Payment Mode:</span><span className="font-medium">{receiptData.payment_mode}</span></div>
+                    {receiptData.reference_number && (
+                      <div className="flex justify-between"><span className="text-muted-foreground">Reference:</span><span>{receiptData.reference_number}</span></div>
+                    )}
+                  </div>
+                  <div className="my-4 py-3 border-y border-dashed">
+                    <p className="font-semibold mb-2">Vote Heads:</p>
+                    {receiptData.vote_heads.map((vh, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span>{vh.name}</span><span>{formatCurrency(vh.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between font-bold text-lg border-t-2 border-foreground pt-3">
+                    <span>TOTAL PAID:</span>
+                    <span>{formatCurrency(receiptData.amount)}</span>
+                  </div>
+                  {receiptData.notes && <div className="mt-3 text-sm text-muted-foreground">Notes: {receiptData.notes}</div>}
+                  <div className="mt-6 text-center text-xs text-muted-foreground">
+                    <p>Thank you for your payment!</p>
+                    <p>This is a computer-generated receipt.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handlePrintReceipt} className="flex-1">
+                    <Printer className="mr-2 h-4 w-4" />Print Receipt
+                  </Button>
+                  <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>Close</Button>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ── M-Pesa Dialog ── */}
+        <Dialog open={mpesaDialogOpen} onOpenChange={setMpesaDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Payment Receipt</DialogTitle>
-              <DialogDescription>Print or save this receipt</DialogDescription>
+              <DialogTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />M-Pesa Payment
+              </DialogTitle>
             </DialogHeader>
-            <div ref={receiptRef}>
-              {receiptData && (
-                <PaymentReceipt
-                  receiptNumber={receiptData.receiptNumber}
-                  studentName={receiptData.studentName}
-                  studentNo={receiptData.studentNo}
-                  paymentDate={receiptData.paymentDate}
-                  amount={receiptData.amount}
-                  referenceNumber={receiptData.referenceNumber}
-                  notes={receiptData.notes}
-                  voteHeads={receiptData.voteHeads}
-                />
-              )}
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>
-                Close
-              </Button>
-              <Button onClick={handlePrintReceipt}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print Receipt
-              </Button>
-            </div>
+            {selectedStudent && (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="font-medium">{selectedStudent.other_name} {selectedStudent.surname}</p>
+                  <p className="text-sm text-muted-foreground">ID: {selectedStudent.student_no}</p>
+                  <p className="text-lg font-bold text-destructive mt-1">Outstanding: {formatCurrency(Math.max(0, selectedStudent.total_balance))}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number *</Label>
+                  <Input type="tel" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} placeholder="e.g., 0712345678" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Amount (KES) *</Label>
+                  <Input type="number" value={mpesaAmount} onChange={(e) => setMpesaAmount(e.target.value)} placeholder="0.00" />
+                </div>
+                <Button onClick={handleMpesaPayment} className="w-full" disabled={mpesaSubmitting}>
+                  {mpesaSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Smartphone className="mr-2 h-4 w-4" />}
+                  Send STK Push
+                </Button>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>

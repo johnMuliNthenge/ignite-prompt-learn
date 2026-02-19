@@ -59,6 +59,13 @@ import StudentFinance from "./pages/lms/finance/StudentFinance";
 import StudentInvoice from "./pages/lms/finance/StudentInvoice";
 import Receivables from "./pages/lms/finance/Receivables";
 import Payables from "./pages/lms/finance/Payables";
+import ReceivePayments from "./pages/lms/finance/receivables/ReceivePayments";
+import Transactions from "./pages/lms/finance/receivables/Transactions";
+import PaymentVouchers from "./pages/lms/finance/payables/PaymentVouchers";
+import SupplierInvoices from "./pages/lms/finance/payables/SupplierInvoices";
+import ExpenseClaims from "./pages/lms/finance/payables/ExpenseClaims";
+import ImprestManagement from "./pages/lms/finance/payables/ImprestManagement";
+import PettyCash from "./pages/lms/finance/payables/PettyCash";
 import Budget from "./pages/lms/finance/Budget";
 import CashBankManagement from "./pages/lms/finance/CashBankManagement";
 import Cancellations from "./pages/lms/finance/Cancellations";
@@ -213,7 +220,14 @@ const App = () => (
               <Route path="finance/student-finance" element={<StudentFinance />} />
               <Route path="finance/student-invoice" element={<StudentInvoice />} />
               <Route path="finance/receivables" element={<Receivables />} />
+              <Route path="finance/receivables/receive-payments" element={<ReceivePayments />} />
+              <Route path="finance/receivables/transactions" element={<Transactions />} />
               <Route path="finance/payables" element={<Payables />} />
+              <Route path="finance/payables/vouchers" element={<PaymentVouchers />} />
+              <Route path="finance/payables/supplier-invoices" element={<SupplierInvoices />} />
+              <Route path="finance/payables/expense-claims" element={<ExpenseClaims />} />
+              <Route path="finance/payables/imprest" element={<ImprestManagement />} />
+              <Route path="finance/payables/petty-cash" element={<PettyCash />} />
               <Route path="finance/budget" element={<Budget />} />
               <Route path="finance/cash-bank" element={<CashBankManagement />} />
               <Route path="finance/cancellations" element={<Cancellations />} />
