@@ -15,7 +15,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, DollarSign, Loader2, Receipt, Printer, Smartphone } from 'lucide-react';
+import { Search, DollarSign, Loader2, Receipt, Printer, Smartphone, Eye } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ProtectedPage, ActionButton, useModulePermissions } from '@/components/auth/ProtectedPage';
@@ -56,6 +57,20 @@ interface PaymentReceipt {
   notes: string;
 }
 
+interface PaymentHistoryItem {
+  id: string;
+  receipt_number: string;
+  payment_date: string;
+  amount: number;
+  reference_number: string | null;
+  notes: string | null;
+  status: string;
+  student_id: string;
+  student_name: string;
+  student_no: string;
+  payment_mode_name: string;
+}
+
 export default function Receivables() {
   const { user } = useAuth();
   const { canAdd } = useModulePermissions(MODULE_CODE);
@@ -79,6 +94,14 @@ export default function Receivables() {
   const [mpesaAmount, setMpesaAmount] = useState('');
   const [mpesaSubmitting, setMpesaSubmitting] = useState(false);
 
+  // Receipts history
+  const [receipts, setReceipts] = useState<PaymentHistoryItem[]>([]);
+  const [receiptsLoading, setReceiptsLoading] = useState(true);
+  const [receiptSearch, setReceiptSearch] = useState('');
+  const [viewingReceipt, setViewingReceipt] = useState<PaymentReceipt | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const printViewRef = useRef<HTMLDivElement>(null);
+
   const [paymentData, setPaymentData] = useState({
     amount: '',
     payment_mode_id: '',
@@ -90,6 +113,7 @@ export default function Receivables() {
 
   useEffect(() => {
     fetchData();
+    fetchReceipts();
     checkMpesaSettings();
   }, []);
 
@@ -108,6 +132,40 @@ export default function Receivables() {
       await Promise.all([fetchStudentsWithBalance(), fetchPaymentModes()]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReceipts = async () => {
+    setReceiptsLoading(true);
+    try {
+      const { data } = await supabase
+        .from('fee_payments')
+        .select(`
+          id, receipt_number, payment_date, amount, reference_number, notes, status,
+          student_id,
+          students:student_id ( other_name, surname, student_no ),
+          payment_modes:payment_mode_id ( name )
+        `)
+        .order('payment_date', { ascending: false })
+        .limit(500);
+
+      if (data) {
+        setReceipts(data.map((p: any) => ({
+          id: p.id,
+          receipt_number: p.receipt_number || '—',
+          payment_date: p.payment_date,
+          amount: Number(p.amount),
+          reference_number: p.reference_number,
+          notes: p.notes,
+          status: p.status,
+          student_id: p.student_id,
+          student_name: p.students ? `${p.students.other_name} ${p.students.surname}` : '—',
+          student_no: p.students?.student_no || '—',
+          payment_mode_name: p.payment_modes?.name || '—',
+        })));
+      }
+    } finally {
+      setReceiptsLoading(false);
     }
   };
 
@@ -387,6 +445,7 @@ export default function Receivables() {
       setInvoices([]);
       setPaymentData({ amount: '', payment_mode_id: '', reference_number: '', notes: '', payment_date: format(new Date(), 'yyyy-MM-dd'), invoice_id: '' });
       fetchStudentsWithBalance();
+      fetchReceipts();
     } catch (error: any) {
       toast.error(error.message || 'Failed to record payment');
     } finally {
@@ -413,6 +472,61 @@ export default function Receivables() {
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
+
+  const handleViewHistoricalReceipt = async (payment: PaymentHistoryItem) => {
+    const { data: paymentRow } = await supabase
+      .from('fee_payments')
+      .select('invoice_id')
+      .eq('id', payment.id)
+      .single();
+
+    const voteHeads: { name: string; amount: number }[] = [];
+    if (paymentRow?.invoice_id) {
+      const { data: items } = await supabase
+        .from('fee_invoice_items')
+        .select('description, total, fee_accounts(name)')
+        .eq('invoice_id', paymentRow.invoice_id);
+      (items || []).forEach((item: any) => {
+        voteHeads.push({ name: item.fee_accounts?.name || item.description, amount: Number(item.total) });
+      });
+    }
+
+    setViewingReceipt({
+      receipt_number: payment.receipt_number,
+      payment_date: payment.payment_date,
+      student_name: payment.student_name,
+      student_no: payment.student_no,
+      amount: payment.amount,
+      payment_mode: payment.payment_mode_name,
+      reference_number: payment.reference_number || '',
+      vote_heads: voteHeads.length > 0 ? voteHeads : [{ name: 'School Fees', amount: payment.amount }],
+      notes: payment.notes || '',
+    });
+    setViewDialogOpen(true);
+  };
+
+  const handlePrintHistoricalReceipt = () => {
+    const printContent = printViewRef.current;
+    if (!printContent) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><title>Receipt - ${viewingReceipt?.receipt_number}</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;max-width:400px;margin:0 auto}
+      .header{text-align:center;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:16px}
+      .info-row{display:flex;justify-content:space-between;margin:6px 0;font-size:12px}
+      .vote-heads{margin:12px 0;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:8px 0}
+      .total-row{display:flex;justify-content:space-between;font-weight:bold;font-size:14px;border-top:2px solid #000;padding-top:8px;margin-top:8px}
+      .footer{text-align:center;margin-top:16px;font-size:10px;color:#666}</style></head>
+      <body>${printContent.innerHTML}</body></html>`);
+    win.document.close();
+    win.print();
+  };
+
+  const filteredReceipts = receipts.filter(r =>
+    r.student_name.toLowerCase().includes(receiptSearch.toLowerCase()) ||
+    r.student_no.toLowerCase().includes(receiptSearch.toLowerCase()) ||
+    r.receipt_number.toLowerCase().includes(receiptSearch.toLowerCase())
+  );
 
   const filtered = students.filter(s =>
     s.student_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -516,6 +630,78 @@ export default function Receivables() {
                         {student.total_balance < 0
                           ? `(${formatCurrency(Math.abs(student.total_balance))}) Prepaid`
                           : formatCurrency(student.total_balance)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Payment History / Receipts Listing ── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  Payment Receipts History
+                </CardTitle>
+                <CardDescription>All student payments — view or print individual receipts</CardDescription>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by student, ID or receipt..."
+                  value={receiptSearch}
+                  onChange={(e) => setReceiptSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {receiptsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : filteredReceipts.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">No payment records found</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Receipt No</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Student No</TableHead>
+                    <TableHead>Payment Mode</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredReceipts.map((receipt) => (
+                    <TableRow key={receipt.id}>
+                      <TableCell className="font-mono text-sm font-medium">{receipt.receipt_number}</TableCell>
+                      <TableCell className="text-sm">{receipt.payment_date ? format(new Date(receipt.payment_date), 'dd/MM/yyyy') : '—'}</TableCell>
+                      <TableCell className="font-medium">{receipt.student_name}</TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">{receipt.student_no}</TableCell>
+                      <TableCell>{receipt.payment_mode_name}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{receipt.reference_number || '—'}</TableCell>
+                      <TableCell className="text-right font-bold">{formatCurrency(receipt.amount)}</TableCell>
+                      <TableCell>
+                        <Badge variant={receipt.status === 'Completed' ? 'default' : 'secondary'}>
+                          {receipt.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => handleViewHistoricalReceipt(receipt)}>
+                            <Eye className="h-4 w-4 mr-1" />View
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -758,6 +944,55 @@ export default function Receivables() {
                 Send STK Push
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── View Historical Receipt Dialog ── */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Payment Receipt</DialogTitle></DialogHeader>
+            {viewingReceipt && (
+              <>
+                <div ref={printViewRef} className="p-4 border rounded-lg bg-background">
+                  <div className="text-center border-b-2 border-foreground pb-3 mb-4">
+                    <h1 className="text-xl font-bold">OFFICIAL RECEIPT</h1>
+                  </div>
+                  <div className="text-center font-bold text-lg mb-4">Receipt No: {viewingReceipt.receipt_number}</div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Date:</span><span>{format(new Date(viewingReceipt.payment_date), 'dd MMMM yyyy')}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Student:</span><span>{viewingReceipt.student_name}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Student No:</span><span>{viewingReceipt.student_no}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Payment Mode:</span><span className="font-medium">{viewingReceipt.payment_mode}</span></div>
+                    {viewingReceipt.reference_number && (
+                      <div className="flex justify-between"><span className="text-muted-foreground">Reference:</span><span>{viewingReceipt.reference_number}</span></div>
+                    )}
+                  </div>
+                  <div className="my-4 py-3 border-y border-dashed">
+                    <p className="font-semibold mb-2">Vote Heads:</p>
+                    {viewingReceipt.vote_heads.map((vh, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span>{vh.name}</span><span>{formatCurrency(vh.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between font-bold text-lg border-t-2 border-foreground pt-3">
+                    <span>TOTAL PAID:</span>
+                    <span>{formatCurrency(viewingReceipt.amount)}</span>
+                  </div>
+                  {viewingReceipt.notes && <div className="mt-3 text-sm text-muted-foreground">Notes: {viewingReceipt.notes}</div>}
+                  <div className="mt-6 text-center text-xs text-muted-foreground">
+                    <p>Thank you for your payment!</p>
+                    <p>This is a computer-generated receipt.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handlePrintHistoricalReceipt} className="flex-1">
+                    <Printer className="mr-2 h-4 w-4" />Print Receipt
+                  </Button>
+                  <Button variant="outline" onClick={() => setViewDialogOpen(false)}>Close</Button>
+                </div>
+              </>
+            )}
           </DialogContent>
         </Dialog>
       </div>
