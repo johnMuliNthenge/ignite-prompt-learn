@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -75,6 +74,7 @@ export default function Receivables() {
   // M-Pesa
   const [mpesaDialogOpen, setMpesaDialogOpen] = useState(false);
   const [mpesaEnabled, setMpesaEnabled] = useState(false);
+  const [mpesaStudent, setMpesaStudent] = useState<Student | null>(null);
   const [mpesaPhone, setMpesaPhone] = useState('');
   const [mpesaAmount, setMpesaAmount] = useState('');
   const [mpesaSubmitting, setMpesaSubmitting] = useState(false);
@@ -176,23 +176,57 @@ export default function Receivables() {
     setPaymentModes((data as any) || []);
   };
 
-  const openPaymentDialog = async (student: Student) => {
-    setSelectedStudent(student);
-    setPaymentData(prev => ({ ...prev, amount: student.total_balance > 0 ? student.total_balance.toString() : '', payment_mode_id: '' }));
-    await fetchStudentInvoices(student.id);
+  // Open "Receive Payment" — user picks a student from the table row, or no student pre-selected from header button
+  const openPaymentDialog = async (student?: Student) => {
+    const s = student || null;
+    setSelectedStudent(s);
+    setPaymentData({
+      amount: s && s.total_balance > 0 ? s.total_balance.toString() : '',
+      payment_mode_id: '',
+      reference_number: '',
+      notes: '',
+      payment_date: format(new Date(), 'yyyy-MM-dd'),
+      invoice_id: '',
+    });
+    if (s) await fetchStudentInvoices(s.id);
+    else setInvoices([]);
     setPaymentDialogOpen(true);
   };
 
-  const openMpesaDialog = async (student: Student) => {
+  const handleStudentSelectInDialog = async (studentId: string) => {
+    const student = students.find(s => s.id === studentId) || null;
     setSelectedStudent(student);
-    setMpesaAmount(student.total_balance > 0 ? student.total_balance.toString() : '');
+    if (student) {
+      setPaymentData(prev => ({
+        ...prev,
+        amount: student.total_balance > 0 ? student.total_balance.toString() : '',
+        invoice_id: '',
+      }));
+      await fetchStudentInvoices(student.id);
+    } else {
+      setInvoices([]);
+    }
+  };
+
+  const openMpesaDialog = () => {
+    setMpesaStudent(null);
+    setMpesaAmount('');
     setMpesaPhone('');
     setMpesaDialogOpen(true);
   };
 
+  const handleMpesaStudentSelect = async (studentId: string) => {
+    const student = students.find(s => s.id === studentId) || null;
+    setMpesaStudent(student);
+    if (student) {
+      setMpesaAmount(student.total_balance > 0 ? student.total_balance.toString() : '');
+      await fetchStudentInvoices(student.id);
+    }
+  };
+
   const handleMpesaPayment = async () => {
-    if (!selectedStudent || !mpesaPhone || !mpesaAmount) {
-      toast.error('Please enter phone number and amount');
+    if (!mpesaStudent || !mpesaPhone || !mpesaAmount) {
+      toast.error('Please select a student, enter phone number and amount');
       return;
     }
     const amount = parseFloat(mpesaAmount);
@@ -203,15 +237,15 @@ export default function Receivables() {
         body: {
           phone_number: mpesaPhone,
           amount,
-          student_id: selectedStudent.id,
+          student_id: mpesaStudent.id,
           invoice_id: invoices.length > 0 ? invoices[0].id : null,
-          account_reference: selectedStudent.student_no || 'SchoolFees',
-          transaction_desc: `Fee payment for ${selectedStudent.other_name} ${selectedStudent.surname}`,
+          account_reference: mpesaStudent.student_no || 'SchoolFees',
+          transaction_desc: `Fee payment for ${mpesaStudent.other_name} ${mpesaStudent.surname}`,
         },
       });
       if (error) throw error;
       if (data?.success) {
-        toast.success('STK Push sent! Please check your phone and enter your M-Pesa PIN.');
+        toast.success('STK Push sent! Please check the phone and enter M-Pesa PIN.');
         setMpesaDialogOpen(false);
       } else {
         toast.error(data?.error || 'Failed to initiate M-Pesa payment');
@@ -224,8 +258,12 @@ export default function Receivables() {
   };
 
   const handleReceivePayment = async () => {
-    if (!selectedStudent || !paymentData.amount) {
-      toast.error('Please fill in all required fields');
+    if (!selectedStudent) {
+      toast.error('Please select a student');
+      return;
+    }
+    if (!paymentData.amount) {
+      toast.error('Please enter an amount');
       return;
     }
     if (!paymentData.payment_mode_id) {
@@ -345,8 +383,9 @@ export default function Receivables() {
       toast.success(`Payment of KES ${amount.toLocaleString()} received. Receipt: ${receiptNumber}`);
       setPaymentDialogOpen(false);
       setPrintDialogOpen(true);
-      setPaymentData({ amount: '', payment_mode_id: '', reference_number: '', notes: '', payment_date: format(new Date(), 'yyyy-MM-dd'), invoice_id: '' });
       setSelectedStudent(null);
+      setInvoices([]);
+      setPaymentData({ amount: '', payment_mode_id: '', reference_number: '', notes: '', payment_date: format(new Date(), 'yyyy-MM-dd'), invoice_id: '' });
       fetchStudentsWithBalance();
     } catch (error: any) {
       toast.error(error.message || 'Failed to record payment');
@@ -385,9 +424,26 @@ export default function Receivables() {
   return (
     <ProtectedPage moduleCode={MODULE_CODE} title="Receivables">
       <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Receivables — Receive Payments</h1>
-          <p className="text-muted-foreground">Record fee payments from students</p>
+        {/* Header with global action buttons */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Receivables</h1>
+            <p className="text-muted-foreground">Record and manage fee payments from students</p>
+          </div>
+          <div className="flex gap-2">
+            {mpesaEnabled && (
+              <Button variant="secondary" onClick={openMpesaDialog}>
+                <Smartphone className="mr-2 h-4 w-4" />
+                Prompt Payment
+              </Button>
+            )}
+            <ActionButton moduleCode={MODULE_CODE} action="add">
+              <Button onClick={() => openPaymentDialog()}>
+                <DollarSign className="mr-2 h-4 w-4" />
+                Receive Payment
+              </Button>
+            </ActionButton>
+          </div>
         </div>
 
         {/* Summary */}
@@ -418,12 +474,13 @@ export default function Receivables() {
           </Card>
         </div>
 
+        {/* Student list */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Student Fee Balances</CardTitle>
-                <CardDescription>Click "Receive" to collect payment from a student</CardDescription>
+                <CardDescription>Students with outstanding fee balances</CardDescription>
               </div>
               <div className="relative w-72">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -448,7 +505,6 @@ export default function Receivables() {
                     <TableHead>Student No</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead className="text-right">Outstanding Balance</TableHead>
-                    <TableHead>Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -461,22 +517,6 @@ export default function Receivables() {
                           ? `(${formatCurrency(Math.abs(student.total_balance))}) Prepaid`
                           : formatCurrency(student.total_balance)}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {mpesaEnabled && (
-                            <Button size="sm" variant="secondary" onClick={() => openMpesaDialog(student)}>
-                              <Smartphone className="mr-1 h-4 w-4" />
-                              M-Pesa
-                            </Button>
-                          )}
-                          <ActionButton moduleCode={MODULE_CODE} action="add">
-                            <Button size="sm" onClick={() => openPaymentDialog(student)}>
-                              <DollarSign className="mr-1 h-4 w-4" />
-                              Receive
-                            </Button>
-                          </ActionButton>
-                        </div>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -486,118 +526,141 @@ export default function Receivables() {
         </Card>
 
         {/* ── Receive Payment Dialog ── */}
-        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <Dialog open={paymentDialogOpen} onOpenChange={(open) => { if (!open) { setPaymentDialogOpen(false); setSelectedStudent(null); setInvoices([]); } }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Receive Payment</DialogTitle>
             </DialogHeader>
-            {selectedStudent && (
-              <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="font-semibold">{selectedStudent.other_name} {selectedStudent.surname}</p>
-                  <p className="text-sm text-muted-foreground">ID: {selectedStudent.student_no}</p>
-                  <p className={`text-lg font-bold mt-1 ${selectedStudent.total_balance < 0 ? 'text-blue-600' : 'text-destructive'}`}>
+            <div className="space-y-4">
+              {/* Student selector */}
+              <div className="space-y-2">
+                <Label>Student <span className="text-destructive">*</span></Label>
+                <Select
+                  value={selectedStudent?.id || ''}
+                  onValueChange={handleStudentSelectInDialog}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a student..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.student_no} — {s.other_name} {s.surname} ({formatCurrency(Math.max(0, s.total_balance))})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedStudent && (
+                <div className="p-3 bg-muted rounded-lg text-sm">
+                  <span className="font-medium">{selectedStudent.other_name} {selectedStudent.surname}</span>
+                  <span className={`ml-3 font-bold ${selectedStudent.total_balance < 0 ? 'text-blue-600' : 'text-destructive'}`}>
                     {selectedStudent.total_balance < 0
-                      ? `Prepayment: (${formatCurrency(Math.abs(selectedStudent.total_balance))})`
+                      ? `Prepaid: (${formatCurrency(Math.abs(selectedStudent.total_balance))})`
                       : `Outstanding: ${formatCurrency(selectedStudent.total_balance)}`}
-                  </p>
+                  </span>
                 </div>
+              )}
 
-                {/* Payment Mode — REQUIRED, shown prominently */}
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold">
-                    Payment Mode <span className="text-destructive">*</span>
-                  </Label>
-                  {paymentModes.length === 0 ? (
-                    <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                      No payment modes configured. Please set up payment modes under Finance → Utilities → Payment Modes.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {paymentModes.map((pm) => (
-                        <button
-                          key={pm.id}
-                          type="button"
-                          onClick={() => setPaymentData({ ...paymentData, payment_mode_id: pm.id })}
-                          className={`px-3 py-2.5 rounded-md border text-sm font-medium transition-colors text-left ${
-                            paymentData.payment_mode_id === pm.id
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-background border-input hover:bg-accent hover:text-accent-foreground'
-                          }`}
-                        >
-                          {pm.name}
-                          {!pm.asset_account_id && <span className="ml-1 text-destructive">⚠</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Payment Date *</Label>
-                    <Input
-                      type="date"
-                      value={paymentData.payment_date}
-                      onChange={(e) => setPaymentData({ ...paymentData, payment_date: e.target.value })}
-                    />
+              {/* Payment Mode — REQUIRED */}
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">
+                  Payment Mode <span className="text-destructive">*</span>
+                </Label>
+                {paymentModes.length === 0 ? (
+                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                    No payment modes configured. Go to Finance → Utilities → Payment Modes.
                   </div>
-                  <div className="space-y-2">
-                    <Label>Amount (KES) *</Label>
-                    <Input
-                      type="number"
-                      value={paymentData.amount}
-                      onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Reference / Transaction No.</Label>
-                  <Input
-                    value={paymentData.reference_number}
-                    onChange={(e) => setPaymentData({ ...paymentData, reference_number: e.target.value })}
-                    placeholder="M-Pesa code, cheque no., etc."
-                  />
-                </div>
-
-                {invoices.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Allocate to Invoice (optional)</Label>
-                    <Select
-                      value={paymentData.invoice_id || 'auto'}
-                      onValueChange={(v) => setPaymentData({ ...paymentData, invoice_id: v === 'auto' ? '' : v })}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Auto-allocate (FIFO)" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Auto-allocate (oldest first)</SelectItem>
-                        {invoices.map((inv) => (
-                          <SelectItem key={inv.id} value={inv.id}>
-                            {inv.invoice_number} — Balance: {formatCurrency(inv.balance_due)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {paymentModes.map((pm) => (
+                      <button
+                        key={pm.id}
+                        type="button"
+                        onClick={() => setPaymentData(prev => ({ ...prev, payment_mode_id: pm.id }))}
+                        className={`px-3 py-2.5 rounded-md border text-sm font-medium transition-colors text-left ${
+                          paymentData.payment_mode_id === pm.id
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-input hover:bg-accent hover:text-accent-foreground'
+                        }`}
+                      >
+                        {pm.name}
+                        {!pm.asset_account_id && <span className="ml-1 text-destructive">⚠</span>}
+                      </button>
+                    ))}
                   </div>
                 )}
+              </div>
 
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea
-                    value={paymentData.notes}
-                    onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
-                    placeholder="Additional notes..."
-                    rows={2}
+                  <Label>Payment Date *</Label>
+                  <Input
+                    type="date"
+                    value={paymentData.payment_date}
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, payment_date: e.target.value }))}
                   />
                 </div>
-
-                <Button onClick={handleReceivePayment} className="w-full" disabled={submitting || !paymentData.payment_mode_id}>
-                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
-                  {paymentData.payment_mode_id ? 'Receive Payment' : 'Select a Payment Mode to Continue'}
-                </Button>
+                <div className="space-y-2">
+                  <Label>Amount (KES) *</Label>
+                  <Input
+                    type="number"
+                    value={paymentData.amount}
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, amount: e.target.value }))}
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
-            )}
+
+              <div className="space-y-2">
+                <Label>Reference / Transaction No.</Label>
+                <Input
+                  value={paymentData.reference_number}
+                  onChange={(e) => setPaymentData(prev => ({ ...prev, reference_number: e.target.value }))}
+                  placeholder="M-Pesa code, cheque no., etc."
+                />
+              </div>
+
+              {invoices.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Allocate to Invoice (optional)</Label>
+                  <Select
+                    value={paymentData.invoice_id || 'auto'}
+                    onValueChange={(v) => setPaymentData(prev => ({ ...prev, invoice_id: v === 'auto' ? '' : v }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Auto-allocate (FIFO)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto-allocate (oldest first)</SelectItem>
+                      {invoices.map((inv) => (
+                        <SelectItem key={inv.id} value={inv.id}>
+                          {inv.invoice_number} — Balance: {formatCurrency(inv.balance_due)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  value={paymentData.notes}
+                  onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Additional notes..."
+                  rows={2}
+                />
+              </div>
+
+              <Button
+                onClick={handleReceivePayment}
+                className="w-full"
+                disabled={submitting || !paymentData.payment_mode_id || !selectedStudent}
+              >
+                {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
+                {!selectedStudent ? 'Select a Student to Continue' : !paymentData.payment_mode_id ? 'Select a Payment Mode to Continue' : 'Receive Payment'}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -608,7 +671,7 @@ export default function Receivables() {
             {receiptData && (
               <>
                 <div ref={printRef} className="p-4 border rounded-lg bg-background">
-                  <div className="header text-center border-b-2 border-foreground pb-3 mb-4">
+                  <div className="text-center border-b-2 border-foreground pb-3 mb-4">
                     <h1 className="text-xl font-bold">OFFICIAL RECEIPT</h1>
                   </div>
                   <div className="text-center font-bold text-lg mb-4">Receipt No: {receiptData.receipt_number}</div>
@@ -650,35 +713,51 @@ export default function Receivables() {
           </DialogContent>
         </Dialog>
 
-        {/* ── M-Pesa Dialog ── */}
+        {/* ── M-Pesa Prompt Dialog ── */}
         <Dialog open={mpesaDialogOpen} onOpenChange={setMpesaDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Smartphone className="h-5 w-5" />M-Pesa Payment
+                <Smartphone className="h-5 w-5" />Prompt Payment (M-Pesa)
               </DialogTitle>
             </DialogHeader>
-            {selectedStudent && (
-              <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="font-medium">{selectedStudent.other_name} {selectedStudent.surname}</p>
-                  <p className="text-sm text-muted-foreground">ID: {selectedStudent.student_no}</p>
-                  <p className="text-lg font-bold text-destructive mt-1">Outstanding: {formatCurrency(Math.max(0, selectedStudent.total_balance))}</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone Number *</Label>
-                  <Input type="tel" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} placeholder="e.g., 0712345678" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Amount (KES) *</Label>
-                  <Input type="number" value={mpesaAmount} onChange={(e) => setMpesaAmount(e.target.value)} placeholder="0.00" />
-                </div>
-                <Button onClick={handleMpesaPayment} className="w-full" disabled={mpesaSubmitting}>
-                  {mpesaSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Smartphone className="mr-2 h-4 w-4" />}
-                  Send STK Push
-                </Button>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Student <span className="text-destructive">*</span></Label>
+                <Select
+                  value={mpesaStudent?.id || ''}
+                  onValueChange={handleMpesaStudentSelect}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a student..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.student_no} — {s.other_name} {s.surname}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
+              {mpesaStudent && (
+                <div className="p-3 bg-muted rounded-lg text-sm">
+                  Outstanding: <span className="font-bold text-destructive">{formatCurrency(Math.max(0, mpesaStudent.total_balance))}</span>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Phone Number <span className="text-destructive">*</span></Label>
+                <Input type="tel" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} placeholder="e.g., 0712345678" />
+              </div>
+              <div className="space-y-2">
+                <Label>Amount (KES) <span className="text-destructive">*</span></Label>
+                <Input type="number" value={mpesaAmount} onChange={(e) => setMpesaAmount(e.target.value)} placeholder="0.00" />
+              </div>
+              <Button onClick={handleMpesaPayment} className="w-full" disabled={mpesaSubmitting || !mpesaStudent}>
+                {mpesaSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Smartphone className="mr-2 h-4 w-4" />}
+                Send STK Push
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
