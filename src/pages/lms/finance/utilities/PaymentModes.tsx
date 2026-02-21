@@ -71,7 +71,7 @@ export default function PaymentModes() {
       .from('payment_modes')
       .select(`
         id, name, description, is_active, can_receive, can_pay, asset_account_id,
-        chart_of_accounts:asset_account_id ( account_code, account_name )
+        asset_account:asset_account_id ( account_code, account_name )
       `)
       .order('name');
     if (data) setModes(data as any);
