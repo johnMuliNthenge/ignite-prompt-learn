@@ -230,6 +230,7 @@ export default function Receivables() {
       .from('payment_modes')
       .select('id, name, asset_account_id')
       .eq('is_active', true)
+      .eq('can_receive', true)
       .order('name');
     setPaymentModes((data as any) || []);
   };
@@ -681,31 +682,28 @@ export default function Receivables() {
 
               {/* Payment Mode — REQUIRED */}
               <div className="space-y-2">
-                <Label className="text-base font-semibold">
-                  Payment Mode <span className="text-destructive">*</span>
-                </Label>
+                <Label>Payment Mode <span className="text-destructive">*</span></Label>
                 {paymentModes.length === 0 ? (
                   <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                    No payment modes configured. Go to Finance → Utilities → Payment Modes.
+                    No payment modes configured for receiving. Go to Finance → Utilities → Payment Modes.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {paymentModes.map((pm) => (
-                      <button
-                        key={pm.id}
-                        type="button"
-                        onClick={() => setPaymentData(prev => ({ ...prev, payment_mode_id: pm.id }))}
-                        className={`px-3 py-2.5 rounded-md border text-sm font-medium transition-colors text-left ${
-                          paymentData.payment_mode_id === pm.id
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background border-input hover:bg-accent hover:text-accent-foreground'
-                        }`}
-                      >
-                        {pm.name}
-                        {!pm.asset_account_id && <span className="ml-1 text-destructive">⚠</span>}
-                      </button>
-                    ))}
-                  </div>
+                  <Select
+                    value={paymentData.payment_mode_id || 'none'}
+                    onValueChange={(v) => setPaymentData(prev => ({ ...prev, payment_mode_id: v === 'none' ? '' : v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment mode..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" disabled>— Select payment mode —</SelectItem>
+                      {paymentModes.map((pm) => (
+                        <SelectItem key={pm.id} value={pm.id}>
+                          {pm.name} {!pm.asset_account_id ? '⚠ Not linked' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
 

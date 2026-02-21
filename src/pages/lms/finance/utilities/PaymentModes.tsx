@@ -24,6 +24,8 @@ interface PaymentMode {
   name: string;
   description: string | null;
   is_active: boolean;
+  can_receive: boolean;
+  can_pay: boolean;
   asset_account_id: string | null;
   asset_account?: {
     account_code: string;
@@ -37,7 +39,7 @@ interface AssetAccount {
   account_name: string;
 }
 
-const defaultForm = { name: '', description: '', is_active: true, asset_account_id: '' };
+const defaultForm = { name: '', description: '', is_active: true, can_receive: true, can_pay: true, asset_account_id: '' };
 
 export default function PaymentModes() {
   const { isAdmin } = useAuth();
@@ -68,7 +70,7 @@ export default function PaymentModes() {
     const { data } = await supabase
       .from('payment_modes')
       .select(`
-        id, name, description, is_active, asset_account_id,
+        id, name, description, is_active, can_receive, can_pay, asset_account_id,
         chart_of_accounts:asset_account_id ( account_code, account_name )
       `)
       .order('name');
@@ -96,6 +98,8 @@ export default function PaymentModes() {
       name: formData.name.trim(),
       description: formData.description || null,
       is_active: formData.is_active,
+      can_receive: formData.can_receive,
+      can_pay: formData.can_pay,
       asset_account_id: formData.asset_account_id,
     };
 
@@ -119,6 +123,8 @@ export default function PaymentModes() {
       name: item.name,
       description: item.description || '',
       is_active: item.is_active !== false,
+      can_receive: item.can_receive !== false,
+      can_pay: item.can_pay !== false,
       asset_account_id: item.asset_account_id || '',
     });
     setDialogOpen(true);
@@ -210,6 +216,25 @@ export default function PaymentModes() {
                 />
                 <Label>Active</Label>
               </div>
+
+              <div className="space-y-3 rounded-md border p-3">
+                <Label className="text-sm font-semibold">Transaction Usage</Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={formData.can_receive}
+                    onCheckedChange={(v) => setFormData({ ...formData, can_receive: v })}
+                  />
+                  <Label className="text-sm">Can be used to receive payments (Receivables)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={formData.can_pay}
+                    onCheckedChange={(v) => setFormData({ ...formData, can_pay: v })}
+                  />
+                  <Label className="text-sm">Can be used to make payments (Payables)</Label>
+                </div>
+              </div>
+
               <Button onClick={handleSubmit} className="w-full">
                 {editingItem ? 'Update' : 'Create'} Payment Mode
               </Button>
@@ -239,6 +264,8 @@ export default function PaymentModes() {
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Linked Asset Account</TableHead>
+                  <TableHead>Receive</TableHead>
+                  <TableHead>Pay</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -246,7 +273,7 @@ export default function PaymentModes() {
               <TableBody>
                 {modes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No payment modes found. Add one to enable transaction posting.
                     </TableCell>
                   </TableRow>
@@ -268,9 +295,10 @@ export default function PaymentModes() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {item.is_active
-                          ? <Badge variant="default">Active</Badge>
-                          : <Badge variant="secondary">Inactive</Badge>}
+                        {item.can_receive ? <Badge variant="default" className="text-xs">Yes</Badge> : <Badge variant="secondary" className="text-xs">No</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        {item.can_pay ? <Badge variant="default" className="text-xs">Yes</Badge> : <Badge variant="secondary" className="text-xs">No</Badge>}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
