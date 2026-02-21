@@ -4708,6 +4708,8 @@ export type Database = {
       payment_modes: {
         Row: {
           asset_account_id: string | null
+          can_pay: boolean
+          can_receive: boolean
           created_at: string | null
           description: string | null
           id: string
@@ -4716,6 +4718,8 @@ export type Database = {
         }
         Insert: {
           asset_account_id?: string | null
+          can_pay?: boolean
+          can_receive?: boolean
           created_at?: string | null
           description?: string | null
           id?: string
@@ -4724,6 +4728,8 @@ export type Database = {
         }
         Update: {
           asset_account_id?: string | null
+          can_pay?: boolean
+          can_receive?: boolean
           created_at?: string | null
           description?: string | null
           id?: string

@@ -117,7 +117,7 @@ export default function Payables() {
   };
 
   const fetchPaymentModes = async () => {
-    const { data } = await supabase.from('payment_modes').select('id, name, asset_account_id').eq('is_active', true).order('name');
+    const { data } = await supabase.from('payment_modes').select('id, name, asset_account_id').eq('is_active', true).eq('can_pay', true).order('name');
     setPaymentModes((data as any) || []);
   };
 
