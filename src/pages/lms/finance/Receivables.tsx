@@ -528,12 +528,10 @@ export default function Receivables() {
     r.receipt_number.toLowerCase().includes(receiptSearch.toLowerCase())
   );
 
-  const filtered = students.filter(s =>
-    s.student_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${s.other_name} ${s.surname}`.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const totalReceivables = students.reduce((sum, s) => sum + Math.max(0, s.total_balance), 0);
+  const ROWS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredReceipts.length / ROWS_PER_PAGE));
+  const paginatedReceipts = filteredReceipts.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
 
   return (
     <ProtectedPage moduleCode={MODULE_CODE} title="Receivables">
@@ -560,85 +558,6 @@ export default function Receivables() {
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <DollarSign className="h-4 w-4" />
-                Total Receivables
-              </div>
-              <div className="text-2xl font-bold mt-1">{formatCurrency(totalReceivables)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Students with Balance</div>
-              <div className="text-2xl font-bold mt-1">{students.filter(s => s.total_balance > 0).length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-muted-foreground">Payment Modes Available</div>
-              <div className="text-2xl font-bold mt-1">{paymentModes.length}</div>
-              {paymentModes.length === 0 && (
-                <p className="text-xs text-destructive mt-1">Set up payment modes under Finance → Utilities → Payment Modes</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Student list */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Student Fee Balances</CardTitle>
-                <CardDescription>Students with outstanding fee balances</CardDescription>
-              </div>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name or ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">No students with outstanding balances</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student No</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="text-right">Outstanding Balance</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell className="font-mono">{student.student_no}</TableCell>
-                      <TableCell className="font-medium">{student.other_name} {student.surname}</TableCell>
-                      <TableCell className={`text-right font-bold ${student.total_balance < 0 ? 'text-blue-600' : 'text-destructive'}`}>
-                        {student.total_balance < 0
-                          ? `(${formatCurrency(Math.abs(student.total_balance))}) Prepaid`
-                          : formatCurrency(student.total_balance)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
         {/* ── Payment History / Receipts Listing ── */}
         <Card>
           <CardHeader>
@@ -655,7 +574,7 @@ export default function Receivables() {
                 <Input
                   placeholder="Search by student, ID or receipt..."
                   value={receiptSearch}
-                  onChange={(e) => setReceiptSearch(e.target.value)}
+                  onChange={(e) => { setReceiptSearch(e.target.value); setCurrentPage(1); }}
                   className="pl-10"
                 />
               </div>
@@ -667,46 +586,57 @@ export default function Receivables() {
             ) : filteredReceipts.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">No payment records found</div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Receipt No</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Student No</TableHead>
-                    <TableHead>Payment Mode</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredReceipts.map((receipt) => (
-                    <TableRow key={receipt.id}>
-                      <TableCell className="font-mono text-sm font-medium">{receipt.receipt_number}</TableCell>
-                      <TableCell className="text-sm">{receipt.payment_date ? format(new Date(receipt.payment_date), 'dd/MM/yyyy') : '—'}</TableCell>
-                      <TableCell className="font-medium">{receipt.student_name}</TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">{receipt.student_no}</TableCell>
-                      <TableCell>{receipt.payment_mode_name}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{receipt.reference_number || '—'}</TableCell>
-                      <TableCell className="text-right font-bold">{formatCurrency(receipt.amount)}</TableCell>
-                      <TableCell>
-                        <Badge variant={receipt.status === 'Completed' ? 'default' : 'secondary'}>
-                          {receipt.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => handleViewHistoricalReceipt(receipt)}>
-                            <Eye className="h-4 w-4 mr-1" />View
-                          </Button>
-                        </div>
-                      </TableCell>
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Receipt No</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Student No</TableHead>
+                      <TableHead>Payment Mode</TableHead>
+                      <TableHead>Reference</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedReceipts.map((receipt) => (
+                      <TableRow key={receipt.id}>
+                        <TableCell className="font-mono text-sm font-medium">{receipt.receipt_number}</TableCell>
+                        <TableCell className="text-sm">{receipt.payment_date ? format(new Date(receipt.payment_date), 'dd/MM/yyyy') : '—'}</TableCell>
+                        <TableCell className="font-medium">{receipt.student_name}</TableCell>
+                        <TableCell className="font-mono text-sm text-muted-foreground">{receipt.student_no}</TableCell>
+                        <TableCell>{receipt.payment_mode_name}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{receipt.reference_number || '—'}</TableCell>
+                        <TableCell className="text-right font-bold">{formatCurrency(receipt.amount)}</TableCell>
+                        <TableCell>
+                          <Badge variant={receipt.status === 'Completed' ? 'default' : 'secondary'}>
+                            {receipt.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => handleViewHistoricalReceipt(receipt)}>
+                              <Eye className="h-4 w-4 mr-1" />View
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {((currentPage - 1) * ROWS_PER_PAGE) + 1} to {Math.min(currentPage * ROWS_PER_PAGE, filteredReceipts.length)} of {filteredReceipts.length} receipts
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>Previous</Button>
+                    <Button size="sm" variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>Next</Button>
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
