@@ -4254,6 +4254,8 @@ export type Database = {
         Row: {
           address_line1: string | null
           address_line2: string | null
+          admin_email: string | null
+          admin_password_hash: string | null
           city: string | null
           country: string | null
           created_at: string
@@ -4278,6 +4280,8 @@ export type Database = {
         Insert: {
           address_line1?: string | null
           address_line2?: string | null
+          admin_email?: string | null
+          admin_password_hash?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -4302,6 +4306,8 @@ export type Database = {
         Update: {
           address_line1?: string | null
           address_line2?: string | null
+          admin_email?: string | null
+          admin_password_hash?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -7061,6 +7067,44 @@ export type Database = {
           rate?: number
         }
         Relationships: []
+      }
+      tenant_modules: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          module_code: string
+          module_name: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          module_code: string
+          module_name: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          module_code?: string
+          module_name?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_modules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "institution_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
