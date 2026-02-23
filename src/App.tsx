@@ -156,6 +156,18 @@ import POEReview from "./pages/lms/admin/POEReview";
 // Finance Setup
 import FinanceSetup from "./pages/lms/finance/FinanceSetup";
 
+// Payroll pages
+import PayrollSettings from "./pages/lms/payroll/PayrollSettings";
+import SalaryStructures from "./pages/lms/payroll/SalaryStructures";
+import StatutoryDeductions from "./pages/lms/payroll/StatutoryDeductions";
+import PayrollCalendar from "./pages/lms/payroll/PayrollCalendar";
+import EmployeePayrollAccounts from "./pages/lms/payroll/EmployeePayrollAccounts";
+import PayrollProcessing from "./pages/lms/payroll/PayrollProcessing";
+import DeductionsBenefits from "./pages/lms/payroll/DeductionsBenefits";
+import PayslipManagement from "./pages/lms/payroll/PayslipManagement";
+import PayrollReports from "./pages/lms/payroll/PayrollReports";
+import PayrollAuditLog from "./pages/lms/payroll/PayrollAuditLog";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -310,6 +322,18 @@ const App = () => (
               <Route path="hr/reports/turnover" element={<TurnoverReport />} />
               <Route path="hr/reports/contract-expiry" element={<ContractExpiry />} />
               <Route path="hr/reports/probation" element={<ProbationTracking />} />
+              
+              {/* Payroll Routes */}
+              <Route path="payroll/settings" element={<PayrollSettings />} />
+              <Route path="payroll/salary-structures" element={<SalaryStructures />} />
+              <Route path="payroll/statutory-deductions" element={<StatutoryDeductions />} />
+              <Route path="payroll/calendar" element={<PayrollCalendar />} />
+              <Route path="payroll/employee-accounts" element={<EmployeePayrollAccounts />} />
+              <Route path="payroll/processing" element={<PayrollProcessing />} />
+              <Route path="payroll/deductions" element={<DeductionsBenefits />} />
+              <Route path="payroll/payslips" element={<PayslipManagement />} />
+              <Route path="payroll/reports" element={<PayrollReports />} />
+              <Route path="payroll/audit-log" element={<PayrollAuditLog />} />
             </Route>
 
             {/* Student Portal Routes */}

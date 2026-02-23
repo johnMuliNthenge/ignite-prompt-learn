@@ -1340,6 +1340,142 @@ export type Database = {
           },
         ]
       }
+      employee_deductions: {
+        Row: {
+          account_id: string | null
+          amount_recovered: number | null
+          balance: number | null
+          created_at: string | null
+          deduction_type: string
+          employee_id: string
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          monthly_amount: number | null
+          name: string
+          start_date: string
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount_recovered?: number | null
+          balance?: number | null
+          created_at?: string | null
+          deduction_type: string
+          employee_id: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          monthly_amount?: number | null
+          name: string
+          start_date?: string
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount_recovered?: number | null
+          balance?: number | null
+          created_at?: string | null
+          deduction_type?: string
+          employee_id?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          monthly_amount?: number | null
+          name?: string
+          start_date?: string
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_deductions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_payroll_accounts: {
+        Row: {
+          bank_account_number: string | null
+          bank_branch: string | null
+          bank_name: string | null
+          basic_salary: number | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          is_active: boolean | null
+          payment_mode_id: string | null
+          pension_number: string | null
+          salary_structure_id: string | null
+          tax_number: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          basic_salary?: number | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          is_active?: boolean | null
+          payment_mode_id?: string | null
+          pension_number?: string | null
+          salary_structure_id?: string | null
+          tax_number?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          basic_salary?: number | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          is_active?: boolean | null
+          payment_mode_id?: string | null
+          pension_number?: string | null
+          salary_structure_id?: string | null
+          tax_number?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_payroll_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_payroll_accounts_payment_mode_id_fkey"
+            columns: ["payment_mode_id"]
+            isOneToOne: false
+            referencedRelation: "payment_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_payroll_accounts_salary_structure_id_fkey"
+            columns: ["salary_structure_id"]
+            isOneToOne: false
+            referencedRelation: "salary_structures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollments: {
         Row: {
           access_link_active: boolean | null
@@ -4828,6 +4964,452 @@ export type Database = {
           },
         ]
       }
+      payroll_audit_log: {
+        Row: {
+          action: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          performed_at: string | null
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string | null
+        }
+        Relationships: []
+      }
+      payroll_item_details: {
+        Row: {
+          amount: number | null
+          category: string | null
+          component_name: string
+          component_type: string
+          created_at: string | null
+          id: string
+          is_statutory: boolean | null
+          payroll_item_id: string
+          statutory_config_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          category?: string | null
+          component_name: string
+          component_type: string
+          created_at?: string | null
+          id?: string
+          is_statutory?: boolean | null
+          payroll_item_id: string
+          statutory_config_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          category?: string | null
+          component_name?: string
+          component_type?: string
+          created_at?: string | null
+          id?: string
+          is_statutory?: boolean | null
+          payroll_item_id?: string
+          statutory_config_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_item_details_payroll_item_id_fkey"
+            columns: ["payroll_item_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_item_details_statutory_config_id_fkey"
+            columns: ["statutory_config_id"]
+            isOneToOne: false
+            referencedRelation: "statutory_deduction_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_items: {
+        Row: {
+          basic_salary: number | null
+          created_at: string | null
+          employee_id: string
+          gross_pay: number | null
+          id: string
+          leave_days_deducted: number | null
+          net_pay: number | null
+          overtime_amount: number | null
+          overtime_hours: number | null
+          payroll_run_id: string
+          proration_factor: number | null
+          taxable_income: number | null
+          total_deductions: number | null
+        }
+        Insert: {
+          basic_salary?: number | null
+          created_at?: string | null
+          employee_id: string
+          gross_pay?: number | null
+          id?: string
+          leave_days_deducted?: number | null
+          net_pay?: number | null
+          overtime_amount?: number | null
+          overtime_hours?: number | null
+          payroll_run_id: string
+          proration_factor?: number | null
+          taxable_income?: number | null
+          total_deductions?: number | null
+        }
+        Update: {
+          basic_salary?: number | null
+          created_at?: string | null
+          employee_id?: string
+          gross_pay?: number | null
+          id?: string
+          leave_days_deducted?: number | null
+          net_pay?: number | null
+          overtime_amount?: number | null
+          overtime_hours?: number | null
+          payroll_run_id?: string
+          proration_factor?: number | null
+          taxable_income?: number | null
+          total_deductions?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_items_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_periods: {
+        Row: {
+          created_at: string | null
+          fiscal_year_id: string | null
+          id: string
+          name: string
+          payment_date: string | null
+          period_end: string
+          period_start: string
+          processing_deadline: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          name: string
+          payment_date?: string | null
+          period_end: string
+          period_start: string
+          processing_deadline?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          fiscal_year_id?: string | null
+          id?: string
+          name?: string
+          payment_date?: string | null
+          period_end?: string
+          period_start?: string
+          processing_deadline?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_periods_fiscal_year_id_fkey"
+            columns: ["fiscal_year_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          employee_count: number | null
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          period_id: string
+          processed_by: string | null
+          run_date: string | null
+          status: string | null
+          total_deductions: number | null
+          total_gross: number | null
+          total_net: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          employee_count?: number | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          period_id: string
+          processed_by?: string | null
+          run_date?: string | null
+          status?: string | null
+          total_deductions?: number | null
+          total_gross?: number | null
+          total_net?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          employee_count?: number | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          period_id?: string
+          processed_by?: string | null
+          run_date?: string | null
+          status?: string | null
+          total_deductions?: number | null
+          total_gross?: number | null
+          total_net?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_settings: {
+        Row: {
+          auto_finance_posting: boolean | null
+          created_at: string | null
+          currency_id: string | null
+          default_payment_mode_id: string | null
+          id: string
+          payroll_frequency: string
+          payroll_liability_account_id: string | null
+          payslip_email_template: string | null
+          salary_expense_account_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_finance_posting?: boolean | null
+          created_at?: string | null
+          currency_id?: string | null
+          default_payment_mode_id?: string | null
+          id?: string
+          payroll_frequency?: string
+          payroll_liability_account_id?: string | null
+          payslip_email_template?: string | null
+          salary_expense_account_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_finance_posting?: boolean | null
+          created_at?: string | null
+          currency_id?: string | null
+          default_payment_mode_id?: string | null
+          id?: string
+          payroll_frequency?: string
+          payroll_liability_account_id?: string | null
+          payslip_email_template?: string | null
+          salary_expense_account_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_settings_currency_id_fkey"
+            columns: ["currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_default_payment_mode_id_fkey"
+            columns: ["default_payment_mode_id"]
+            isOneToOne: false
+            referencedRelation: "payment_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_payroll_liability_account_id_fkey"
+            columns: ["payroll_liability_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_salary_expense_account_id_fkey"
+            columns: ["salary_expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_tax_bands: {
+        Row: {
+          created_at: string | null
+          fixed_amount: number | null
+          id: string
+          lower_limit: number
+          rate: number
+          sort_order: number | null
+          statutory_config_id: string
+          upper_limit: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          fixed_amount?: number | null
+          id?: string
+          lower_limit?: number
+          rate: number
+          sort_order?: number | null
+          statutory_config_id: string
+          upper_limit?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          fixed_amount?: number | null
+          id?: string
+          lower_limit?: number
+          rate?: number
+          sort_order?: number | null
+          statutory_config_id?: string
+          upper_limit?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_tax_bands_statutory_config_id_fkey"
+            columns: ["statutory_config_id"]
+            isOneToOne: false
+            referencedRelation: "statutory_deduction_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payslips: {
+        Row: {
+          created_at: string | null
+          email_sent: boolean | null
+          email_sent_at: string | null
+          employee_id: string
+          gross_pay: number | null
+          id: string
+          net_pay: number | null
+          payroll_item_id: string
+          payroll_run_id: string
+          payslip_number: string
+          period_id: string
+          total_deductions: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          employee_id: string
+          gross_pay?: number | null
+          id?: string
+          net_pay?: number | null
+          payroll_item_id: string
+          payroll_run_id: string
+          payslip_number: string
+          period_id: string
+          total_deductions?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          employee_id?: string
+          gross_pay?: number | null
+          id?: string
+          net_pay?: number | null
+          payroll_item_id?: string
+          payroll_run_id?: string
+          payslip_number?: string
+          period_id?: string
+          total_deductions?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslips_payroll_item_id_fkey"
+            columns: ["payroll_item_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslips_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslips_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poe_assignments: {
         Row: {
           allowed_file_types: string[] | null
@@ -5227,6 +5809,89 @@ export type Database = {
           },
         ]
       }
+      salary_components: {
+        Row: {
+          calculation_type: string
+          category: string
+          component_type: string
+          created_at: string | null
+          default_amount: number | null
+          formula: string | null
+          id: string
+          is_statutory: boolean | null
+          is_taxable: boolean | null
+          name: string
+          percentage_of: string | null
+          sort_order: number | null
+          structure_id: string
+        }
+        Insert: {
+          calculation_type?: string
+          category?: string
+          component_type: string
+          created_at?: string | null
+          default_amount?: number | null
+          formula?: string | null
+          id?: string
+          is_statutory?: boolean | null
+          is_taxable?: boolean | null
+          name: string
+          percentage_of?: string | null
+          sort_order?: number | null
+          structure_id: string
+        }
+        Update: {
+          calculation_type?: string
+          category?: string
+          component_type?: string
+          created_at?: string | null
+          default_amount?: number | null
+          formula?: string | null
+          id?: string
+          is_statutory?: boolean | null
+          is_taxable?: boolean | null
+          name?: string
+          percentage_of?: string | null
+          sort_order?: number | null
+          structure_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_components_structure_id_fkey"
+            columns: ["structure_id"]
+            isOneToOne: false
+            referencedRelation: "salary_structures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salary_structures: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       session_types: {
         Row: {
           created_at: string | null
@@ -5346,6 +6011,50 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      statutory_deduction_configs: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          deduction_type: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          deduction_type: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          deduction_type?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statutory_deduction_configs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_attendance: {
         Row: {
@@ -5883,6 +6592,7 @@ export type Database = {
       generate_certificate_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_journal_number: { Args: never; Returns: string }
+      generate_payslip_number: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
       generate_voucher_number: { Args: never; Returns: string }
       get_user_app_role: { Args: { _user_id: string }; Returns: string }
