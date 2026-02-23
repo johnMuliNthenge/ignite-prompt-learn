@@ -1340,6 +1340,63 @@ export type Database = {
           },
         ]
       }
+      employee_bank_accounts: {
+        Row: {
+          account_number: string
+          bank_code: string | null
+          bank_name: string | null
+          branch_name: string | null
+          created_at: string | null
+          employee_id: string
+          financial_institution_id: string | null
+          id: string
+          is_active: boolean | null
+          is_primary: boolean | null
+          percentage: number | null
+        }
+        Insert: {
+          account_number: string
+          bank_code?: string | null
+          bank_name?: string | null
+          branch_name?: string | null
+          created_at?: string | null
+          employee_id: string
+          financial_institution_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_primary?: boolean | null
+          percentage?: number | null
+        }
+        Update: {
+          account_number?: string
+          bank_code?: string | null
+          bank_name?: string | null
+          branch_name?: string | null
+          created_at?: string | null
+          employee_id?: string
+          financial_institution_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_primary?: boolean | null
+          percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_bank_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_bank_accounts_financial_institution_id_fkey"
+            columns: ["financial_institution_id"]
+            isOneToOne: false
+            referencedRelation: "financial_institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_deductions: {
         Row: {
           account_id: string | null
@@ -1406,6 +1463,81 @@ export type Database = {
           },
         ]
       }
+      employee_events: {
+        Row: {
+          affects_salary: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          affects_salary?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          affects_salary?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      employee_non_cash_benefits: {
+        Row: {
+          amount: number | null
+          benefit_id: string
+          created_at: string | null
+          effective_from: string | null
+          effective_to: string | null
+          employee_id: string
+          id: string
+          is_active: boolean | null
+        }
+        Insert: {
+          amount?: number | null
+          benefit_id: string
+          created_at?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          employee_id: string
+          id?: string
+          is_active?: boolean | null
+        }
+        Update: {
+          amount?: number | null
+          benefit_id?: string
+          created_at?: string | null
+          effective_from?: string | null
+          effective_to?: string | null
+          employee_id?: string
+          id?: string
+          is_active?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_non_cash_benefits_benefit_id_fkey"
+            columns: ["benefit_id"]
+            isOneToOne: false
+            referencedRelation: "non_cash_benefits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_non_cash_benefits_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_payroll_accounts: {
         Row: {
           bank_account_number: string | null
@@ -1413,12 +1545,24 @@ export type Database = {
           bank_name: string | null
           basic_salary: number | null
           created_at: string | null
+          disbursement_mode_id: string | null
+          effective_date: string | null
           employee_id: string
+          employee_status_id: string | null
+          end_date: string | null
           id: string
           is_active: boolean | null
+          notes: string | null
+          pay_grade_id: string | null
           payment_mode_id: string | null
           pension_number: string | null
+          processing_method: string | null
           salary_structure_id: string | null
+          sheltered_housing_levy: boolean | null
+          sheltered_nhif: boolean | null
+          sheltered_nhlf: boolean | null
+          sheltered_nssf: boolean | null
+          sheltered_paye: boolean | null
           tax_number: string | null
           updated_at: string | null
         }
@@ -1428,12 +1572,24 @@ export type Database = {
           bank_name?: string | null
           basic_salary?: number | null
           created_at?: string | null
+          disbursement_mode_id?: string | null
+          effective_date?: string | null
           employee_id: string
+          employee_status_id?: string | null
+          end_date?: string | null
           id?: string
           is_active?: boolean | null
+          notes?: string | null
+          pay_grade_id?: string | null
           payment_mode_id?: string | null
           pension_number?: string | null
+          processing_method?: string | null
           salary_structure_id?: string | null
+          sheltered_housing_levy?: boolean | null
+          sheltered_nhif?: boolean | null
+          sheltered_nhlf?: boolean | null
+          sheltered_nssf?: boolean | null
+          sheltered_paye?: boolean | null
           tax_number?: string | null
           updated_at?: string | null
         }
@@ -1443,21 +1599,54 @@ export type Database = {
           bank_name?: string | null
           basic_salary?: number | null
           created_at?: string | null
+          disbursement_mode_id?: string | null
+          effective_date?: string | null
           employee_id?: string
+          employee_status_id?: string | null
+          end_date?: string | null
           id?: string
           is_active?: boolean | null
+          notes?: string | null
+          pay_grade_id?: string | null
           payment_mode_id?: string | null
           pension_number?: string | null
+          processing_method?: string | null
           salary_structure_id?: string | null
+          sheltered_housing_levy?: boolean | null
+          sheltered_nhif?: boolean | null
+          sheltered_nhlf?: boolean | null
+          sheltered_nssf?: boolean | null
+          sheltered_paye?: boolean | null
           tax_number?: string | null
           updated_at?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "employee_payroll_accounts_disbursement_mode_id_fkey"
+            columns: ["disbursement_mode_id"]
+            isOneToOne: false
+            referencedRelation: "salary_disbursement_modes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "employee_payroll_accounts_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: true
             referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_payroll_accounts_employee_status_id_fkey"
+            columns: ["employee_status_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_employee_statuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_payroll_accounts_pay_grade_id_fkey"
+            columns: ["pay_grade_id"]
+            isOneToOne: false
+            referencedRelation: "pay_grades"
             referencedColumns: ["id"]
           },
           {
@@ -2227,6 +2416,36 @@ export type Database = {
           setting_key?: string
           setting_value?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      financial_institutions: {
+        Row: {
+          bank_code: string | null
+          branch_code: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          swift_code: string | null
+        }
+        Insert: {
+          bank_code?: string | null
+          branch_code?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          swift_code?: string | null
+        }
+        Update: {
+          bank_code?: string | null
+          branch_code?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          swift_code?: string | null
         }
         Relationships: []
       }
@@ -4106,6 +4325,36 @@ export type Database = {
         }
         Relationships: []
       }
+      insurance_providers: {
+        Row: {
+          contact_person: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           approved_by: string | null
@@ -4548,6 +4797,36 @@ export type Database = {
           },
         ]
       }
+      non_cash_benefits: {
+        Row: {
+          created_at: string | null
+          default_amount: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          taxable: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_amount?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          taxable?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          default_amount?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          taxable?: boolean | null
+        }
+        Relationships: []
+      }
       online_classes: {
         Row: {
           course_id: string
@@ -4597,6 +4876,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pay_grades: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          max_salary: number | null
+          min_salary: number | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_salary?: number | null
+          min_salary?: number | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_salary?: number | null
+          min_salary?: number | null
+          name?: string
+        }
+        Relationships: []
       }
       payable_items: {
         Row: {
@@ -4994,6 +5303,30 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_employee_statuses: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
       payroll_item_details: {
         Row: {
           amount: number | null
@@ -5104,6 +5437,74 @@ export type Database = {
             columns: ["payroll_run_id"]
             isOneToOne: false
             referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_loan_types: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          interest_rate: number | null
+          is_active: boolean | null
+          max_repayment_months: number | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          interest_rate?: number | null
+          is_active?: boolean | null
+          max_repayment_months?: number | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          interest_rate?: number | null
+          is_active?: boolean | null
+          max_repayment_months?: number | null
+          name?: string
+        }
+        Relationships: []
+      }
+      payroll_pay_accounts: {
+        Row: {
+          account_id: string | null
+          account_type: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          account_id?: string | null
+          account_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_pay_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -5230,41 +5631,132 @@ export type Database = {
       payroll_settings: {
         Row: {
           auto_finance_posting: boolean | null
+          basic_salary_account_id: string | null
           created_at: string | null
           currency_id: string | null
           default_payment_mode_id: string | null
+          employee_housing_levy_account_id: string | null
+          employer_housing_levy_account_id: string | null
+          employer_nhif_code: string | null
+          employer_nssf_account_id: string | null
+          employer_nssf_number: string | null
+          employer_pin: string | null
+          housing_levy_relief_rate: number | null
           id: string
+          include_employer_pension_in_taxable: boolean | null
+          insurance_relief_rate: number | null
+          manual_nssf: boolean | null
+          max_allowable_deduction: number | null
+          max_housing_levy_relief: number | null
+          max_insurance_relief: number | null
+          min_shif_deduction: number | null
+          net_pay_account_id: string | null
+          nhif_relief_rate: number | null
+          nhlf_account_id: string | null
+          nssf_account_id: string | null
+          paye_account_id: string | null
           payroll_frequency: string
           payroll_liability_account_id: string | null
           payslip_email_template: string | null
+          require_payroll_approval: boolean | null
           salary_expense_account_id: string | null
+          shif_account_id: string | null
+          shif_relief_rate: number | null
+          show_loan_balance_on_payroll: boolean | null
+          signatory_1: string | null
+          signatory_2: string | null
+          signatory_3: string | null
           updated_at: string | null
+          use_nssf_tier1_only: boolean | null
         }
         Insert: {
           auto_finance_posting?: boolean | null
+          basic_salary_account_id?: string | null
           created_at?: string | null
           currency_id?: string | null
           default_payment_mode_id?: string | null
+          employee_housing_levy_account_id?: string | null
+          employer_housing_levy_account_id?: string | null
+          employer_nhif_code?: string | null
+          employer_nssf_account_id?: string | null
+          employer_nssf_number?: string | null
+          employer_pin?: string | null
+          housing_levy_relief_rate?: number | null
           id?: string
+          include_employer_pension_in_taxable?: boolean | null
+          insurance_relief_rate?: number | null
+          manual_nssf?: boolean | null
+          max_allowable_deduction?: number | null
+          max_housing_levy_relief?: number | null
+          max_insurance_relief?: number | null
+          min_shif_deduction?: number | null
+          net_pay_account_id?: string | null
+          nhif_relief_rate?: number | null
+          nhlf_account_id?: string | null
+          nssf_account_id?: string | null
+          paye_account_id?: string | null
           payroll_frequency?: string
           payroll_liability_account_id?: string | null
           payslip_email_template?: string | null
+          require_payroll_approval?: boolean | null
           salary_expense_account_id?: string | null
+          shif_account_id?: string | null
+          shif_relief_rate?: number | null
+          show_loan_balance_on_payroll?: boolean | null
+          signatory_1?: string | null
+          signatory_2?: string | null
+          signatory_3?: string | null
           updated_at?: string | null
+          use_nssf_tier1_only?: boolean | null
         }
         Update: {
           auto_finance_posting?: boolean | null
+          basic_salary_account_id?: string | null
           created_at?: string | null
           currency_id?: string | null
           default_payment_mode_id?: string | null
+          employee_housing_levy_account_id?: string | null
+          employer_housing_levy_account_id?: string | null
+          employer_nhif_code?: string | null
+          employer_nssf_account_id?: string | null
+          employer_nssf_number?: string | null
+          employer_pin?: string | null
+          housing_levy_relief_rate?: number | null
           id?: string
+          include_employer_pension_in_taxable?: boolean | null
+          insurance_relief_rate?: number | null
+          manual_nssf?: boolean | null
+          max_allowable_deduction?: number | null
+          max_housing_levy_relief?: number | null
+          max_insurance_relief?: number | null
+          min_shif_deduction?: number | null
+          net_pay_account_id?: string | null
+          nhif_relief_rate?: number | null
+          nhlf_account_id?: string | null
+          nssf_account_id?: string | null
+          paye_account_id?: string | null
           payroll_frequency?: string
           payroll_liability_account_id?: string | null
           payslip_email_template?: string | null
+          require_payroll_approval?: boolean | null
           salary_expense_account_id?: string | null
+          shif_account_id?: string | null
+          shif_relief_rate?: number | null
+          show_loan_balance_on_payroll?: boolean | null
+          signatory_1?: string | null
+          signatory_2?: string | null
+          signatory_3?: string | null
           updated_at?: string | null
+          use_nssf_tier1_only?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payroll_settings_basic_salary_account_id_fkey"
+            columns: ["basic_salary_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payroll_settings_currency_id_fkey"
             columns: ["currency_id"]
@@ -5280,6 +5772,55 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payroll_settings_employee_housing_levy_account_id_fkey"
+            columns: ["employee_housing_levy_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_employer_housing_levy_account_id_fkey"
+            columns: ["employer_housing_levy_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_employer_nssf_account_id_fkey"
+            columns: ["employer_nssf_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_net_pay_account_id_fkey"
+            columns: ["net_pay_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_nhlf_account_id_fkey"
+            columns: ["nhlf_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_nssf_account_id_fkey"
+            columns: ["nssf_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_paye_account_id_fkey"
+            columns: ["paye_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payroll_settings_payroll_liability_account_id_fkey"
             columns: ["payroll_liability_account_id"]
             isOneToOne: false
@@ -5289,6 +5830,13 @@ export type Database = {
           {
             foreignKeyName: "payroll_settings_salary_expense_account_id_fkey"
             columns: ["salary_expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_shif_account_id_fkey"
+            columns: ["shif_account_id"]
             isOneToOne: false
             referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
@@ -5864,6 +6412,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      salary_disbursement_modes: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
       }
       salary_structures: {
         Row: {
