@@ -5654,14 +5654,18 @@ export type Database = {
           nhif_relief_rate: number | null
           nhlf_account_id: string | null
           nssf_account_id: string | null
+          nssf_tier_distribution: string | null
           paye_account_id: string | null
           payroll_frequency: string
           payroll_liability_account_id: string | null
           payslip_email_template: string | null
           require_payroll_approval: boolean | null
+          retirement_age: number | null
           salary_expense_account_id: string | null
           shif_account_id: string | null
+          shif_on_casual: boolean | null
           shif_relief_rate: number | null
+          show_10_column_remittance: boolean | null
           show_loan_balance_on_payroll: boolean | null
           signatory_1: string | null
           signatory_2: string | null
@@ -5694,14 +5698,18 @@ export type Database = {
           nhif_relief_rate?: number | null
           nhlf_account_id?: string | null
           nssf_account_id?: string | null
+          nssf_tier_distribution?: string | null
           paye_account_id?: string | null
           payroll_frequency?: string
           payroll_liability_account_id?: string | null
           payslip_email_template?: string | null
           require_payroll_approval?: boolean | null
+          retirement_age?: number | null
           salary_expense_account_id?: string | null
           shif_account_id?: string | null
+          shif_on_casual?: boolean | null
           shif_relief_rate?: number | null
+          show_10_column_remittance?: boolean | null
           show_loan_balance_on_payroll?: boolean | null
           signatory_1?: string | null
           signatory_2?: string | null
@@ -5734,14 +5742,18 @@ export type Database = {
           nhif_relief_rate?: number | null
           nhlf_account_id?: string | null
           nssf_account_id?: string | null
+          nssf_tier_distribution?: string | null
           paye_account_id?: string | null
           payroll_frequency?: string
           payroll_liability_account_id?: string | null
           payslip_email_template?: string | null
           require_payroll_approval?: boolean | null
+          retirement_age?: number | null
           salary_expense_account_id?: string | null
           shif_account_id?: string | null
+          shif_on_casual?: boolean | null
           shif_relief_rate?: number | null
+          show_10_column_remittance?: boolean | null
           show_loan_balance_on_payroll?: boolean | null
           signatory_1?: string | null
           signatory_2?: string | null
