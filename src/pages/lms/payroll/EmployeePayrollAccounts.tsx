@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Edit, Users, Search, Plus, Trash2 } from 'lucide-react';
@@ -25,6 +25,16 @@ interface BankAccount {
   is_primary: boolean;
 }
 
+const INITIAL_FORM = {
+  salary_structure_id: '', basic_salary: 0, is_active: true,
+  pay_grade_id: '', processing_method: 'normal',
+  disbursement_mode_id: '', employee_status_id: '',
+  tax_number: '', pension_number: '',
+  sheltered_paye: false, sheltered_nhif: false, sheltered_nssf: false,
+  sheltered_housing_levy: false, sheltered_nhlf: false,
+  effective_date: '', end_date: '', notes: '',
+};
+
 const EmployeePayrollAccounts = () => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [payrollAccounts, setPayrollAccounts] = useState<any[]>([]);
@@ -39,34 +49,7 @@ const EmployeePayrollAccounts = () => {
   const [search, setSearch] = useState('');
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isAddMode, setIsAddMode] = useState(false);
-
-  const handleAdd = () => {
-    setIsAddMode(true);
-    setSelectedEmployee(null);
-    setForm({
-      salary_structure_id: '', basic_salary: 0, is_active: true,
-      pay_grade_id: '', processing_method: 'normal',
-      disbursement_mode_id: '', employee_status_id: '',
-      tax_number: '', pension_number: '',
-      sheltered_paye: false, sheltered_nhif: false, sheltered_nssf: false,
-      sheltered_housing_levy: false, sheltered_nhlf: false,
-      effective_date: '', end_date: '', notes: '',
-    });
-    setBankAccounts([]);
-    setShowDialog(true);
-  };
-
-  const unconfiguredEmployees = employees.filter(e => !getPayrollAccount(e.id));
-
-  const [form, setForm] = useState({
-    salary_structure_id: '', basic_salary: 0, is_active: true,
-    pay_grade_id: '', processing_method: 'normal',
-    disbursement_mode_id: '', employee_status_id: '',
-    tax_number: '', pension_number: '',
-    sheltered_paye: false, sheltered_nhif: false, sheltered_nssf: false,
-    sheltered_housing_levy: false, sheltered_nhlf: false,
-    effective_date: '', end_date: '', notes: '',
-  });
+  const [form, setForm] = useState({ ...INITIAL_FORM });
 
   useEffect(() => { fetchData(); }, []);
 
@@ -93,6 +76,38 @@ const EmployeePayrollAccounts = () => {
 
   const getPayrollAccount = (employeeId: string) => payrollAccounts.find(pa => pa.employee_id === employeeId);
 
+  const unconfiguredEmployees = useMemo(() =>
+    employees.filter(e => !getPayrollAccount(e.id)),
+    [employees, payrollAccounts]
+  );
+
+  const employeeOptions = useMemo(() =>
+    unconfiguredEmployees.map(e => ({
+      value: e.id,
+      label: `${e.employee_no} - ${e.first_name} ${e.middle_name || ''} ${e.last_name}`.replace(/\s+/g, ' '),
+    })),
+    [unconfiguredEmployees]
+  );
+
+  const structureOptions = useMemo(() => structures.map(s => ({ value: s.id, label: s.name })), [structures]);
+  const payGradeOptions = useMemo(() => payGrades.map(pg => ({ value: pg.id, label: pg.name })), [payGrades]);
+  const disbursementOptions = useMemo(() => disbursementModes.map(dm => ({ value: dm.id, label: dm.name })), [disbursementModes]);
+  const statusOptions = useMemo(() => employeeStatuses.map(es => ({ value: es.id, label: es.name })), [employeeStatuses]);
+  const fiOptions = useMemo(() => financialInstitutions.map(fi => ({ value: fi.id, label: `${fi.name}${fi.branch_code ? ' - ' + fi.branch_code : ''}` })), [financialInstitutions]);
+  const processingOptions = [
+    { value: 'normal', label: 'Normal' },
+    { value: 'casual', label: 'Casual' },
+    { value: 'contract', label: 'Contract' },
+  ];
+
+  const handleAdd = () => {
+    setIsAddMode(true);
+    setSelectedEmployee(null);
+    setForm({ ...INITIAL_FORM });
+    setBankAccounts([]);
+    setShowDialog(true);
+  };
+
   const handleEdit = async (emp: any) => {
     setIsAddMode(false);
     setSelectedEmployee(emp);
@@ -118,17 +133,8 @@ const EmployeePayrollAccounts = () => {
         notes: existing.notes || '',
       });
     } else {
-      setForm({
-        salary_structure_id: '', basic_salary: 0, is_active: true,
-        pay_grade_id: '', processing_method: 'normal',
-        disbursement_mode_id: '', employee_status_id: '',
-        tax_number: '', pension_number: '',
-        sheltered_paye: false, sheltered_nhif: false, sheltered_nssf: false,
-        sheltered_housing_levy: false, sheltered_nhlf: false,
-        effective_date: '', end_date: '', notes: '',
-      });
+      setForm({ ...INITIAL_FORM });
     }
-    // Fetch bank accounts
     const { data: banks } = await supabase.from('employee_bank_accounts').select('*').eq('employee_id', emp.id).eq('is_active', true);
     setBankAccounts((banks || []).map(b => ({
       id: b.id, account_number: b.account_number, bank_code: b.bank_code || '',
@@ -143,14 +149,11 @@ const EmployeePayrollAccounts = () => {
     setBankAccounts([...bankAccounts, { account_number: '', bank_code: '', bank_name: '', branch_name: '', percentage: 0, financial_institution_id: '', is_primary: bankAccounts.length === 0 }]);
   };
 
-  const removeBankRow = (idx: number) => {
-    setBankAccounts(bankAccounts.filter((_, i) => i !== idx));
-  };
+  const removeBankRow = (idx: number) => setBankAccounts(bankAccounts.filter((_, i) => i !== idx));
 
   const updateBankRow = (idx: number, field: string, value: any) => {
     const updated = [...bankAccounts];
     (updated[idx] as any)[field] = value;
-    // Auto-fill bank name from financial institution
     if (field === 'financial_institution_id') {
       const fi = financialInstitutions.find(f => f.id === value);
       if (fi) {
@@ -165,14 +168,8 @@ const EmployeePayrollAccounts = () => {
   const totalBankPercentage = bankAccounts.reduce((s, b) => s + (b.percentage || 0), 0);
 
   const handleSave = async () => {
-    if (!selectedEmployee) {
-      toast.error('Please select an employee');
-      return;
-    }
-    if (bankAccounts.length > 0 && totalBankPercentage !== 100) {
-      toast.error('Bank account percentages must total 100%');
-      return;
-    }
+    if (!selectedEmployee) { toast.error('Please select an employee'); return; }
+    if (bankAccounts.length > 0 && totalBankPercentage !== 100) { toast.error('Bank account percentages must total 100%'); return; }
     try {
       const existing = getPayrollAccount(selectedEmployee.id);
       const payload: any = {
@@ -204,10 +201,7 @@ const EmployeePayrollAccounts = () => {
         if (error) throw error;
       }
 
-      // Save bank accounts
-      // Deactivate existing
       await supabase.from('employee_bank_accounts').update({ is_active: false }).eq('employee_id', selectedEmployee.id);
-      // Insert/update new
       for (const bank of bankAccounts) {
         const bankPayload = {
           employee_id: selectedEmployee.id,
@@ -301,21 +295,15 @@ const EmployeePayrollAccounts = () => {
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{isAddMode ? 'Add Employee Payroll Account' : `Employee Service Profile: ${selectedEmployee?.first_name} ${selectedEmployee?.last_name}`}</DialogTitle></DialogHeader>
           <div className="space-y-6">
-            {/* Employee Selection (Add mode) or Basic Info (Edit mode) */}
             {isAddMode ? (
               <div>
                 <Label>Select Employee</Label>
-                <Select value={selectedEmployee?.id || ''} onValueChange={v => {
-                  const emp = employees.find(e => e.id === v);
-                  setSelectedEmployee(emp || null);
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Select an employee" /></SelectTrigger>
-                  <SelectContent>
-                    {unconfiguredEmployees.map(e => (
-                      <SelectItem key={e.id} value={e.id}>{e.employee_no} - {e.first_name} {e.last_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={employeeOptions}
+                  value={selectedEmployee?.id || ''}
+                  onValueChange={v => setSelectedEmployee(employees.find(e => e.id === v) || null)}
+                  placeholder="Search and select an employee..."
+                />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
@@ -326,36 +314,22 @@ const EmployeePayrollAccounts = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Salary Structure</Label>
-                <Select value={form.salary_structure_id} onValueChange={v => setForm({...form, salary_structure_id: v})}>
-                  <SelectTrigger><SelectValue placeholder="Please Select" /></SelectTrigger>
-                  <SelectContent>{structures.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <SearchableSelect options={structureOptions} value={form.salary_structure_id} onValueChange={v => setForm({...form, salary_structure_id: v})} placeholder="Select structure..." />
               </div>
               <div><Label>Processing Method</Label>
-                <Select value={form.processing_method} onValueChange={v => setForm({...form, processing_method: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="casual">Casual</SelectItem>
-                    <SelectItem value="contract">Contract</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SearchableSelect options={processingOptions} value={form.processing_method} onValueChange={v => setForm({...form, processing_method: v})} placeholder="Select method..." />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Pay Grade</Label>
-                <Select value={form.pay_grade_id} onValueChange={v => setForm({...form, pay_grade_id: v})}>
-                  <SelectTrigger><SelectValue placeholder="Please Select" /></SelectTrigger>
-                  <SelectContent>{payGrades.map(pg => <SelectItem key={pg.id} value={pg.id}>{pg.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <SearchableSelect options={payGradeOptions} value={form.pay_grade_id} onValueChange={v => setForm({...form, pay_grade_id: v})} placeholder="Select grade..." />
               </div>
               <div><Label>Basic Salary</Label><Input type="number" value={form.basic_salary} onChange={e => setForm({...form, basic_salary: Number(e.target.value)})} /></div>
             </div>
 
             <Separator />
 
-            {/* Sheltered from Paying */}
             <div>
               <Label className="text-base font-semibold">Sheltered from Paying</Label>
               <div className="flex flex-wrap gap-6 mt-2">
@@ -378,16 +352,10 @@ const EmployeePayrollAccounts = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Employee Status</Label>
-                <Select value={form.employee_status_id} onValueChange={v => setForm({...form, employee_status_id: v})}>
-                  <SelectTrigger><SelectValue placeholder="Please Select" /></SelectTrigger>
-                  <SelectContent>{employeeStatuses.map(es => <SelectItem key={es.id} value={es.id}>{es.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <SearchableSelect options={statusOptions} value={form.employee_status_id} onValueChange={v => setForm({...form, employee_status_id: v})} placeholder="Select status..." />
               </div>
               <div><Label>Salary Disbursement Mode</Label>
-                <Select value={form.disbursement_mode_id} onValueChange={v => setForm({...form, disbursement_mode_id: v})}>
-                  <SelectTrigger><SelectValue placeholder="Please Select" /></SelectTrigger>
-                  <SelectContent>{disbursementModes.map(dm => <SelectItem key={dm.id} value={dm.id}>{dm.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <SearchableSelect options={disbursementOptions} value={form.disbursement_mode_id} onValueChange={v => setForm({...form, disbursement_mode_id: v})} placeholder="Select mode..." />
               </div>
             </div>
 
@@ -403,7 +371,6 @@ const EmployeePayrollAccounts = () => {
 
             <Separator />
 
-            {/* Bank Accounts */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-base font-semibold">Bank Accounts</Label>
@@ -427,10 +394,7 @@ const EmployeePayrollAccounts = () => {
                       <TableCell><Input value={bank.account_number} onChange={e => updateBankRow(idx, 'account_number', e.target.value)} className="h-8" /></TableCell>
                       <TableCell><Input value={bank.bank_code} onChange={e => updateBankRow(idx, 'bank_code', e.target.value)} className="h-8 w-20" /></TableCell>
                       <TableCell>
-                        <Select value={bank.financial_institution_id} onValueChange={v => updateBankRow(idx, 'financial_institution_id', v)}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="Select" /></SelectTrigger>
-                          <SelectContent>{financialInstitutions.map(fi => <SelectItem key={fi.id} value={fi.id}>{fi.name} - {fi.branch || 'Main'}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <SearchableSelect options={fiOptions} value={bank.financial_institution_id} onValueChange={v => updateBankRow(idx, 'financial_institution_id', v)} placeholder="Select bank..." />
                       </TableCell>
                       <TableCell><Input type="number" value={bank.percentage} onChange={e => updateBankRow(idx, 'percentage', Number(e.target.value))} className="h-8 w-20" /></TableCell>
                       <TableCell><Button size="icon" variant="ghost" onClick={() => removeBankRow(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
