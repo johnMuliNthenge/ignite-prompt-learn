@@ -726,6 +726,76 @@ const hrModule: NavModule = {
   ],
 };
 
+// Payroll Module
+const payrollModule: NavModule = {
+  title: 'Payroll',
+  icon: Banknote,
+  moduleCode: 'payroll',
+  roles: ['admin'],
+  items: [
+    {
+      title: 'Payroll Settings',
+      href: '/lms/payroll/settings',
+      icon: Settings,
+      moduleCode: 'payroll.settings',
+    },
+    {
+      title: 'Salary Structures',
+      href: '/lms/payroll/salary-structures',
+      icon: Layers,
+      moduleCode: 'payroll.salary_structures',
+    },
+    {
+      title: 'Statutory Deductions',
+      href: '/lms/payroll/statutory-deductions',
+      icon: Shield,
+      moduleCode: 'payroll.statutory',
+    },
+    {
+      title: 'Payroll Calendar',
+      href: '/lms/payroll/calendar',
+      icon: Calendar,
+      moduleCode: 'payroll.calendar',
+    },
+    {
+      title: 'Employee Payroll Accounts',
+      href: '/lms/payroll/employee-accounts',
+      icon: Users,
+      moduleCode: 'payroll.employee_accounts',
+    },
+    {
+      title: 'Payroll Processing',
+      href: '/lms/payroll/processing',
+      icon: DollarSign,
+      moduleCode: 'payroll.processing',
+    },
+    {
+      title: 'Deductions & Benefits',
+      href: '/lms/payroll/deductions',
+      icon: Wallet,
+      moduleCode: 'payroll.deductions',
+    },
+    {
+      title: 'Payslips',
+      href: '/lms/payroll/payslips',
+      icon: FileText,
+      moduleCode: 'payroll.payslips',
+    },
+    {
+      title: 'Payroll Reports',
+      href: '/lms/payroll/reports',
+      icon: BarChart2,
+      moduleCode: 'payroll.reports',
+    },
+    {
+      title: 'Audit Log',
+      href: '/lms/payroll/audit-log',
+      icon: ClipboardCheck,
+      moduleCode: 'payroll.audit',
+    },
+  ],
+};
+
 // Student Academics Module
 const academicsModule: NavModule = {
   title: 'Student Academics',
@@ -1083,6 +1153,16 @@ function SidebarContent({
             <Separator className="my-4" />
             <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
               {renderModule(hrModule)}
+            </div>
+          </>
+        )}
+
+        {/* Payroll Module */}
+        {canViewModule(payrollModule) && (
+          <>
+            <Separator className="my-4" />
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(payrollModule)}
             </div>
           </>
         )}
