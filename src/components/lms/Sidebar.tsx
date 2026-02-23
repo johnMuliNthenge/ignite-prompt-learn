@@ -57,6 +57,7 @@ import {
   Mail,
   ClipboardPen,
   Phone,
+  Gift,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -72,7 +73,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 interface NavItem {
   title: string;
-  href: string;
+  href?: string;
   icon: React.ElementType;
   moduleCode?: string;
   roles?: ('admin' | 'teacher' | 'student')[];
@@ -898,8 +899,8 @@ function SidebarContent({
     );
   };
 
-  const isActiveRoute = (href: string, subItems?: NavItem[]) => {
-    if (location.pathname === href) return true;
+  const isActiveRoute = (href: string | undefined, subItems?: NavItem[]) => {
+    if (href && location.pathname === href) return true;
     if (subItems) {
       return subItems.some((sub) => isActiveRoute(sub.href, sub.subItems));
     }
@@ -956,7 +957,7 @@ function SidebarContent({
         <Tooltip key={item.title}>
           <TooltipTrigger asChild>
             <Link
-              to={hasSubItems ? item.subItems![0].href : item.href}
+              to={hasSubItems ? (item.subItems![0].href || '#') : (item.href || '#')}
               onClick={onNavigate}
               className={cn(
                 'flex items-center justify-center rounded-lg p-2 transition-colors',
@@ -1012,12 +1013,12 @@ function SidebarContent({
 
     return (
       <Link
-        key={item.href}
-        to={item.href}
+        key={item.href || item.title}
+        to={item.href || '#'}
         onClick={onNavigate}
         className={cn(
           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-          location.pathname === item.href
+          item.href && location.pathname === item.href
             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
           depth > 0 && 'text-xs'
