@@ -167,6 +167,15 @@ import DeductionsBenefits from "./pages/lms/payroll/DeductionsBenefits";
 import PayslipManagement from "./pages/lms/payroll/PayslipManagement";
 import PayrollReports from "./pages/lms/payroll/PayrollReports";
 import PayrollAuditLog from "./pages/lms/payroll/PayrollAuditLog";
+// Payroll Utilities
+import PayGrades from "./pages/lms/payroll/utilities/PayGrades";
+import FinancialInstitutions from "./pages/lms/payroll/utilities/FinancialInstitutions";
+import LoanTypes from "./pages/lms/payroll/utilities/LoanTypes";
+import InsuranceProviders from "./pages/lms/payroll/utilities/InsuranceProviders";
+import NonCashBenefits from "./pages/lms/payroll/utilities/NonCashBenefits";
+import DisbursementModes from "./pages/lms/payroll/utilities/DisbursementModes";
+import PayAccounts from "./pages/lms/payroll/utilities/PayAccounts";
+import EmployeeStatuses from "./pages/lms/payroll/utilities/EmployeeStatuses";
 
 const queryClient = new QueryClient();
 
@@ -334,6 +343,14 @@ const App = () => (
               <Route path="payroll/payslips" element={<PayslipManagement />} />
               <Route path="payroll/reports" element={<PayrollReports />} />
               <Route path="payroll/audit-log" element={<PayrollAuditLog />} />
+              <Route path="payroll/utilities/pay-grades" element={<PayGrades />} />
+              <Route path="payroll/utilities/financial-institutions" element={<FinancialInstitutions />} />
+              <Route path="payroll/utilities/loan-types" element={<LoanTypes />} />
+              <Route path="payroll/utilities/insurance-providers" element={<InsuranceProviders />} />
+              <Route path="payroll/utilities/non-cash-benefits" element={<NonCashBenefits />} />
+              <Route path="payroll/utilities/disbursement-modes" element={<DisbursementModes />} />
+              <Route path="payroll/utilities/pay-accounts" element={<PayAccounts />} />
+              <Route path="payroll/utilities/employee-statuses" element={<EmployeeStatuses />} />
             </Route>
 
             {/* Student Portal Routes */}
