@@ -56,7 +56,7 @@ const EmployeePayrollAccounts = () => {
   const fetchData = async () => {
     setLoading(true);
     const [empRes, paRes, strRes, pgRes, dmRes, esRes, fiRes] = await Promise.all([
-      supabase.from('hr_employees').select('id, employee_no, first_name, middle_name, last_name, email, department_id, designation_id, status, hr_departments!hr_employees_department_id_fkey(name), hr_designations(title)').eq('status', 'active').order('first_name'),
+      supabase.from('hr_employees').select('id, employee_no, first_name, middle_name, last_name, email, department_id, designation_id, status, hr_departments!hr_employees_department_id_fkey(name), hr_designations(name)').eq('status', 'active').order('first_name'),
       supabase.from('employee_payroll_accounts').select('*'),
       supabase.from('salary_structures').select('id, name').eq('is_active', true),
       supabase.from('pay_grades').select('id, name'),
@@ -274,7 +274,7 @@ const EmployeePayrollAccounts = () => {
                         <TableCell className="font-mono">{emp.employee_no}</TableCell>
                         <TableCell className="font-medium">{emp.first_name} {emp.middle_name || ''} {emp.last_name}</TableCell>
                         <TableCell>{emp.hr_departments?.name || '-'}</TableCell>
-                        <TableCell>{emp.hr_designations?.title || '-'}</TableCell>
+                        <TableCell>{emp.hr_designations?.name || '-'}</TableCell>
                         <TableCell>{pa?.basic_salary ? pa.basic_salary.toLocaleString() : '-'}</TableCell>
                         <TableCell>
                           {sheltered.length > 0 ? sheltered.map(s => <Badge key={s as string} variant="outline" className="mr-1 text-xs">{s}</Badge>) : '-'}
