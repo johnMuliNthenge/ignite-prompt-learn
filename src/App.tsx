@@ -177,6 +177,10 @@ import DisbursementModes from "./pages/lms/payroll/utilities/DisbursementModes";
 import PayAccounts from "./pages/lms/payroll/utilities/PayAccounts";
 import EmployeeStatuses from "./pages/lms/payroll/utilities/EmployeeStatuses";
 
+// Super Admin pages
+import SuperAdminLogin from "./pages/super-admin/SuperAdminLogin";
+import SuperAdminDashboard from "./pages/super-admin/SuperAdminDashboard";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -194,6 +198,10 @@ const App = () => (
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/checkout/:packageId" element={<CheckoutPage />} />
+
+            {/* Super Admin Portal */}
+            <Route path="/super-admin/login" element={<SuperAdminLogin />} />
+            <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
 
             {/* LMS Routes */}
             <Route path="/lms/auth" element={<LMSAuthPage />} />
