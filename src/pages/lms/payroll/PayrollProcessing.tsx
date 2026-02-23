@@ -347,7 +347,12 @@ const PayrollProcessing = () => {
             </div>
             {selectedPeriodId && !currentRun && (
               <Button onClick={startPayroll} disabled={processing}>
-                <Play className="h-4 w-4 mr-2" />{processing ? 'Processing...' : 'Start Processing'}
+                <Play className="h-4 w-4 mr-2" />{processing ? 'Processing...' : 'Process Payroll'}
+              </Button>
+            )}
+            {currentRun?.status === 'processing' && (
+              <Button onClick={startPayroll} disabled={processing}>
+                <Play className="h-4 w-4 mr-2" />{processing ? 'Processing...' : 'Process Payroll'}
               </Button>
             )}
             {currentRun?.status === 'computed' && (
