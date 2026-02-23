@@ -38,6 +38,25 @@ const EmployeePayrollAccounts = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [isAddMode, setIsAddMode] = useState(false);
+
+  const handleAdd = () => {
+    setIsAddMode(true);
+    setSelectedEmployee(null);
+    setForm({
+      salary_structure_id: '', basic_salary: 0, is_active: true,
+      pay_grade_id: '', processing_method: 'normal',
+      disbursement_mode_id: '', employee_status_id: '',
+      tax_number: '', pension_number: '',
+      sheltered_paye: false, sheltered_nhif: false, sheltered_nssf: false,
+      sheltered_housing_levy: false, sheltered_nhlf: false,
+      effective_date: '', end_date: '', notes: '',
+    });
+    setBankAccounts([]);
+    setShowDialog(true);
+  };
+
+  const unconfiguredEmployees = employees.filter(e => !getPayrollAccount(e.id));
 
   const [form, setForm] = useState({
     salary_structure_id: '', basic_salary: 0, is_active: true,
@@ -75,6 +94,7 @@ const EmployeePayrollAccounts = () => {
   const getPayrollAccount = (employeeId: string) => payrollAccounts.find(pa => pa.employee_id === employeeId);
 
   const handleEdit = async (emp: any) => {
+    setIsAddMode(false);
     setSelectedEmployee(emp);
     const existing = getPayrollAccount(emp.id);
     if (existing) {
@@ -145,6 +165,10 @@ const EmployeePayrollAccounts = () => {
   const totalBankPercentage = bankAccounts.reduce((s, b) => s + (b.percentage || 0), 0);
 
   const handleSave = async () => {
+    if (!selectedEmployee) {
+      toast.error('Please select an employee');
+      return;
+    }
     if (bankAccounts.length > 0 && totalBankPercentage !== 100) {
       toast.error('Bank account percentages must total 100%');
       return;
@@ -216,7 +240,10 @@ const EmployeePayrollAccounts = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-2"><Users className="h-6 w-6" /><h1 className="text-2xl font-bold">Employee Payroll Accounts</h1></div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2"><Users className="h-6 w-6" /><h1 className="text-2xl font-bold">Employee Payroll Accounts</h1></div>
+        <Button onClick={handleAdd}><Plus className="mr-2 h-4 w-4" />Add Account</Button>
+      </div>
 
       <Card>
         <CardHeader>
@@ -272,13 +299,30 @@ const EmployeePayrollAccounts = () => {
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Employee Service Profile: {selectedEmployee?.first_name} {selectedEmployee?.last_name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isAddMode ? 'Add Employee Payroll Account' : `Employee Service Profile: ${selectedEmployee?.first_name} ${selectedEmployee?.last_name}`}</DialogTitle></DialogHeader>
           <div className="space-y-6">
-            {/* Basic Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Employee Code</Label><Input disabled value={selectedEmployee?.employee_no || ''} /></div>
-              <div><Label>Department</Label><Input disabled value={selectedEmployee?.hr_departments?.name || ''} /></div>
-            </div>
+            {/* Employee Selection (Add mode) or Basic Info (Edit mode) */}
+            {isAddMode ? (
+              <div>
+                <Label>Select Employee</Label>
+                <Select value={selectedEmployee?.id || ''} onValueChange={v => {
+                  const emp = employees.find(e => e.id === v);
+                  setSelectedEmployee(emp || null);
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Select an employee" /></SelectTrigger>
+                  <SelectContent>
+                    {unconfiguredEmployees.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.employee_no} - {e.first_name} {e.last_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Employee Code</Label><Input disabled value={selectedEmployee?.employee_no || ''} /></div>
+                <div><Label>Department</Label><Input disabled value={selectedEmployee?.hr_departments?.name || ''} /></div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Salary Structure</Label>
