@@ -6,49 +6,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Shield, Loader2, Users, UserCog } from 'lucide-react';
+import { Search, Shield, Loader2, Users, UserCog, Pencil } from 'lucide-react';
 
-interface UserWithRole {
+interface EmployeeRow {
   id: string;
-  user_id: string;
+  employee_no: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  full_name: string | null;
-  is_active: boolean;
-  created_at: string;
-  legacy_role: string;
-  app_role_id: string | null;
-  app_role_name: string | null;
+  user_id: string | null;
+  status: string;
+  department_name: string | null;
+  current_role_id: string | null;
+  current_role_name: string | null;
 }
 
 interface AppRole {
   id: string;
   name: string;
   description: string | null;
-  is_active: boolean;
 }
 
 export default function UserRoleAssignment() {
@@ -56,14 +43,15 @@ export default function UserRoleAssignment() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
+
+  // Edit dialog state
+  const [editEmployee, setEditEmployee] = useState<EmployeeRow | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
-  const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -75,135 +63,125 @@ export default function UserRoleAssignment() {
   }, [isAdmin, navigate]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      // Fetch HR employees (only show employees, not students)
-      const { data: employees, error: employeesError } = await supabase
+      // Fetch employees with department
+      const { data: emps, error: empErr } = await supabase
         .from('hr_employees')
-        .select('id, first_name, last_name, email, user_id')
-        .order('created_at', { ascending: false });
+        .select('id, employee_no, first_name, last_name, email, user_id, status, hr_departments!hr_employees_department_id_fkey(name)')
+        .eq('status', 'active')
+        .order('first_name');
 
-      if (employeesError) throw employeesError;
+      if (empErr) throw empErr;
 
-      // Only get profiles for users who are HR employees
-      const employeeUserIds = (employees || [])
-        .filter(emp => emp.user_id)
-        .map(emp => emp.user_id);
-
-      // Fetch profiles only for employees with user accounts
-      const { data: profiles, error: profilesError } = await supabase
-        .from('lms_profiles')
-        .select('*')
-        .in('user_id', employeeUserIds.length > 0 ? employeeUserIds : ['00000000-0000-0000-0000-000000000000']);
-
-      if (profilesError) throw profilesError;
-
-      // Fetch user_roles with app_role join
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select(`
-          *,
-          app_roles:app_role_id (
-            id,
-            name
-          )
-        `)
-        .in('user_id', employeeUserIds.length > 0 ? employeeUserIds : ['00000000-0000-0000-0000-000000000000']);
-
-      if (rolesError) throw rolesError;
-
-      // Fetch all app roles
-      const { data: appRoles, error: appRolesError } = await supabase
+      // Fetch all active app roles
+      const { data: appRoles, error: rolesErr } = await supabase
         .from('app_roles')
-        .select('*')
+        .select('id, name, description')
         .eq('is_active', true)
         .order('name');
 
-      if (appRolesError) throw appRolesError;
+      if (rolesErr) throw rolesErr;
 
-      // Combine data - only include profiles that belong to HR employees
-      const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
-        const userRole = userRoles?.find((r) => r.user_id === profile.user_id);
-        const employee = employees?.find(emp => emp.user_id === profile.user_id);
-        return {
-          ...profile,
-          full_name: profile.full_name || (employee ? `${employee.first_name} ${employee.last_name}` : null),
-          legacy_role: userRole?.role || 'student',
-          app_role_id: userRole?.app_role_id || null,
-          app_role_name: (userRole?.app_roles as any)?.name || null,
-        };
-      });
+      // Fetch user_roles with app_role mapping for employees that have user_id
+      const userIds = (emps || []).filter(e => e.user_id).map(e => e.user_id);
+      let userRolesMap: Record<string, { app_role_id: string | null; app_role_name: string | null }> = {};
 
-      setUsers(usersWithRoles);
+      if (userIds.length > 0) {
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('user_id, app_role_id, app_roles:app_role_id(name)')
+          .in('user_id', userIds);
+
+        (userRoles || []).forEach((ur: any) => {
+          userRolesMap[ur.user_id] = {
+            app_role_id: ur.app_role_id,
+            app_role_name: ur.app_roles?.name || null,
+          };
+        });
+      }
+
+      const mapped: EmployeeRow[] = (emps || []).map((e: any) => ({
+        id: e.id,
+        employee_no: e.employee_no,
+        first_name: e.first_name,
+        last_name: e.last_name,
+        email: e.email,
+        user_id: e.user_id,
+        status: e.status,
+        department_name: e.hr_departments?.name || null,
+        current_role_id: e.user_id ? (userRolesMap[e.user_id]?.app_role_id || null) : null,
+        current_role_name: e.user_id ? (userRolesMap[e.user_id]?.app_role_name || null) : null,
+      }));
+
+      setEmployees(mapped);
       setRoles(appRoles || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching data:', error);
-      toast({ title: 'Error', description: 'Failed to fetch users', variant: 'destructive' });
+      toast({ title: 'Error', description: error.message || 'Failed to load data', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAssignRole = async () => {
-    if (!selectedUser || !selectedRoleId) return;
+  const openEditDialog = (emp: EmployeeRow) => {
+    setEditEmployee(emp);
+    setSelectedRoleId(emp.current_role_id || '');
+  };
+
+  const handleSaveRole = async () => {
+    if (!editEmployee) return;
+
+    if (!editEmployee.user_id) {
+      toast({
+        title: 'No user account',
+        description: 'This employee does not have a login account yet. Please set up their account first from HR module.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!selectedRoleId) {
+      toast({ title: 'Please select a role', variant: 'destructive' });
+      return;
+    }
 
     setSaving(true);
     try {
-      // Update user_roles with the app_role_id
       const { error } = await supabase
         .from('user_roles')
         .update({ app_role_id: selectedRoleId })
-        .eq('user_id', selectedUser.user_id);
+        .eq('user_id', editEmployee.user_id);
 
       if (error) throw error;
 
       toast({ title: 'Role assigned successfully' });
-      setShowAssignDialog(false);
-      setSelectedUser(null);
+      setEditEmployee(null);
       setSelectedRoleId('');
       fetchData();
     } catch (error: any) {
       console.error('Error assigning role:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to assign role',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message || 'Failed to assign role', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRemoveRole = async (user: UserWithRole) => {
-    try {
-      const { error } = await supabase
-        .from('user_roles')
-        .update({ app_role_id: null })
-        .eq('user_id', user.user_id);
-
-      if (error) throw error;
-
-      toast({ title: 'Role removed successfully' });
-      fetchData();
-    } catch (error) {
-      console.error('Error removing role:', error);
-      toast({ title: 'Error', description: 'Failed to remove role', variant: 'destructive' });
-    }
-  };
-
-  const filteredUsers = users.filter((user) => {
+  const filteredEmployees = employees.filter((emp) => {
+    const fullName = `${emp.first_name} ${emp.last_name}`.toLowerCase();
     const matchesSearch =
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+      fullName.includes(searchTerm.toLowerCase()) ||
+      emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.employee_no.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole =
       roleFilter === 'all' ||
-      (roleFilter === 'unassigned' && !user.app_role_id) ||
-      user.app_role_id === roleFilter;
+      (roleFilter === 'unassigned' && !emp.current_role_id) ||
+      emp.current_role_id === roleFilter;
     return matchesSearch && matchesRole;
   });
 
-  // Stats
-  const assignedCount = users.filter(u => u.app_role_id).length;
-  const unassignedCount = users.filter(u => !u.app_role_id).length;
+  const assignedCount = employees.filter(e => e.current_role_id).length;
+  const unassignedCount = employees.filter(e => !e.current_role_id).length;
 
   if (loading) {
     return (
@@ -216,9 +194,9 @@ export default function UserRoleAssignment() {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">User Role Assignment</h1>
+        <h1 className="text-3xl font-bold">Role Assignment</h1>
         <p className="mt-1 text-muted-foreground">
-          Assign roles to users to control their access permissions
+          Assign roles to staff members to control their system access and permissions
         </p>
       </div>
 
@@ -228,8 +206,8 @@ export default function UserRoleAssignment() {
           <CardContent className="flex items-center gap-4 p-6">
             <Users className="h-8 w-8 text-primary" />
             <div>
-              <p className="text-2xl font-bold">{users.length}</p>
-              <p className="text-sm text-muted-foreground">Total Users</p>
+              <p className="text-2xl font-bold">{employees.length}</p>
+              <p className="text-sm text-muted-foreground">Total Staff</p>
             </div>
           </CardContent>
         </Card>
@@ -259,7 +237,7 @@ export default function UserRoleAssignment() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by name or email..."
+              placeholder="Search by name, email or employee no..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -270,139 +248,148 @@ export default function UserRoleAssignment() {
               <SelectValue placeholder="Filter by role" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
+              <SelectItem value="all">All Staff</SelectItem>
               <SelectItem value="unassigned">Unassigned</SelectItem>
               {roles.map((role) => (
-                <SelectItem key={role.id} value={role.id}>
-                  {role.name}
-                </SelectItem>
+                <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </CardContent>
       </Card>
 
-      {/* Users Table */}
+      {/* Staff Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Users</CardTitle>
+          <CardTitle>Staff Members</CardTitle>
           <CardDescription>
-            {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
+            {filteredEmployees.length} staff member{filteredEmployees.length !== 1 ? 's' : ''} found
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Legacy Role</TableHead>
+                <TableHead>Employee No</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead>Assigned Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <span className="text-sm font-medium text-primary">
-                          {user.full_name?.charAt(0) || user.email.charAt(0)}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{user.full_name || 'No name'}</p>
-                        <p className="text-sm text-muted-foreground">{user.email}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{user.legacy_role}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {user.app_role_name ? (
-                      <Badge variant="default" className="gap-1">
-                        <Shield className="h-3 w-3" />
-                        {user.app_role_name}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-orange-600">
-                        Unassigned
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={user.is_active ? 'outline' : 'secondary'}>
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setSelectedRoleId(user.app_role_id || '');
-                          setShowAssignDialog(true);
-                        }}
-                      >
-                        {user.app_role_id ? 'Change Role' : 'Assign Role'}
-                      </Button>
-                      {user.app_role_id && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleRemoveRole(user)}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
+              {filteredEmployees.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No staff members found
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredEmployees.map((emp) => (
+                  <TableRow key={emp.id}>
+                    <TableCell className="font-mono text-sm">{emp.employee_no}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                          <span className="text-sm font-medium text-primary">
+                            {emp.first_name.charAt(0)}{emp.last_name.charAt(0)}
+                          </span>
+                        </div>
+                        <span className="font-medium">{emp.first_name} {emp.last_name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{emp.email}</TableCell>
+                    <TableCell>{emp.department_name || '—'}</TableCell>
+                    <TableCell>
+                      {emp.current_role_name ? (
+                        <Badge variant="default" className="gap-1">
+                          <Shield className="h-3 w-3" />
+                          {emp.current_role_name}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-orange-600">Unassigned</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" onClick={() => openEditDialog(emp)}>
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Assign Role Dialog */}
-      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
-        <DialogContent>
+      {/* Edit Role Dialog */}
+      <Dialog open={!!editEmployee} onOpenChange={(open) => { if (!open) { setEditEmployee(null); setSelectedRoleId(''); } }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Assign Role</DialogTitle>
             <DialogDescription>
-              Select a role for {selectedUser?.full_name || selectedUser?.email}
+              Review employee details and assign a role
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                    <div className="flex flex-col">
-                      <span>{role.name}</span>
-                      {role.description && (
-                        <span className="text-xs text-muted-foreground">{role.description}</span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {editEmployee && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Full Name</Label>
+                  <p className="font-medium">{editEmployee.first_name} {editEmployee.last_name}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Employee No</Label>
+                  <p className="font-medium font-mono">{editEmployee.employee_no}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <p className="font-medium text-sm">{editEmployee.email}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Department</Label>
+                  <p className="font-medium">{editEmployee.department_name || '—'}</p>
+                </div>
+              </div>
+
+              {!editEmployee.user_id && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  This employee does not have a login account. Set up their account first from the HR module before assigning a role.
+                </div>
+              )}
+
+              <div>
+                <Label className="mb-2 block">Role</Label>
+                <Select value={selectedRoleId} onValueChange={setSelectedRoleId} disabled={!editEmployee.user_id}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        <div className="flex flex-col">
+                          <span>{role.name}</span>
+                          {role.description && (
+                            <span className="text-xs text-muted-foreground">{role.description}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>
+            <Button variant="outline" onClick={() => { setEditEmployee(null); setSelectedRoleId(''); }}>
               Cancel
             </Button>
-            <Button onClick={handleAssignRole} disabled={saving || !selectedRoleId}>
+            <Button onClick={handleSaveRole} disabled={saving || !selectedRoleId || !editEmployee?.user_id}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Assign Role
+              Submit
             </Button>
           </DialogFooter>
         </DialogContent>
