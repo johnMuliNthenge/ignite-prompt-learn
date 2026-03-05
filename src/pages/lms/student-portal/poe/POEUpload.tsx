@@ -269,7 +269,9 @@ export default function POEUpload() {
       <div className="p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Portfolio of Evidence</h1>
-          <p className="text-muted-foreground">Select a subject to upload your evidence</p>
+          <p className="text-muted-foreground">
+            Select a subject to upload your evidence ({subjects.length} registered subject{subjects.length !== 1 ? 's' : ''})
+          </p>
         </div>
 
         {subjects.length === 0 ? (
