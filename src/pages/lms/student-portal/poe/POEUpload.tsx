@@ -87,47 +87,32 @@ export default function POEUpload() {
       if (studentData) {
         setStudent(studentData);
 
-        // Get subjects from curriculum based on student's programme
         if (studentData.class_id) {
-          const { data: classData } = await supabase
-            .from('classes')
-            .select('programme_id')
-            .eq('id', studentData.class_id)
-            .single();
+          // Get subjects registered for this student's class from class_subject_registrations
+          // Use the active session(s) to scope it
+          const { data: activeSessions } = await supabase
+            .from('sessions')
+            .select('id')
+            .eq('is_active', true);
 
-          if (classData?.programme_id) {
-            const { data: curriculumData } = await supabase
-              .from('curriculum')
-              .select('id')
-              .eq('programme_id', classData.programme_id)
-              .eq('is_active', true);
+          const sessionIds = activeSessions?.map(s => s.id) || [];
 
-            if (curriculumData && curriculumData.length > 0) {
-              const curriculumIds = curriculumData.map(c => c.id);
-              
-              const { data: curriculumSubjects } = await supabase
-                .from('curriculum_subjects')
-                .select('subject:subject_id (id, name, code)')
-                .in('curriculum_id', curriculumIds);
+          if (sessionIds.length > 0) {
+            const { data: registrations } = await supabase
+              .from('class_subject_registrations')
+              .select('subject_id, subjects:subject_id(id, name, code)')
+              .eq('class_id', studentData.class_id)
+              .in('session_id', sessionIds);
 
-              const uniqueSubjects = curriculumSubjects
-                ?.map(cs => cs.subject as unknown as Subject)
-                .filter(Boolean) || [];
-              setSubjects(uniqueSubjects);
-            }
+            const registeredSubjects = registrations
+              ?.map(r => r.subjects as unknown as Subject)
+              .filter(Boolean) || [];
+
+            // Deduplicate by id
+            const unique = Array.from(new Map(registeredSubjects.map(s => [s.id, s])).values());
+            setSubjects(unique);
           }
         }
-      }
-
-      // Fallback: get all subjects if no curriculum mapping
-      const { data: allSubjects } = await supabase
-        .from('subjects')
-        .select('id, name, code')
-        .eq('is_active', true)
-        .order('name');
-
-      if (allSubjects && allSubjects.length > 0) {
-        setSubjects(prev => prev.length > 0 ? prev : allSubjects);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
