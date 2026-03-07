@@ -229,7 +229,7 @@ const App = () => (
               <Route path="admin/mpesa" element={<MpesaSettings />} />
               <Route path="admin/setup/account" element={<AccountSetup />} />
               <Route path="admin/setup/tenants" element={<TenantManagement />} />
-              <Route path="admin/poe-review" element={<POEReview />} />
+              <Route path="academics/poe-review" element={<POEReview />} />
               
               {/* Student Academics Routes */}
               <Route path="academics/exams" element={<ExamsManagement />} />
