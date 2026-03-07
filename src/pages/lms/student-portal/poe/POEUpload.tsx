@@ -38,6 +38,9 @@ interface POESubmission {
   status: string;
   submitted_at: string;
   feedback: string | null;
+  score: number | null;
+  max_score: number | null;
+  reviewed_at: string | null;
 }
 
 interface StudentInfo {
@@ -128,7 +131,7 @@ export default function POEUpload() {
     try {
       const { data, error } = await supabase
         .from('student_poe_submissions')
-        .select('id, title, description, file_url, file_type, status, submitted_at, feedback')
+        .select('id, title, description, file_url, file_type, status, submitted_at, feedback, score, max_score, reviewed_at')
         .eq('student_id', student.id)
         .eq('subject_id', selectedSubject.id)
         .order('submitted_at', { ascending: false });
@@ -428,34 +431,53 @@ export default function POEUpload() {
               {submissions.map((submission) => (
                 <div
                   key={submission.id}
-                  className="flex items-center gap-4 p-4 border rounded-lg"
+                  className="p-4 border rounded-lg space-y-2"
                 >
-                  {getFileIcon(submission.file_type)}
-                  <div className="flex-1">
-                    <h4 className="font-medium">{submission.title}</h4>
-                    {submission.description && (
-                      <p className="text-sm text-muted-foreground">{submission.description}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Submitted: {new Date(submission.submitted_at).toLocaleDateString()}
-                    </p>
-                    {(submission as any).score !== null && (
-                      <p className="text-sm font-medium text-primary mt-1">
-                        Score: {(submission as any).score}/{(submission as any).max_score || 100}
+                  <div className="flex items-center gap-4">
+                    {getFileIcon(submission.file_type)}
+                    <div className="flex-1">
+                      <h4 className="font-medium">{submission.title}</h4>
+                      {submission.description && (
+                        <p className="text-sm text-muted-foreground">{submission.description}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Submitted: {new Date(submission.submitted_at).toLocaleDateString()}
                       </p>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {getStatusBadge(submission.status)}
+                      <a
+                        href={submission.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-sm"
+                      >
+                        View
+                      </a>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {getStatusBadge(submission.status)}
-                    <a
-                      href={submission.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline text-sm"
-                    >
-                      View
-                    </a>
-                  </div>
+
+                  {/* Score and Feedback - shown after review */}
+                  {(submission.status === 'approved' || submission.status === 'rejected') && (
+                    <div className="ml-12 mt-2 p-3 bg-muted rounded-lg space-y-1">
+                      {submission.score !== null && (
+                        <p className="text-sm font-semibold">
+                          Score: <span className="text-primary">{submission.score}/{submission.max_score || 100}</span>
+                        </p>
+                      )}
+                      {submission.feedback && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Reviewer Comment:</p>
+                          <p className="text-sm">{submission.feedback}</p>
+                        </div>
+                      )}
+                      {submission.reviewed_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Reviewed: {new Date(submission.reviewed_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
