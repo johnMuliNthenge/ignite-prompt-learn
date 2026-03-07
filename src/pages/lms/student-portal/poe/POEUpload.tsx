@@ -317,12 +317,92 @@ export default function POEUpload() {
           <h1 className="text-2xl font-bold">{selectedSubject.name}</h1>
           <p className="text-muted-foreground">Upload your portfolio evidence</p>
         </div>
-        <Button onClick={() => setUploadDialogOpen(true)}>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload POE
-        </Button>
       </div>
 
+      {/* Upload Form - Always visible at top */}
+      <Collapsible open={uploadFormOpen} onOpenChange={setUploadFormOpen}>
+        <Card>
+          <CardHeader className="cursor-pointer" onClick={() => setUploadFormOpen(!uploadFormOpen)}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Upload New Evidence</CardTitle>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm">
+                  {uploadFormOpen ? 'Close' : 'Upload POE'}
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 pt-0">
+              <div>
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g., Assignment 1 Evidence"
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of this evidence..."
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="file">File *</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  onChange={handleFileChange}
+                  accept="image/*,video/*,.pdf,.doc,.docx"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Supported: Images, Videos, PDF, Word documents (max 50MB)
+                </p>
+              </div>
+              {file && (
+                <div className="p-3 bg-muted rounded-lg flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-sm font-medium truncate">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setUploadFormOpen(false); setTitle(''); setDescription(''); setFile(null); }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpload} disabled={uploading || !file || !title}>
+                  {uploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Submissions List */}
       <Card>
         <CardHeader>
           <CardTitle>My Submissions</CardTitle>
@@ -339,7 +419,7 @@ export default function POEUpload() {
             <div className="text-center py-12">
               <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No submissions yet</p>
-              <Button className="mt-4" onClick={() => setUploadDialogOpen(true)}>
+              <Button className="mt-4" onClick={() => setUploadFormOpen(true)}>
                 Upload your first POE
               </Button>
             </div>
@@ -382,77 +462,6 @@ export default function POEUpload() {
           )}
         </CardContent>
       </Card>
-
-      {/* Upload Dialog */}
-      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload Evidence</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Assignment 1 Evidence"
-              />
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of this evidence..."
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="file">File *</Label>
-              <Input
-                id="file"
-                type="file"
-                onChange={handleFileChange}
-                accept="image/*,video/*,.pdf,.doc,.docx"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Supported: Images, Videos, PDF, Word documents (max 50MB)
-              </p>
-            </div>
-            {file && (
-              <div className="p-3 bg-muted rounded-lg flex items-center gap-3">
-                <FileText className="h-5 w-5 text-primary" />
-                <div className="flex-1 overflow-hidden">
-                  <p className="text-sm font-medium truncate">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpload} disabled={uploading || !file || !title}>
-              {uploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
