@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -55,7 +55,7 @@ export default function POEUpload() {
   const [submissions, setSubmissions] = useState<POESubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadFormOpen, setUploadFormOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   // Upload form state
@@ -179,7 +179,7 @@ export default function POEUpload() {
     try {
       // Upload file to storage
       const fileExt = file.name.split('.').pop();
-      const fileName = `${student.id}/${selectedSubject.id}/${Date.now()}.${fileExt}`;
+      const fileName = `${user?.id}/${selectedSubject.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('poe-files')
@@ -217,7 +217,7 @@ export default function POEUpload() {
       setTitle('');
       setDescription('');
       setFile(null);
-      setUploadDialogOpen(false);
+      setUploadFormOpen(false);
       fetchSubmissions();
     } catch (error) {
       console.error('Upload error:', error);
