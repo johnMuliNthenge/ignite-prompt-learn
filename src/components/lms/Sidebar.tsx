@@ -240,12 +240,6 @@ const administrationModule: NavModule = {
       icon: Phone,
       moduleCode: 'admin.mpesa',
     },
-    {
-      title: 'POE Review',
-      href: '/lms/admin/poe-review',
-      icon: ClipboardCheck,
-      moduleCode: 'admin.poe_review',
-    },
   ],
 };
 
@@ -859,6 +853,12 @@ const academicsModule: NavModule = {
       href: '/lms/academics/marks-computation',
       icon: Calculator,
       moduleCode: 'academics.marks_computation',
+    },
+    {
+      title: 'POE Review',
+      href: '/lms/academics/poe-review',
+      icon: ClipboardCheck,
+      moduleCode: 'academics.poe_review',
     },
   ],
 };
