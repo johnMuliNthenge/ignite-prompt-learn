@@ -38,6 +38,9 @@ interface POESubmission {
   status: string;
   submitted_at: string;
   feedback: string | null;
+  score: number | null;
+  max_score: number | null;
+  reviewed_at: string | null;
 }
 
 interface StudentInfo {
@@ -128,7 +131,7 @@ export default function POEUpload() {
     try {
       const { data, error } = await supabase
         .from('student_poe_submissions')
-        .select('id, title, description, file_url, file_type, status, submitted_at, feedback')
+        .select('id, title, description, file_url, file_type, status, submitted_at, feedback, score, max_score, reviewed_at')
         .eq('student_id', student.id)
         .eq('subject_id', selectedSubject.id)
         .order('submitted_at', { ascending: false });
