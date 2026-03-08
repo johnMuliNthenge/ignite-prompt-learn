@@ -160,13 +160,24 @@ export default function Payables() {
       });
       if (error) throw error;
 
-      // Post to general ledger if payment mode has asset account
+      // Post to general ledger — full double entry: Dr Expense, Cr Cash/Bank
       const selectedMode = paymentModes.find(pm => pm.id === newBill.payment_mode_id);
       if (selectedMode?.asset_account_id) {
+        // Find a general expense account for the debit side
+        const { data: expenseAcc } = await supabase
+          .from('chart_of_accounts')
+          .select('id')
+          .eq('account_type', 'Expense')
+          .eq('is_active', true)
+          .order('account_code')
+          .limit(1)
+          .maybeSingle();
+
+        const txDate = new Date().toISOString().split('T')[0];
         const { data: jeNum } = await supabase.rpc('generate_journal_number');
         const { data: jeData } = await supabase.from('journal_entries').insert({
           entry_number: jeNum || `JE-BILL-${Date.now()}`,
-          transaction_date: new Date().toISOString().split('T')[0],
+          transaction_date: txDate,
           reference: billNumber,
           narration: `Bill from ${vendorName} — ${newBill.description || 'Vendor bill'}`,
           entry_type: 'payable_bill',
@@ -177,15 +188,31 @@ export default function Payables() {
         }).select('id').single();
 
         if (jeData) {
-          await supabase.from('general_ledger').insert({
-            journal_entry_id: jeData.id,
-            account_id: selectedMode.asset_account_id,
-            transaction_date: new Date().toISOString().split('T')[0],
-            debit: 0,
-            credit: amount,
-            balance: -amount,
-            description: `Payment to ${vendorName} via ${selectedMode.name}`,
-          });
+          const glEntries: any[] = [
+            // Cr Cash/Bank (Asset outflow)
+            {
+              journal_entry_id: jeData.id,
+              account_id: selectedMode.asset_account_id,
+              transaction_date: txDate,
+              debit: 0,
+              credit: amount,
+              description: `Payment to ${vendorName} via ${selectedMode.name}`,
+            },
+          ];
+
+          // Dr Expense
+          if (expenseAcc?.id) {
+            glEntries.push({
+              journal_entry_id: jeData.id,
+              account_id: expenseAcc.id,
+              transaction_date: txDate,
+              debit: amount,
+              credit: 0,
+              description: `Bill from ${vendorName} — ${newBill.description || 'Vendor bill'}`,
+            });
+          }
+
+          await supabase.from('general_ledger').insert(glEntries);
         }
       }
 

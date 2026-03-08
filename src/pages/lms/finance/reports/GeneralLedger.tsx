@@ -222,30 +222,17 @@ export default function GeneralLedger() {
       // 3. Payment Vouchers → Dr Expense, Cr Cash/Bank
       (vouchersRes.data || []).forEach((pv: any) => {
         if (pv.status === 'Draft') return; // Only show approved/paid
-        const items = pv.payment_voucher_items || [];
         const lines: DoubleEntryTransaction['lines'] = [];
+        const pvAmount = Number(pv.amount) || 0;
 
-        // Debit: Each expense account
-        if (items.length > 0) {
-          items.forEach((item: any) => {
-            const acc = item.account_id ? accountMap.get(item.account_id) : null;
-            lines.push({
-              account_code: acc?.code || '—',
-              account_name: acc?.name || item.description || 'Expense',
-              account_id: item.account_id || '',
-              debit: Number(item.amount) || 0,
-              credit: 0,
-            });
-          });
-        } else {
-          lines.push({
-            account_code: '—',
-            account_name: 'Expense',
-            account_id: '',
-            debit: Number(pv.total_amount) || 0,
-            credit: 0,
-          });
-        }
+        // Debit: Expense
+        lines.push({
+          account_code: '—',
+          account_name: pv.description || 'Expense',
+          account_id: '',
+          debit: pvAmount,
+          credit: 0,
+        });
 
         // Credit: Cash/Bank
         lines.push({
@@ -253,7 +240,7 @@ export default function GeneralLedger() {
           account_name: 'Cash and Bank',
           account_id: '',
           debit: 0,
-          credit: Number(pv.total_amount) || 0,
+          credit: pvAmount,
         });
 
         allTransactions.push({

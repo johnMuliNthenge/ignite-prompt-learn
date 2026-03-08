@@ -123,7 +123,7 @@ export default function CashBook() {
 
       // Process payable payments (expenses)
       (expensesData || []).forEach((exp: any) => {
-        const vendorName = exp.vendors?.name || 'Unknown Vendor';
+        const vendorName = vendorNameMap.get(exp.payable_id) || 'Unknown Vendor';
         const entry: Omit<CashEntry, 'balance'> = {
           id: exp.id,
           date: exp.payment_date,
