@@ -186,6 +186,7 @@ import StoreManagement from "./pages/lms/inventory/StoreManagement";
 import StockTransactions from "./pages/lms/inventory/StockTransactions";
 import StoreRequisitions from "./pages/lms/inventory/StoreRequisitions";
 import InventoryReports from "./pages/lms/inventory/InventoryReports";
+import InventoryCategoryManagement from "./pages/lms/inventory/InventoryCategoryManagement";
 
 // Procurement pages
 import SupplierManagement from "./pages/lms/procurement/SupplierManagement";
