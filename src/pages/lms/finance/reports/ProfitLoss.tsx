@@ -97,7 +97,7 @@ export default function ProfitLoss() {
             voucherExpenseMap.set(firstExpAcc.id, totalVoucherAmount);
           }
         }
-      });
+      }
 
       // Build line items
       const incomeItems: LineItem[] = [];
