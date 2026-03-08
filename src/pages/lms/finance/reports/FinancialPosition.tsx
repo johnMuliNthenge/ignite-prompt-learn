@@ -60,7 +60,7 @@ export default function FinancialPosition() {
         balanceMap.set(e.account_id, existing + (Number(e.debit) || 0) - (Number(e.credit) || 0));
       });
 
-      // Supplement: Student Debtors from fee_invoices/fee_payments
+      // IPSAS Accrual: Compute student debtors from total invoiced - total paid
       const { data: invoices } = await supabase
         .from('fee_invoices')
         .select('total_amount')
@@ -75,11 +75,33 @@ export default function FinancialPosition() {
       const totalPaid = (payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
       const netReceivable = totalInvoiced - totalPaid;
 
-      // Find student debtors account and prepayment account
+      // Expense payments (cash outflows)
+      const { data: voucherPayments } = await supabase
+        .from('payable_payments')
+        .select('amount')
+        .eq('status', 'Completed')
+        .lte('payment_date', asOfDate);
+      const totalExpensePaid = (voucherPayments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+
+      // IPSAS: Compute accumulated surplus (Revenue - Expenses) for equity
+      const { data: invoiceItemsForIncome } = await supabase
+        .from('fee_invoice_items')
+        .select('total, fee_invoices!inner(invoice_date)')
+        .lte('fee_invoices.invoice_date', asOfDate);
+      const totalIncomeAccrual = (invoiceItemsForIncome || []).reduce((s, i) => s + (Number(i.total) || 0), 0);
+
+      const { data: vouchersForExpense } = await supabase
+        .from('payment_vouchers')
+        .select('amount')
+        .neq('status', 'Draft')
+        .lte('voucher_date', asOfDate);
+      const totalExpenseAccrual = (vouchersForExpense || []).reduce((s, v) => s + (Number(v.amount) || 0), 0);
+
+      // Supplement COA accounts with synthetic balances where GL is empty
       const debtorsAcc = (accountsData || []).find((a: any) => a.account_code === '1201');
       const prepayAcc = (accountsData || []).find((a: any) => a.account_code === '2103');
+      const cashAcc = (accountsData || []).find((a: any) => a.account_code === '1102');
 
-      // Add synthetic balances if not already in GL
       if (debtorsAcc && netReceivable > 0) {
         const glBal = balanceMap.get(debtorsAcc.id) || 0;
         if (glBal === 0) balanceMap.set(debtorsAcc.id, netReceivable);
@@ -88,20 +110,28 @@ export default function FinancialPosition() {
         const glBal = balanceMap.get(prepayAcc.id) || 0;
         if (glBal === 0) balanceMap.set(prepayAcc.id, Math.abs(netReceivable));
       }
-
-      // Cash/Bank from fee payments received
-      const cashAcc = (accountsData || []).find((a: any) => a.account_code === '1102');
       if (cashAcc) {
         const glBal = balanceMap.get(cashAcc.id) || 0;
-        if (glBal === 0 && totalPaid > 0) {
-          // Check if voucher payments exist
-          const { data: voucherPayments } = await supabase
-            .from('payable_payments')
-            .select('amount')
-            .eq('status', 'Completed')
-            .lte('payment_date', asOfDate);
-          const totalExpensePaid = (voucherPayments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+        if (glBal === 0 && (totalPaid > 0 || totalExpensePaid > 0)) {
           balanceMap.set(cashAcc.id, totalPaid - totalExpensePaid);
+        }
+      }
+
+      // IPSAS: Accumulated Surplus/Deficit → Equity
+      const netSurplus = totalIncomeAccrual - totalExpenseAccrual;
+      const accSurplusAcc = (accountsData || []).find((a: any) =>
+        a.account_type === 'Equity' && (
+          a.account_name?.toLowerCase().includes('accumulated') ||
+          a.account_name?.toLowerCase().includes('surplus') ||
+          a.account_name?.toLowerCase().includes('retained') ||
+          a.account_code === '3100'
+        )
+      );
+      if (accSurplusAcc) {
+        const glBal = balanceMap.get(accSurplusAcc.id) || 0;
+        if (glBal === 0 && netSurplus !== 0) {
+          // Equity is normal credit: surplus = credit = negative in debit-credit
+          balanceMap.set(accSurplusAcc.id, -netSurplus);
         }
       }
 

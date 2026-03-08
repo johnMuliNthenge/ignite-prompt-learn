@@ -60,7 +60,7 @@ export default function FinancialPerformance() {
         balanceMap.set(e.account_id, existing + (Number(e.debit) || 0) - (Number(e.credit) || 0));
       });
 
-      // Supplement: Fee income from invoices (accrual basis)
+      // IPSAS Accrual: Supplement fee income from invoices (recognized at invoicing)
       const { data: invoiceItems } = await supabase
         .from('fee_invoice_items')
         .select('total, fee_account_id, fee_accounts(account_id), fee_invoices!inner(invoice_date)')
@@ -71,21 +71,31 @@ export default function FinancialPerformance() {
         const accId = item.fee_accounts?.account_id;
         if (accId) {
           const glBal = balanceMap.get(accId) || 0;
-          // Income: credit increases, so net = debit - credit should be negative for income
-          // Only add if GL doesn't already have entries for this account
           if (glBal === 0) {
             balanceMap.set(accId, (balanceMap.get(accId) || 0) - (Number(item.total) || 0));
           }
         }
       });
 
-      // Supplement: Expense from payment vouchers (accrual: when voucher created, not when paid)
-      const { data: vouchers } = await supabase
+      // IPSAS Accrual: Supplement expenses from approved/paid vouchers (recognized when approved)
+      const { data: voucherData } = await supabase
         .from('payment_vouchers')
-        .select('id, amount, voucher_date, status')
+        .select('amount, voucher_date, status')
         .neq('status', 'Draft')
         .gte('voucher_date', startDate)
         .lte('voucher_date', endDate);
+
+      const totalVoucherExpense = (voucherData || []).reduce((s, v) => s + (Number(v.amount) || 0), 0);
+      if (totalVoucherExpense > 0) {
+        const expenseAccounts = (accountsData || []).filter((a: any) => a.account_type === 'Expense');
+        if (expenseAccounts.length > 0) {
+          const firstExpAcc = expenseAccounts[0];
+          const glBal = balanceMap.get(firstExpAcc.id) || 0;
+          if (glBal === 0) {
+            balanceMap.set(firstExpAcc.id, totalVoucherExpense);
+          }
+        }
+      }
 
       // Build items
       const buildSection = (type: string): GroupedSection[] => {
@@ -93,8 +103,6 @@ export default function FinancialPerformance() {
           .filter((a: any) => a.account_type === type)
           .map((a: any) => {
             const rawBal = balanceMap.get(a.id) || 0;
-            // Income: normal credit, so negative rawBal = income earned
-            // Expense: normal debit, so positive rawBal = expense incurred
             const amount = type === 'Income' ? Math.abs(rawBal) : rawBal;
             return {
               account_code: a.account_code,
