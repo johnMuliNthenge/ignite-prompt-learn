@@ -67,7 +67,7 @@ export default function GeneralLedger() {
     setLoading(true);
     try {
       // Fetch all data sources in parallel
-      const [invoicesRes, paymentsRes, accountsRes, studentsRes, vouchersRes, glRes] = await Promise.all([
+      const [invoicesRes, paymentsRes, accountsRes, studentsRes, vouchersRes, glRes, feeAccountsRes] = await Promise.all([
         supabase.from('fee_invoices').select(`
           id, invoice_number, invoice_date, total_amount, student_id, status,
           fee_invoice_items ( description, total, fee_account_id )
@@ -90,6 +90,9 @@ export default function GeneralLedger() {
           id, transaction_date, description, debit, credit, account_id, journal_entry_id,
           journal_entries:journal_entry_id ( entry_number, narration )
         `).order('transaction_date', { ascending: false }).limit(1000),
+
+        // Fetch fee_accounts to resolve fee_account_id → chart_of_accounts.id
+        supabase.from('fee_accounts').select('id, account_id'),
       ]);
 
       const accountMap = new Map<string, { code: string; name: string }>();
