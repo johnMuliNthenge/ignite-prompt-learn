@@ -40,10 +40,11 @@ const ROWS_PER_PAGE = 10;
 
 export default function GeneralLedger() {
   const { isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
   const [transactions, setTransactions] = useState<DoubleEntryTransaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAccount, setSelectedAccount] = useState<string>('all');
+  const [selectedAccount, setSelectedAccount] = useState<string>(searchParams.get('accountId') || 'all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
