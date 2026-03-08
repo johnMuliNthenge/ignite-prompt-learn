@@ -50,27 +50,27 @@ const navItems: NavItem[] = [
     icon: LayoutDashboard,
     moduleCode: 'dashboard',
   },
-  {
-    title: 'My Courses',
-    href: '/lms/courses',
-    icon: BookOpen,
-    moduleCode: 'courses',
-  },
-  {
-    title: 'Course Catalog',
-    href: '/lms/catalog',
-    icon: GraduationCap,
-    moduleCode: 'catalog',
-  },
 ];
 
 // E-Learning Module
 const eLearningModule: NavModule = {
   title: 'E-Learning',
-  icon: UserCheck,
+  icon: GraduationCap,
   moduleCode: 'instructor',
   roles: ['admin', 'teacher'],
   items: [
+    {
+      title: 'My Courses',
+      href: '/lms/courses',
+      icon: BookOpen,
+      moduleCode: 'courses',
+    },
+    {
+      title: 'Course Catalog',
+      href: '/lms/catalog',
+      icon: GraduationCap,
+      moduleCode: 'catalog',
+    },
     {
       title: 'Create Course',
       href: '/lms/courses/create',
