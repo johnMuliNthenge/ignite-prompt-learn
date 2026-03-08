@@ -140,6 +140,12 @@ const administrationModule: NavModule = {
       ],
     },
     {
+      title: 'Departments',
+      href: '/lms/admin/departments',
+      icon: Building2,
+      moduleCode: 'admin.departments',
+    },
+    {
       title: 'Categories',
       href: '/lms/admin/categories',
       icon: FolderOpen,
@@ -581,11 +587,6 @@ const hrModule: NavModule = {
           title: 'Structure',
           href: '/lms/hr/organization/structure',
           icon: Building,
-        },
-        {
-          title: 'Departments',
-          href: '/lms/hr/organization/departments',
-          icon: Building2,
         },
       ],
     },

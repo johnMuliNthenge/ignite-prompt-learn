@@ -252,6 +252,7 @@ const App = () => (
               <Route path="admin/roles" element={<RoleManagement />} />
               <Route path="admin/user-roles" element={<UserRoleAssignment />} />
               <Route path="admin/categories" element={<CategoryManagement />} />
+              <Route path="admin/departments" element={<HRDepartments />} />
               <Route path="admin/analytics" element={<AnalyticsDashboard />} />
               <Route path="admin/administration" element={<AdministrationSettings />} />
               <Route path="admin/settings" element={<SiteSettings />} />

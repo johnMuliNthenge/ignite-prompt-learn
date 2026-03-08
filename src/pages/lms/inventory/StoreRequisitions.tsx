@@ -20,6 +20,7 @@ export default function StoreRequisitions() {
   const [requisitions, setRequisitions] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reqItems, setReqItems] = useState<{item_id: string; quantity_requested: number; store_id: string}[]>([{ item_id: '', quantity_requested: 1, store_id: '' }]);
@@ -28,14 +29,16 @@ export default function StoreRequisitions() {
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
-    const [reqRes, itemRes, storeRes] = await Promise.all([
+    const [reqRes, itemRes, storeRes, deptRes] = await Promise.all([
       supabase.from('store_requisitions').select('*').order('created_at', { ascending: false }),
       supabase.from('inventory_items').select('id, name, item_code').eq('is_active', true),
       supabase.from('inventory_stores').select('id, name').eq('is_active', true),
+      supabase.from('hr_departments').select('id, name, code').eq('is_active', true).order('name'),
     ]);
     setRequisitions((reqRes.data as any[]) || []);
     setItems((itemRes.data as any[]) || []);
     setStores((storeRes.data as any[]) || []);
+    setDepartments((deptRes.data as any[]) || []);
     setLoading(false);
   };
 
@@ -74,13 +77,11 @@ export default function StoreRequisitions() {
       const { error } = await supabase.from('store_requisitions').update(updates).eq('id', id);
       if (error) throw error;
 
-      // If approved, auto-issue items and reduce stock
       if (status === 'issued') {
         const { data: lineItems } = await supabase.from('store_requisition_items').select('*').eq('requisition_id', id);
         if (lineItems) {
           for (const li of lineItems as any[]) {
             if (li.store_id) {
-              // Check stock
               const { data: stock } = await supabase.from('store_stock').select('id, quantity').eq('store_id', li.store_id).eq('item_id', li.item_id).single();
               if (stock && (stock as any).quantity >= li.quantity_requested) {
                 await supabase.from('store_stock').update({ quantity: (stock as any).quantity - li.quantity_requested }).eq('id', (stock as any).id);
@@ -98,7 +99,6 @@ export default function StoreRequisitions() {
         }
       }
 
-      // Convert to PR if stock unavailable
       if (status === 'converted_to_pr') {
         const { data: numData } = await supabase.rpc('generate_pr_number');
         const { data: pr, error: prError } = await supabase.from('purchase_requisitions').insert({
@@ -141,7 +141,15 @@ export default function StoreRequisitions() {
               <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Create Store Requisition</DialogTitle></DialogHeader>
                 <div className="space-y-4">
-                  <div className="space-y-2"><Label>Department</Label><Input value={form.department} onChange={e => setForm({...form, department: e.target.value})} /></div>
+                  <div className="space-y-2">
+                    <Label>Department</Label>
+                    <Select value={form.department} onValueChange={v => setForm({...form, department: v})}>
+                      <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                      <SelectContent>
+                        {departments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2"><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} /></div>
                   <div className="space-y-2">
                     <Label>Items</Label>

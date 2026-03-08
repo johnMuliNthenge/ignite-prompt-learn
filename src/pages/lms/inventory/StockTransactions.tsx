@@ -30,6 +30,7 @@ export default function StockTransactions() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ ...defaultForm });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -47,7 +48,6 @@ export default function StockTransactions() {
     setLoading(false);
   };
 
-  // When a requisition is selected for issue, load its line items
   const onRequisitionChange = async (reqId: string) => {
     setForm(f => ({ ...f, requisition_id: reqId, item_id: '', store_id: '' }));
     if (!reqId) { setReqItems([]); return; }
@@ -58,6 +58,20 @@ export default function StockTransactions() {
   };
 
   const handleSubmit = async () => {
+    if (!form.item_id || !form.store_id) {
+      toast.error('Please select an item and store');
+      return;
+    }
+    if (form.transaction_type === 'issue' && !form.requisition_id) {
+      toast.error('Please select a store requisition for issues');
+      return;
+    }
+    if (form.transaction_type === 'transfer' && !form.destination_store_id) {
+      toast.error('Please select a destination store');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const refNum = form.transaction_type === 'issue' && form.requisition_id
         ? (requisitions.find(r => r.id === form.requisition_id))?.requisition_number || form.reference_number
@@ -76,13 +90,12 @@ export default function StockTransactions() {
         await upsertStock(form.store_id, form.item_id, qty);
       } else if (form.transaction_type === 'issue') {
         await upsertStock(form.store_id, form.item_id, -qty);
-        // Update requisition item issued qty & mark requisition as issued if all done
         if (form.requisition_id) {
           const matchingItem = reqItems.find(ri => ri.item_id === form.item_id);
           if (matchingItem) {
-            await supabase.from('store_requisition_items').update({ quantity_issued: qty }).eq('id', matchingItem.id);
+            const newIssued = (matchingItem.quantity_issued || 0) + qty;
+            await supabase.from('store_requisition_items').update({ quantity_issued: newIssued }).eq('id', matchingItem.id);
           }
-          // Check if all items issued
           const { data: allItems } = await supabase.from('store_requisition_items').select('quantity_requested, quantity_issued').eq('requisition_id', form.requisition_id);
           const allIssued = (allItems as any[])?.every(i => (i.quantity_issued || 0) >= i.quantity_requested);
           if (allIssued) {
@@ -103,20 +116,31 @@ export default function StockTransactions() {
       setForm({ ...defaultForm });
       setReqItems([]);
       fetchAll();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const upsertStock = async (storeId: string, itemId: string, qtyChange: number) => {
     const { data: existing } = await supabase.from('store_stock').select('id, quantity').eq('store_id', storeId).eq('item_id', itemId).single();
     if (existing) {
-      await supabase.from('store_stock').update({ quantity: existing.quantity + qtyChange }).eq('id', existing.id);
+      const { error } = await supabase.from('store_stock').update({ quantity: existing.quantity + qtyChange }).eq('id', existing.id);
+      if (error) throw error;
     } else {
-      await supabase.from('store_stock').insert({ store_id: storeId, item_id: itemId, quantity: Math.max(0, qtyChange) });
+      const { error } = await supabase.from('store_stock').insert({ store_id: storeId, item_id: itemId, quantity: Math.max(0, qtyChange) });
+      if (error) throw error;
     }
   };
 
   const typeColors: Record<string, string> = { grn: 'default', issue: 'destructive', return: 'secondary', transfer: 'outline', adjustment: 'secondary' };
   const typeLabels: Record<string, string> = { grn: 'GRN', issue: 'Issue', return: 'Return', transfer: 'Transfer', adjustment: 'Adjustment' };
+
+  const canSubmit = form.item_id && form.store_id && 
+    (form.transaction_type !== 'issue' || form.requisition_id) &&
+    (form.transaction_type !== 'transfer' || form.destination_store_id) &&
+    form.quantity > 0;
 
   return (
     <ProtectedPage moduleCode="inventory.transactions" title="Stock Transactions">
@@ -146,7 +170,6 @@ export default function StockTransactions() {
                     </Select>
                   </div>
 
-                  {/* For issues, must select a requisition first */}
                   {form.transaction_type === 'issue' && (
                     <div className="space-y-2">
                       <Label>Store Requisition *</Label>
@@ -162,53 +185,43 @@ export default function StockTransactions() {
                     </div>
                   )}
 
-                  {/* For issues with requisition, show requisition items; otherwise show all items */}
                   {form.transaction_type === 'issue' && form.requisition_id ? (
                     <div className="space-y-2">
                       <Label>Item from Requisition *</Label>
                       <Select value={form.item_id} onValueChange={v => {
                         const ri = reqItems.find(i => i.item_id === v);
-                        setForm(f => ({ ...f, item_id: v, quantity: ri?.quantity_requested || 1, store_id: ri?.store_id || '' }));
+                        setForm(f => ({ ...f, item_id: v, quantity: ri?.quantity_requested || 1 }));
                       }}>
                         <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
                         <SelectContent>
                           {reqItems.map(ri => (
                             <SelectItem key={ri.id} value={ri.item_id}>
-                              {ri.inventory_items?.item_code} - {ri.inventory_items?.name} (Qty: {ri.quantity_requested})
+                              {ri.inventory_items?.item_code} - {ri.inventory_items?.name} (Req: {ri.quantity_requested}, Issued: {ri.quantity_issued || 0})
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <Label>Item *</Label>
-                      <Select value={form.item_id} onValueChange={v => setForm({...form, item_id: v})}>
-                        <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
-                        <SelectContent>{items.map(i => <SelectItem key={i.id} value={i.id}>{i.item_code} - {i.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
+                    form.transaction_type !== 'issue' && (
+                      <div className="space-y-2">
+                        <Label>Item *</Label>
+                        <Select value={form.item_id} onValueChange={v => setForm({...form, item_id: v})}>
+                          <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
+                          <SelectContent>{items.map(i => <SelectItem key={i.id} value={i.id}>{i.item_code} - {i.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                    )
                   )}
 
-                  {form.transaction_type !== 'issue' && (
-                    <div className="space-y-2">
-                      <Label>{form.transaction_type === 'transfer' ? 'Source Store *' : 'Store *'}</Label>
-                      <Select value={form.store_id} onValueChange={v => setForm({...form, store_id: v})}>
-                        <SelectTrigger><SelectValue placeholder="Select store" /></SelectTrigger>
-                        <SelectContent>{stores.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {form.transaction_type === 'issue' && form.requisition_id && (
-                    <div className="space-y-2">
-                      <Label>Issue from Store *</Label>
-                      <Select value={form.store_id} onValueChange={v => setForm({...form, store_id: v})}>
-                        <SelectTrigger><SelectValue placeholder="Select store" /></SelectTrigger>
-                        <SelectContent>{stores.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  {/* Store selector - always visible when needed */}
+                  <div className="space-y-2">
+                    <Label>{form.transaction_type === 'transfer' ? 'Source Store *' : form.transaction_type === 'issue' ? 'Issue from Store *' : 'Store *'}</Label>
+                    <Select value={form.store_id} onValueChange={v => setForm({...form, store_id: v})}>
+                      <SelectTrigger><SelectValue placeholder="Select store" /></SelectTrigger>
+                      <SelectContent>{stores.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
 
                   {form.transaction_type === 'transfer' && (
                     <div className="space-y-2">
@@ -237,10 +250,9 @@ export default function StockTransactions() {
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleSubmit} disabled={
-                    !form.item_id || !form.store_id || 
-                    (form.transaction_type === 'issue' && !form.requisition_id)
-                  }>Record</Button>
+                  <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+                    {submitting ? 'Recording...' : 'Record'}
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
