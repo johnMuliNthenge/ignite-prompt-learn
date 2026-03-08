@@ -8562,6 +8562,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_mpesa_active: { Args: never; Returns: boolean }
       user_enrolled_course_ids: {
         Args: { _user_id: string }
         Returns: string[]
