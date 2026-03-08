@@ -863,6 +863,55 @@ const academicsModule: NavModule = {
   ],
 };
 
+// Inventory Module
+const inventoryModule: NavModule = {
+  title: 'Inventory',
+  icon: Package,
+  moduleCode: 'inventory',
+  roles: ['admin'],
+  items: [
+    { title: 'Item Master', href: '/lms/inventory/items', icon: Package, moduleCode: 'inventory.items' },
+    { title: 'Store Management', href: '/lms/inventory/stores', icon: Warehouse, moduleCode: 'inventory.stores' },
+    { title: 'Stock Transactions', href: '/lms/inventory/transactions', icon: ArrowUpDown, moduleCode: 'inventory.transactions' },
+    { title: 'Store Requisitions', href: '/lms/inventory/requisitions', icon: ClipboardList, moduleCode: 'inventory.requisitions' },
+    { title: 'Inventory Reports', href: '/lms/inventory/reports', icon: BarChart2, moduleCode: 'inventory.reports' },
+  ],
+};
+
+// Procurement Module
+const procurementModule: NavModule = {
+  title: 'Procurement',
+  icon: ShoppingCart,
+  moduleCode: 'procurement',
+  roles: ['admin'],
+  items: [
+    { title: 'Suppliers', href: '/lms/procurement/suppliers', icon: Building2, moduleCode: 'procurement.suppliers' },
+    { title: 'Purchase Requisitions', href: '/lms/procurement/requisitions', icon: ClipboardList, moduleCode: 'procurement.pr' },
+    { title: 'Request for Quotation', href: '/lms/procurement/rfq', icon: FileText, moduleCode: 'procurement.rfq' },
+    { title: 'Purchase Orders', href: '/lms/procurement/orders', icon: FileCheck, moduleCode: 'procurement.po' },
+    { title: 'Goods Receipt', href: '/lms/procurement/grn', icon: Package, moduleCode: 'procurement.grn' },
+    { title: 'Supplier Invoices', href: '/lms/procurement/invoices', icon: Receipt, moduleCode: 'procurement.invoices' },
+    { title: 'Procurement Reports', href: '/lms/procurement/reports', icon: BarChart2, moduleCode: 'procurement.reports' },
+  ],
+};
+
+// Library Module
+const libraryModule: NavModule = {
+  title: 'Library',
+  icon: BookOpen,
+  moduleCode: 'library',
+  roles: ['admin'],
+  items: [
+    { title: 'Book Catalog', href: '/lms/library/catalog', icon: BookMarked, moduleCode: 'library.catalog' },
+    { title: 'Members', href: '/lms/library/members', icon: Users, moduleCode: 'library.members' },
+    { title: 'Circulation', href: '/lms/library/circulation', icon: ArrowUpDown, moduleCode: 'library.circulation' },
+    { title: 'Reservations', href: '/lms/library/reservations', icon: Calendar, moduleCode: 'library.reservations' },
+    { title: 'Fines', href: '/lms/library/fines', icon: Coins, moduleCode: 'library.fines' },
+    { title: 'Settings', href: '/lms/library/settings', icon: Settings, moduleCode: 'library.settings' },
+    { title: 'Reports', href: '/lms/library/reports', icon: BarChart2, moduleCode: 'library.reports' },
+  ],
+};
+
 interface SidebarProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
