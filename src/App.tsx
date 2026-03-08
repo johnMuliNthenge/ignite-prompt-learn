@@ -205,6 +205,7 @@ import BookReservations from "./pages/lms/library/BookReservations";
 import LibraryFines from "./pages/lms/library/LibraryFines";
 import LibrarySettingsPage from "./pages/lms/library/LibrarySettingsPage";
 import LibraryReports from "./pages/lms/library/LibraryReports";
+import LibraryCategoryManagement from "./pages/lms/library/LibraryCategoryManagement";
 
 // Super Admin pages
 import SuperAdminLogin from "./pages/super-admin/SuperAdminLogin";
