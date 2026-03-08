@@ -50,6 +50,7 @@ import CurriculumManagement from "./pages/lms/academics/CurriculumManagement";
 import SubjectRegistration from "./pages/lms/academics/SubjectRegistration";
 import SubjectRegistrationList from "./pages/lms/academics/SubjectRegistrationList";
 import MarksComputation from "./pages/lms/academics/MarksComputation";
+import POEMarksReport from "./pages/lms/academics/POEMarksReport";
 
 // Finance pages
 import FinanceDashboard from "./pages/lms/finance/FinanceDashboard";
