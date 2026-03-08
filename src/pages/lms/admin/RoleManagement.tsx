@@ -104,9 +104,10 @@ export default function RoleManagement() {
 
   const fetchData = async () => {
     try {
-      const [rolesRes, modulesRes] = await Promise.all([
+      const [rolesRes, modulesRes, allPermsRes] = await Promise.all([
         supabase.from('app_roles').select('*').order('name'),
-        supabase.from('app_modules').select('*').order('sort_order'),
+        supabase.from('app_modules').select('*').eq('is_active', true).order('sort_order'),
+        supabase.from('role_permissions').select('*'),
       ]);
 
       if (rolesRes.error) throw rolesRes.error;
@@ -114,6 +115,7 @@ export default function RoleManagement() {
 
       setRoles(rolesRes.data || []);
       setModules(modulesRes.data || []);
+      setAllPermissions(allPermsRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({ title: 'Error', description: 'Failed to load roles', variant: 'destructive' });
