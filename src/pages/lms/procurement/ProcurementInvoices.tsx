@@ -30,12 +30,25 @@ export default function ProcurementInvoices() {
   };
 
   const markPaid = async (invoice: any) => {
-    // Update invoice status
-    const { error } = await supabase.from('procurement_invoices').update({ status: 'paid' }).eq('id', invoice.id);
-    if (error) { toast.error(error.message); return; }
+    try {
+      // Update invoice status
+      const { error } = await supabase.from('procurement_invoices').update({ status: 'paid' }).eq('id', invoice.id);
+      if (error) throw error;
 
-    toast.success('Invoice marked as paid');
-    fetchInvoices();
+      // Create payment voucher in Finance module
+      const { data: voucherNum } = await supabase.rpc('generate_voucher_number');
+      await supabase.from('payment_vouchers').insert({
+        voucher_number: voucherNum as string,
+        vendor_name: invoice.procurement_suppliers?.name || 'Unknown Supplier',
+        description: `Procurement Invoice: ${invoice.invoice_number}`,
+        amount: invoice.total_amount,
+        status: 'Paid',
+        payment_date: new Date().toISOString().split('T')[0],
+      });
+
+      toast.success('Invoice paid & payment voucher created in Finance');
+      fetchInvoices();
+    } catch (err: any) { toast.error(err.message); }
   };
 
   const statusColors: Record<string, string> = { pending: 'secondary', approved: 'default', paid: 'default', cancelled: 'destructive' };
