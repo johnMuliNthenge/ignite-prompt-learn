@@ -204,7 +204,7 @@ export default function TrialBalance() {
 
   const handleAccountClick = (entry: TrialBalanceEntry) => {
     if (entry.account_id) {
-      navigate(`/lms/finance/reports/general-ledger?accountId=${entry.account_id}`);
+      navigate(`/lms/finance/reports/general-ledger?accountId=${entry.account_id}&endDate=${asOfDate}`);
     }
   };
 

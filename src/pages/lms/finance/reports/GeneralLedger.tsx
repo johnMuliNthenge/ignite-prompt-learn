@@ -46,7 +46,7 @@ export default function GeneralLedger() {
   const [loading, setLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState<string>(searchParams.get('accountId') || 'all');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [endDate, setEndDate] = useState(searchParams.get('endDate') || '');
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
