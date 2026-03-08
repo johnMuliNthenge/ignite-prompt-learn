@@ -22,26 +22,13 @@ interface TrialBalanceEntry {
   credit_balance: number;
 }
 
-interface LedgerTransaction {
-  id: string;
-  transaction_date: string;
-  description: string;
-  reference_number: string | null;
-  debit: number;
-  credit: number;
-  journal_entry_id: string | null;
-}
 
 export default function TrialBalance() {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<TrialBalanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [asOfDate, setAsOfDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-
-  // Drill-down state
-  const [selectedAccount, setSelectedAccount] = useState<TrialBalanceEntry | null>(null);
-  const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
-  const [txnLoading, setTxnLoading] = useState(false);
 
   useEffect(() => {
     fetchTrialBalance();
