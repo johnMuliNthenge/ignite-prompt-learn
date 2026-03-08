@@ -116,6 +116,30 @@ export default function GeneralLedger() {
         a.account_name?.toLowerCase().includes('prepayment')
       );
 
+      // Find general cash/bank account
+      const cashBankAccount = (accountsRes.data || []).find((a: any) =>
+        a.account_code === '1102' || a.account_name?.toLowerCase().includes('cash') || a.account_name?.toLowerCase().includes('bank')
+      );
+      const cashBankId = cashBankAccount?.id || '';
+      const cashBankCode = cashBankAccount?.account_code || '300';
+      const cashBankName = cashBankAccount?.account_name || 'Cash and Bank';
+
+      // Find general fee income account
+      const feeIncomeAccount = (accountsRes.data || []).find((a: any) =>
+        a.account_type === 'Income' && (a.account_name?.toLowerCase().includes('fee') || a.account_code?.startsWith('4'))
+      );
+      const feeIncomeId = feeIncomeAccount?.id || '';
+      const feeIncomeCode = feeIncomeAccount?.account_code || '—';
+      const feeIncomeName = feeIncomeAccount?.account_name || 'Fee Income';
+
+      // Find general expense account
+      const expenseAccount = (accountsRes.data || []).find((a: any) =>
+        a.account_type === 'Expense' && a.account_code?.startsWith('5')
+      );
+      const expenseId = expenseAccount?.id || '';
+      const expenseCode = expenseAccount?.account_code || '—';
+      const expenseName = expenseAccount?.account_name || 'Expense';
+
       const allTransactions: DoubleEntryTransaction[] = [];
 
       // 1. Fee Invoices → Dr Debtors, Cr Income (per vote head)
@@ -148,9 +172,9 @@ export default function GeneralLedger() {
         } else {
           // Single credit line if no items breakdown
           lines.push({
-            account_code: '—',
-            account_name: 'Fee Income',
-            account_id: '',
+            account_code: feeIncomeCode,
+            account_name: feeIncomeName,
+            account_id: feeIncomeId,
             debit: 0,
             credit: Number(inv.total_amount) || 0,
           });
@@ -171,9 +195,9 @@ export default function GeneralLedger() {
         const lines: DoubleEntryTransaction['lines'] = [];
 
         // Determine cash/bank account from payment mode
-        let cashCode = '300';
-        let cashName = 'Cash and Bank';
-        let cashId = '';
+        let cashAccCode = cashBankCode;
+        let cashAccName = cashBankName;
+        let cashAccId = cashBankId;
 
         if (pmt.payment_mode_id) {
           const { data: pmData } = await supabase
@@ -185,21 +209,21 @@ export default function GeneralLedger() {
           if (pmData?.asset_account_id) {
             const acc = accountMap.get(pmData.asset_account_id);
             if (acc) {
-              cashCode = acc.code;
-              cashName = acc.name;
-              cashId = pmData.asset_account_id;
+              cashAccCode = acc.code;
+              cashAccName = acc.name;
+              cashAccId = pmData.asset_account_id;
             }
           } else if (pmData?.name) {
-            cashName = pmData.name;
+            cashAccName = pmData.name;
           }
         }
 
         // If payment exceeds debtors balance, credit goes to Prepayment
         // For simplicity, show standard Dr Cash/Bank, Cr Debtors
         lines.push({
-          account_code: cashCode,
-          account_name: cashName,
-          account_id: cashId,
+          account_code: cashAccCode,
+          account_name: cashAccName,
+          account_id: cashAccId,
           debit: Number(pmt.amount) || 0,
           credit: 0,
         });
@@ -229,18 +253,18 @@ export default function GeneralLedger() {
 
         // Debit: Expense
         lines.push({
-          account_code: '—',
-          account_name: pv.description || 'Expense',
-          account_id: '',
+          account_code: expenseCode,
+          account_name: pv.description || expenseName,
+          account_id: expenseId,
           debit: pvAmount,
           credit: 0,
         });
 
         // Credit: Cash/Bank
         lines.push({
-          account_code: '300',
-          account_name: 'Cash and Bank',
-          account_id: '',
+          account_code: cashBankCode,
+          account_name: cashBankName,
+          account_id: cashBankId,
           debit: 0,
           credit: pvAmount,
         });
@@ -329,14 +353,24 @@ export default function GeneralLedger() {
     currentPage * ROWS_PER_PAGE
   );
 
-  // Compute totals from all visible lines
+  // Compute totals - when filtered by account, only sum that account's lines
   const { totalDebits, totalCredits } = useMemo(() => {
     let dr = 0, cr = 0;
     filteredTransactions.forEach(t => {
-      t.lines.forEach(l => { dr += l.debit; cr += l.credit; });
+      t.lines.forEach(l => {
+        if (selectedAccount && selectedAccount !== 'all') {
+          if (l.account_id === selectedAccount) {
+            dr += l.debit;
+            cr += l.credit;
+          }
+        } else {
+          dr += l.debit;
+          cr += l.credit;
+        }
+      });
     });
     return { totalDebits: dr, totalCredits: cr };
-  }, [filteredTransactions]);
+  }, [filteredTransactions, selectedAccount]);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
