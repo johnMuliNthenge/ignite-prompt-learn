@@ -267,6 +267,11 @@ export default function RoleManagement() {
     }
   };
 
+  const refreshAllPermissions = async () => {
+    const { data } = await supabase.from('role_permissions').select('*');
+    setAllPermissions(data || []);
+  };
+
   const handleGrantAllPermissions = async (roleId: string, moduleCode: string) => {
     try {
       const promises = ACTIONS.map(action =>
@@ -278,6 +283,7 @@ export default function RoleManagement() {
 
       await Promise.all(promises);
       fetchRolePermissions(roleId);
+      refreshAllPermissions();
       toast({ title: 'All permissions granted' });
     } catch (error) {
       console.error('Error granting permissions:', error);
@@ -294,6 +300,7 @@ export default function RoleManagement() {
         .eq('module_code', moduleCode);
 
       fetchRolePermissions(roleId);
+      refreshAllPermissions();
       toast({ title: 'All permissions revoked' });
     } catch (error) {
       console.error('Error revoking permissions:', error);
