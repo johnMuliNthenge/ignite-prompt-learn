@@ -95,7 +95,7 @@ export default function FinancialPosition() {
         .select('amount')
         .neq('status', 'Draft')
         .lte('voucher_date', asOfDate);
-      const totalExpenseAccrual = (vouchersForExpense || []).reduce((s, v) => s + (Number(v.total_amount) || 0), 0);
+      const totalExpenseAccrual = (vouchersForExpense || []).reduce((s, v) => s + (Number(v.amount) || 0), 0);
 
       // Supplement COA accounts with synthetic balances where GL is empty
       const debtorsAcc = (accountsData || []).find((a: any) => a.account_code === '1201');
