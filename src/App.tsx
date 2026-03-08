@@ -177,6 +177,31 @@ import DisbursementModes from "./pages/lms/payroll/utilities/DisbursementModes";
 import PayAccounts from "./pages/lms/payroll/utilities/PayAccounts";
 import EmployeeStatuses from "./pages/lms/payroll/utilities/EmployeeStatuses";
 
+// Inventory pages
+import ItemMaster from "./pages/lms/inventory/ItemMaster";
+import StoreManagement from "./pages/lms/inventory/StoreManagement";
+import StockTransactions from "./pages/lms/inventory/StockTransactions";
+import StoreRequisitions from "./pages/lms/inventory/StoreRequisitions";
+import InventoryReports from "./pages/lms/inventory/InventoryReports";
+
+// Procurement pages
+import SupplierManagement from "./pages/lms/procurement/SupplierManagement";
+import PurchaseRequisitions from "./pages/lms/procurement/PurchaseRequisitions";
+import RFQManagement from "./pages/lms/procurement/RFQManagement";
+import PurchaseOrders from "./pages/lms/procurement/PurchaseOrders";
+import GoodsReceipt from "./pages/lms/procurement/GoodsReceipt";
+import ProcurementInvoices from "./pages/lms/procurement/ProcurementInvoices";
+import ProcurementReports from "./pages/lms/procurement/ProcurementReports";
+
+// Library pages
+import BookCatalog from "./pages/lms/library/BookCatalog";
+import LibraryMembers from "./pages/lms/library/LibraryMembers";
+import BookCirculation from "./pages/lms/library/BookCirculation";
+import BookReservations from "./pages/lms/library/BookReservations";
+import LibraryFines from "./pages/lms/library/LibraryFines";
+import LibrarySettingsPage from "./pages/lms/library/LibrarySettingsPage";
+import LibraryReports from "./pages/lms/library/LibraryReports";
+
 // Super Admin pages
 import SuperAdminLogin from "./pages/super-admin/SuperAdminLogin";
 import SuperAdminDashboard from "./pages/super-admin/SuperAdminDashboard";
@@ -359,6 +384,31 @@ const App = () => (
               <Route path="payroll/utilities/disbursement-modes" element={<DisbursementModes />} />
               <Route path="payroll/utilities/pay-accounts" element={<PayAccounts />} />
               <Route path="payroll/utilities/employee-statuses" element={<EmployeeStatuses />} />
+
+              {/* Inventory Routes */}
+              <Route path="inventory/items" element={<ItemMaster />} />
+              <Route path="inventory/stores" element={<StoreManagement />} />
+              <Route path="inventory/transactions" element={<StockTransactions />} />
+              <Route path="inventory/requisitions" element={<StoreRequisitions />} />
+              <Route path="inventory/reports" element={<InventoryReports />} />
+
+              {/* Procurement Routes */}
+              <Route path="procurement/suppliers" element={<SupplierManagement />} />
+              <Route path="procurement/requisitions" element={<PurchaseRequisitions />} />
+              <Route path="procurement/rfq" element={<RFQManagement />} />
+              <Route path="procurement/orders" element={<PurchaseOrders />} />
+              <Route path="procurement/grn" element={<GoodsReceipt />} />
+              <Route path="procurement/invoices" element={<ProcurementInvoices />} />
+              <Route path="procurement/reports" element={<ProcurementReports />} />
+
+              {/* Library Routes */}
+              <Route path="library/catalog" element={<BookCatalog />} />
+              <Route path="library/members" element={<LibraryMembers />} />
+              <Route path="library/circulation" element={<BookCirculation />} />
+              <Route path="library/reservations" element={<BookReservations />} />
+              <Route path="library/fines" element={<LibraryFines />} />
+              <Route path="library/settings" element={<LibrarySettingsPage />} />
+              <Route path="library/reports" element={<LibraryReports />} />
             </Route>
 
             {/* Student Portal Routes */}
