@@ -46,7 +46,7 @@ export default function GeneralLedger() {
   const [loading, setLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState<string>(searchParams.get('accountId') || 'all');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [endDate, setEndDate] = useState(searchParams.get('endDate') || '');
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function GeneralLedger() {
     setLoading(true);
     try {
       // Fetch all data sources in parallel
-      const [invoicesRes, paymentsRes, accountsRes, studentsRes, vouchersRes, glRes] = await Promise.all([
+      const [invoicesRes, paymentsRes, accountsRes, studentsRes, vouchersRes, glRes, feeAccountsRes] = await Promise.all([
         supabase.from('fee_invoices').select(`
           id, invoice_number, invoice_date, total_amount, student_id, status,
           fee_invoice_items ( description, total, fee_account_id )
@@ -90,6 +90,9 @@ export default function GeneralLedger() {
           id, transaction_date, description, debit, credit, account_id, journal_entry_id,
           journal_entries:journal_entry_id ( entry_number, narration )
         `).order('transaction_date', { ascending: false }).limit(1000),
+
+        // Fetch fee_accounts to resolve fee_account_id → chart_of_accounts.id
+        supabase.from('fee_accounts').select('id, account_id'),
       ]);
 
       const accountMap = new Map<string, { code: string; name: string }>();
@@ -100,6 +103,12 @@ export default function GeneralLedger() {
       const studentMap = new Map<string, string>();
       (studentsRes.data || []).forEach((s: any) => {
         studentMap.set(s.id, `${s.other_name || ''} ${s.surname || ''}`.trim());
+      });
+
+      // Map fee_account_id → chart_of_accounts.id
+      const feeAccToCoaMap = new Map<string, string>();
+      (feeAccountsRes.data || []).forEach((fa: any) => {
+        if (fa.account_id) feeAccToCoaMap.set(fa.id, fa.account_id);
       });
 
       // Find debtors account (Receivables) - look for common patterns
@@ -160,11 +169,13 @@ export default function GeneralLedger() {
         // Credit: Each vote head (income line)
         if (items.length > 0) {
           items.forEach((item: any) => {
-            const acc = item.fee_account_id ? accountMap.get(item.fee_account_id) : null;
+            // Resolve fee_account_id → chart_of_accounts.id
+            const coaId = item.fee_account_id ? (feeAccToCoaMap.get(item.fee_account_id) || '') : '';
+            const acc = coaId ? accountMap.get(coaId) : null;
             lines.push({
-              account_code: acc?.code || '—',
-              account_name: acc?.name || item.description || 'Fee Income',
-              account_id: item.fee_account_id || '',
+              account_code: acc?.code || feeIncomeCode,
+              account_name: acc?.name || item.description || feeIncomeName,
+              account_id: coaId || feeIncomeId,
               debit: 0,
               credit: Number(item.total) || 0,
             });
