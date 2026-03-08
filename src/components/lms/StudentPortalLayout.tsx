@@ -28,6 +28,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Home,
+  BookOpen,
+  Search,
+  AlertTriangle,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -87,6 +90,28 @@ const studentNavItems: NavItem[] = [
         title: 'Upload POE',
         href: '/lms/student-portal/poe/upload',
         icon: Upload,
+      },
+    ],
+  },
+  {
+    title: 'Library',
+    href: '/lms/student-portal/library',
+    icon: BookOpen,
+    subItems: [
+      {
+        title: 'Search Books',
+        href: '/lms/student-portal/library/search',
+        icon: Search,
+      },
+      {
+        title: 'My Borrowed Books',
+        href: '/lms/student-portal/library/borrowed',
+        icon: BookOpen,
+      },
+      {
+        title: 'My Fines',
+        href: '/lms/student-portal/library/fines',
+        icon: AlertTriangle,
       },
     ],
   },

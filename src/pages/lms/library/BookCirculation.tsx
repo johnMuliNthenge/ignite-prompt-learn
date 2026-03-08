@@ -91,12 +91,6 @@ export default function BookCirculation() {
       }).eq('id', issue.id);
 
       // Increase available copies
-      await supabase.from('library_books').update({
-        available_copies: (issue.library_books as any)?.available_copies !== undefined
-          ? supabase.rpc as any // handled below
-          : 1
-      }).eq('id', issue.book_id);
-      // Simpler: just increment
       const { data: bookData } = await supabase.from('library_books').select('available_copies').eq('id', issue.book_id).single();
       if (bookData) {
         await supabase.from('library_books').update({ available_copies: (bookData as any).available_copies + 1 }).eq('id', issue.book_id);
