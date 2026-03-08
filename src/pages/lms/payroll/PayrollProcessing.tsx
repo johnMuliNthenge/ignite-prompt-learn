@@ -81,7 +81,7 @@ const PayrollProcessing = () => {
       const statConfigs = statConfigsRes.data || [];
       const taxBands = taxBandsRes.data || [];
       const empDeductions = empDeductionsRes.data || [];
-      const settings = settingsRes.data || {};
+      const settings: any = settingsRes.data || {};
       const nonCashBenefits = nonCashRes.data || [];
 
       // Relief rates from settings
