@@ -274,6 +274,7 @@ const App = () => (
               <Route path="academics/subject-registration" element={<SubjectRegistrationList />} />
               <Route path="academics/subject-registration/register" element={<SubjectRegistration />} />
               <Route path="academics/marks-computation" element={<MarksComputation />} />
+              <Route path="academics/poe-marks-report" element={<POEMarksReport />} />
               {/* Finance Routes */}
               <Route path="finance" element={<FinanceDashboard />} />
               <Route path="finance/fees-status" element={<StudentFeesStatus />} />
