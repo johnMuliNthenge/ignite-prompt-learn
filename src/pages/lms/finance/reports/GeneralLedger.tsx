@@ -353,14 +353,24 @@ export default function GeneralLedger() {
     currentPage * ROWS_PER_PAGE
   );
 
-  // Compute totals from all visible lines
+  // Compute totals - when filtered by account, only sum that account's lines
   const { totalDebits, totalCredits } = useMemo(() => {
     let dr = 0, cr = 0;
     filteredTransactions.forEach(t => {
-      t.lines.forEach(l => { dr += l.debit; cr += l.credit; });
+      t.lines.forEach(l => {
+        if (selectedAccount && selectedAccount !== 'all') {
+          if (l.account_id === selectedAccount) {
+            dr += l.debit;
+            cr += l.credit;
+          }
+        } else {
+          dr += l.debit;
+          cr += l.credit;
+        }
+      });
     });
     return { totalDebits: dr, totalCredits: cr };
-  }, [filteredTransactions]);
+  }, [filteredTransactions, selectedAccount]);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
