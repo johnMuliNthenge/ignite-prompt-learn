@@ -6302,6 +6302,7 @@ export type Database = {
           nhlf_account_id: string | null
           nssf_account_id: string | null
           nssf_tier_distribution: string | null
+          other_deductions_account_id: string | null
           paye_account_id: string | null
           payroll_frequency: string
           payroll_liability_account_id: string | null
@@ -6349,6 +6350,7 @@ export type Database = {
           nhlf_account_id?: string | null
           nssf_account_id?: string | null
           nssf_tier_distribution?: string | null
+          other_deductions_account_id?: string | null
           paye_account_id?: string | null
           payroll_frequency?: string
           payroll_liability_account_id?: string | null
@@ -6396,6 +6398,7 @@ export type Database = {
           nhlf_account_id?: string | null
           nssf_account_id?: string | null
           nssf_tier_distribution?: string | null
+          other_deductions_account_id?: string | null
           paye_account_id?: string | null
           payroll_frequency?: string
           payroll_liability_account_id?: string | null
@@ -6475,6 +6478,13 @@ export type Database = {
           {
             foreignKeyName: "payroll_settings_nssf_account_id_fkey"
             columns: ["nssf_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_settings_other_deductions_account_id_fkey"
+            columns: ["other_deductions_account_id"]
             isOneToOne: false
             referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
