@@ -69,8 +69,7 @@ export default function TrialBalance() {
       const { data: paymentsData } = await supabase
         .from('fee_payments')
         .select('amount')
-        .lte('payment_date', asOfDate)
-        .eq('status', 'Completed');
+        .lte('payment_date', asOfDate);
 
       const totalInvoiced = (invoicesData || []).reduce((sum, inv) => sum + Number(inv.total_amount), 0);
       const totalPaid = (paymentsData || []).reduce((sum, pay) => sum + Number(pay.amount), 0);
