@@ -125,7 +125,6 @@ export default function BookCirculation() {
             invoice_date: new Date().toISOString().split('T')[0],
             total_amount: fineAmount,
             balance_due: fineAmount,
-            description: `Library fine: ${overdueDays} days overdue`,
             status: 'sent',
           }]);
           
