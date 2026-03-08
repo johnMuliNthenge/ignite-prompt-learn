@@ -167,6 +167,7 @@ export async function fetchFinanceDataSources(options?: {
     payments: paymentsRes.data || [],
     vouchers: vouchersRes.data || [],
     glEntries: glRes.data || [],
+    payrollRuns: payrollRunsRes.data || [],
     debtorsId: debtorsAcc?.id || '',
     debtorsCode: debtorsAcc?.account_code || '1201',
     debtorsName: debtorsAcc?.account_name || 'Student Debtors',
