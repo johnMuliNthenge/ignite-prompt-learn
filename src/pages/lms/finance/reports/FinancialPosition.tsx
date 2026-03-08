@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Download, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import {
+  fetchFinanceDataSources,
+  buildSyntheticTransactions,
+  buildBalanceMap,
+  formatKES,
+} from '@/lib/finance-utils';
 
 interface BalanceItem {
   account_code: string;
@@ -38,88 +43,26 @@ export default function FinancialPosition() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch accounts with groups
-      const { data: accountsData, error: accErr } = await supabase
-        .from('chart_of_accounts')
-        .select('id, account_code, account_name, account_type, normal_balance, account_groups(name)')
-        .eq('is_active', true)
-        .order('account_code');
-      if (accErr) throw accErr;
-
-      // Fetch ALL ledger entries up to asOfDate
-      const { data: ledgerData, error: ledErr } = await supabase
-        .from('general_ledger')
-        .select('account_id, debit, credit')
-        .lte('transaction_date', asOfDate);
-      if (ledErr) throw ledErr;
-
-      // Build balance map from GL
-      const balanceMap = new Map<string, number>();
-      (ledgerData || []).forEach((e: any) => {
-        const existing = balanceMap.get(e.account_id) || 0;
-        balanceMap.set(e.account_id, existing + (Number(e.debit) || 0) - (Number(e.credit) || 0));
+      const data = await fetchFinanceDataSources({
+        includeGroups: true,
+        dateFilter: { endDate: asOfDate },
       });
+      const transactions = buildSyntheticTransactions(data);
+      const balanceMap = buildBalanceMap(transactions, data.prepayAccId, data.debtorsId);
 
-      // IPSAS Accrual: Compute student debtors from total invoiced - total paid
-      const { data: invoices } = await supabase
-        .from('fee_invoices')
-        .select('total_amount')
-        .lte('invoice_date', asOfDate);
-      const { data: payments } = await supabase
-        .from('fee_payments')
-        .select('amount')
-        .eq('status', 'Completed')
-        .lte('payment_date', asOfDate);
+      // Compute accumulated surplus for equity (IPSAS: Revenue - Expenses)
+      let totalIncome = 0, totalExpense = 0;
+      data.accounts.forEach(acc => {
+        const bal = balanceMap.get(acc.id);
+        if (!bal) return;
+        const net = bal.debit - bal.credit;
+        if (acc.account_type === 'Income') totalIncome += Math.abs(net);
+        else if (acc.account_type === 'Expense') totalExpense += (net > 0 ? net : 0);
+      });
+      const netSurplus = totalIncome - totalExpense;
 
-      const totalInvoiced = (invoices || []).reduce((s, i) => s + (Number(i.total_amount) || 0), 0);
-      const totalPaid = (payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-      const netReceivable = totalInvoiced - totalPaid;
-
-      // Expense payments (cash outflows)
-      const { data: voucherPayments } = await supabase
-        .from('payable_payments')
-        .select('amount')
-        .eq('status', 'Completed')
-        .lte('payment_date', asOfDate);
-      const totalExpensePaid = (voucherPayments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-
-      // IPSAS: Compute accumulated surplus (Revenue - Expenses) for equity
-      const { data: invoiceItemsForIncome } = await supabase
-        .from('fee_invoice_items')
-        .select('total, fee_invoices!inner(invoice_date)')
-        .lte('fee_invoices.invoice_date', asOfDate);
-      const totalIncomeAccrual = (invoiceItemsForIncome || []).reduce((s, i) => s + (Number(i.total) || 0), 0);
-
-      const { data: vouchersForExpense } = await supabase
-        .from('payment_vouchers')
-        .select('amount')
-        .neq('status', 'Draft')
-        .lte('voucher_date', asOfDate);
-      const totalExpenseAccrual = (vouchersForExpense || []).reduce((s, v) => s + (Number(v.amount) || 0), 0);
-
-      // Supplement COA accounts with synthetic balances where GL is empty
-      const debtorsAcc = (accountsData || []).find((a: any) => a.account_code === '1201');
-      const prepayAcc = (accountsData || []).find((a: any) => a.account_code === '2103');
-      const cashAcc = (accountsData || []).find((a: any) => a.account_code === '1102');
-
-      if (debtorsAcc && netReceivable > 0) {
-        const glBal = balanceMap.get(debtorsAcc.id) || 0;
-        if (glBal === 0) balanceMap.set(debtorsAcc.id, netReceivable);
-      }
-      if (prepayAcc && netReceivable < 0) {
-        const glBal = balanceMap.get(prepayAcc.id) || 0;
-        if (glBal === 0) balanceMap.set(prepayAcc.id, Math.abs(netReceivable));
-      }
-      if (cashAcc) {
-        const glBal = balanceMap.get(cashAcc.id) || 0;
-        if (glBal === 0 && (totalPaid > 0 || totalExpensePaid > 0)) {
-          balanceMap.set(cashAcc.id, totalPaid - totalExpensePaid);
-        }
-      }
-
-      // IPSAS: Accumulated Surplus/Deficit → Equity
-      const netSurplus = totalIncomeAccrual - totalExpenseAccrual;
-      const accSurplusAcc = (accountsData || []).find((a: any) =>
+      // Find accumulated surplus account and set its balance
+      const accSurplusAcc = data.accounts.find(a =>
         a.account_type === 'Equity' && (
           a.account_name?.toLowerCase().includes('accumulated') ||
           a.account_name?.toLowerCase().includes('surplus') ||
@@ -127,38 +70,35 @@ export default function FinancialPosition() {
           a.account_code === '3100'
         )
       );
-      if (accSurplusAcc) {
-        const glBal = balanceMap.get(accSurplusAcc.id) || 0;
-        if (glBal === 0 && netSurplus !== 0) {
-          // Equity is normal credit: surplus = credit = negative in debit-credit
-          balanceMap.set(accSurplusAcc.id, -netSurplus);
+      if (accSurplusAcc && netSurplus !== 0) {
+        const existing = balanceMap.get(accSurplusAcc.id) || { debit: 0, credit: 0 };
+        if (existing.debit === 0 && existing.credit === 0) {
+          // Equity normal credit: surplus is credit
+          balanceMap.set(accSurplusAcc.id, { debit: 0, credit: netSurplus > 0 ? netSurplus : 0 });
+          if (netSurplus < 0) {
+            balanceMap.set(accSurplusAcc.id, { debit: Math.abs(netSurplus), credit: 0 });
+          }
         }
       }
 
-      // Build grouped sections
       const buildSection = (type: string): GroupedSection[] => {
-        const items: BalanceItem[] = (accountsData || [])
-          .filter((a: any) => a.account_type === type)
-          .map((a: any) => {
-            let rawBalance = balanceMap.get(a.id) || 0;
-            // For normal debit accounts, positive = debit balance
-            // For normal credit accounts, positive net means debit (unusual), negative means credit (normal)
+        const items: BalanceItem[] = data.accounts
+          .filter(a => a.account_type === type)
+          .map(a => {
+            const bal = balanceMap.get(a.id);
+            if (!bal) return null;
+            const net = bal.debit - bal.credit;
             let amount = 0;
             if (a.normal_balance === 'Debit') {
-              amount = rawBalance; // Debit balance is positive
+              amount = net;
             } else {
-              amount = -rawBalance; // Credit balance shown as positive
+              amount = -net; // Credit balance shown as positive
             }
-            return {
-              account_code: a.account_code,
-              account_name: a.account_name,
-              group_name: (a as any).account_groups?.name || 'Other',
-              amount,
-            };
+            if (Math.abs(amount) < 0.01) return null;
+            return { account_code: a.account_code, account_name: a.account_name, group_name: a.group_name || 'Other', amount };
           })
-          .filter(i => Math.abs(i.amount) >= 0.01);
+          .filter((i): i is BalanceItem => i !== null);
 
-        // Group by group_name
         const groups = new Map<string, BalanceItem[]>();
         items.forEach(i => {
           if (!groups.has(i.group_name)) groups.set(i.group_name, []);
@@ -183,7 +123,6 @@ export default function FinancialPosition() {
     }
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(n);
   const totalAssets = assets.reduce((s, g) => s + g.total, 0);
   const totalLiabilities = liabilities.reduce((s, g) => s + g.total, 0);
   const totalEquity = equity.reduce((s, g) => s + g.total, 0);
@@ -191,7 +130,7 @@ export default function FinancialPosition() {
 
   if (!isAdmin) return <div className="p-6"><p className="text-muted-foreground">Access denied.</p></div>;
 
-  const renderSection = (sections: GroupedSection[], colorClass: string) => (
+  const renderSection = (sections: GroupedSection[]) => (
     <Table>
       <TableHeader>
         <TableRow>
@@ -203,7 +142,7 @@ export default function FinancialPosition() {
       <TableBody>
         {sections.length === 0 ? (
           <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No data</TableCell></TableRow>
-        ) : sections.map((group) => (
+        ) : sections.map(group => (
           <React.Fragment key={group.group}>
             <TableRow className="bg-muted/30">
               <TableCell colSpan={2} className="font-semibold">{group.group}</TableCell>
@@ -213,12 +152,12 @@ export default function FinancialPosition() {
               <TableRow key={i}>
                 <TableCell className="font-mono text-xs pl-8">{item.account_code}</TableCell>
                 <TableCell className="pl-8">{item.account_name}</TableCell>
-                <TableCell className="text-right">{fmt(item.amount)}</TableCell>
+                <TableCell className="text-right">{formatKES(item.amount)}</TableCell>
               </TableRow>
             ))}
             <TableRow className="border-t">
               <TableCell colSpan={2} className="font-medium pl-8">Sub-total: {group.group}</TableCell>
-              <TableCell className="text-right font-medium">{fmt(group.total)}</TableCell>
+              <TableCell className="text-right font-medium">{formatKES(group.total)}</TableCell>
             </TableRow>
           </React.Fragment>
         ))}
@@ -240,23 +179,19 @@ export default function FinancialPosition() {
         <CardHeader><CardTitle>Report Date</CardTitle></CardHeader>
         <CardContent>
           <div className="flex gap-4 items-end">
-            <div className="space-y-2">
-              <Label>As of Date</Label>
-              <Input type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} />
-            </div>
+            <div className="space-y-2"><Label>As of Date</Label><Input type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} /></div>
             <Button onClick={fetchData}>Generate Report</Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Balance Check */}
       <Card className={isBalanced ? 'border-green-500' : 'border-destructive'}>
         <CardContent className="pt-6">
           <div className="flex items-center gap-2">
             {isBalanced ? (
               <><CheckCircle className="h-5 w-5 text-green-600" /><span className="text-green-600 font-medium">Balance Sheet is balanced (A = L + E)</span></>
             ) : (
-              <><AlertCircle className="h-5 w-5 text-destructive" /><span className="text-destructive font-medium">Unbalanced — Difference: {fmt(Math.abs(totalAssets - totalLiabilities - totalEquity))}</span></>
+              <><AlertCircle className="h-5 w-5 text-destructive" /><span className="text-destructive font-medium">Unbalanced — Difference: {formatKES(Math.abs(totalAssets - totalLiabilities - totalEquity))}</span></>
             )}
           </div>
         </CardContent>
@@ -266,48 +201,38 @@ export default function FinancialPosition() {
         <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
       ) : (
         <div className="space-y-6">
-          {/* Assets */}
           <Card>
             <CardHeader><CardTitle>Assets</CardTitle></CardHeader>
             <CardContent>
-              {renderSection(assets, 'blue')}
-              <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg">
-                <span>Total Assets</span><span>{fmt(totalAssets)}</span>
-              </div>
+              {renderSection(assets)}
+              <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg"><span>Total Assets</span><span>{formatKES(totalAssets)}</span></div>
             </CardContent>
           </Card>
 
-          {/* Liabilities */}
           <Card>
             <CardHeader><CardTitle>Liabilities</CardTitle></CardHeader>
             <CardContent>
-              {renderSection(liabilities, 'orange')}
-              <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg">
-                <span>Total Liabilities</span><span>{fmt(totalLiabilities)}</span>
-              </div>
+              {renderSection(liabilities)}
+              <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg"><span>Total Liabilities</span><span>{formatKES(totalLiabilities)}</span></div>
             </CardContent>
           </Card>
 
-          {/* Equity */}
           <Card>
             <CardHeader><CardTitle>Net Assets / Equity</CardTitle></CardHeader>
             <CardContent>
-              {renderSection(equity, 'purple')}
-              <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg">
-                <span>Total Equity</span><span>{fmt(totalEquity)}</span>
-              </div>
+              {renderSection(equity)}
+              <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg"><span>Total Equity</span><span>{formatKES(totalEquity)}</span></div>
             </CardContent>
           </Card>
 
-          {/* Summary */}
           <Card className="border-primary">
             <CardContent className="pt-6 space-y-2">
-              <div className="flex justify-between"><span>Total Assets</span><span className="font-bold">{fmt(totalAssets)}</span></div>
-              <div className="flex justify-between"><span>Total Liabilities</span><span className="font-bold">{fmt(totalLiabilities)}</span></div>
-              <div className="flex justify-between"><span>Total Equity</span><span className="font-bold">{fmt(totalEquity)}</span></div>
+              <div className="flex justify-between"><span>Total Assets</span><span className="font-bold">{formatKES(totalAssets)}</span></div>
+              <div className="flex justify-between"><span>Total Liabilities</span><span className="font-bold">{formatKES(totalLiabilities)}</span></div>
+              <div className="flex justify-between"><span>Total Equity</span><span className="font-bold">{formatKES(totalEquity)}</span></div>
               <div className="border-t pt-2 flex justify-between text-lg">
                 <span className="font-bold">Liabilities + Equity</span>
-                <span className="font-bold">{fmt(totalLiabilities + totalEquity)}</span>
+                <span className="font-bold">{formatKES(totalLiabilities + totalEquity)}</span>
               </div>
             </CardContent>
           </Card>
