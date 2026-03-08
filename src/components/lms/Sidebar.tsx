@@ -64,9 +64,9 @@ const navItems: NavItem[] = [
   },
 ];
 
-// Instructor Module
-const instructorModule: NavModule = {
-  title: 'Instructor',
+// E-Learning Module
+const eLearningModule: NavModule = {
+  title: 'E-Learning',
   icon: UserCheck,
   moduleCode: 'instructor',
   roles: ['admin', 'teacher'],
@@ -83,25 +83,27 @@ const instructorModule: NavModule = {
       icon: FolderOpen,
       moduleCode: 'instructor.my_courses',
     },
+  ],
+};
+
+// Student Management Module
+const studentManagementModule: NavModule = {
+  title: 'Student Management',
+  icon: Users,
+  moduleCode: 'student_management',
+  roles: ['admin', 'teacher'],
+  items: [
     {
-      title: 'Student Management',
+      title: 'All Students',
       href: '/lms/students',
       icon: Users,
       moduleCode: 'instructor.students',
-      subItems: [
-        {
-          title: 'All Students',
-          href: '/lms/students',
-          icon: Users,
-          moduleCode: 'instructor.students',
-        },
-        {
-          title: 'Classes',
-          href: '/lms/students/classes',
-          icon: School,
-          moduleCode: 'instructor.classes',
-        },
-      ],
+    },
+    {
+      title: 'Classes',
+      href: '/lms/students/classes',
+      icon: School,
+      moduleCode: 'instructor.classes',
     },
   ],
 };
