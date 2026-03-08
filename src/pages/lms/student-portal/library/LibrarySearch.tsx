@@ -55,7 +55,7 @@ export default function LibrarySearch() {
       const { error } = await supabase.from('library_reservations').insert({
         book_id: bookId,
         member_id: memberId,
-        reserved_by: user?.id,
+        status: 'active',
       });
       if (error) throw error;
       toast.success('Book reserved successfully! You will be notified when available.');
@@ -73,8 +73,7 @@ export default function LibrarySearch() {
       const { error } = await supabase.from('library_reservations').insert({
         book_id: bookId,
         member_id: memberId,
-        reserved_by: user?.id,
-        notes: 'Book request from student portal',
+        status: 'active',
       });
       if (error) throw error;
       toast.success('Book requested! The librarian will process your request.');
