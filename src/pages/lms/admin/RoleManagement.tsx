@@ -592,7 +592,7 @@ export default function RoleManagement() {
                         </TableCell>
                         {roles.filter(r => r.is_active).map(role => {
                           // Count permissions for this role/module
-                          const permCount = permissions.filter(
+                          const permCount = allPermissions.filter(
                             p => p.role_id === role.id && p.module_code === module.code && p.is_allowed
                           ).length;
 
