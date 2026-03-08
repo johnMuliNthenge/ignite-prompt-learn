@@ -85,6 +85,7 @@ export default function RoleManagement() {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [modules, setModules] = useState<AppModule[]>([]);
   const [permissions, setPermissions] = useState<RolePermission[]>([]);
+  const [allPermissions, setAllPermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -103,9 +104,10 @@ export default function RoleManagement() {
 
   const fetchData = async () => {
     try {
-      const [rolesRes, modulesRes] = await Promise.all([
+      const [rolesRes, modulesRes, allPermsRes] = await Promise.all([
         supabase.from('app_roles').select('*').order('name'),
-        supabase.from('app_modules').select('*').order('sort_order'),
+        supabase.from('app_modules').select('*').eq('is_active', true).order('sort_order'),
+        supabase.from('role_permissions').select('*'),
       ]);
 
       if (rolesRes.error) throw rolesRes.error;
@@ -113,6 +115,7 @@ export default function RoleManagement() {
 
       setRoles(rolesRes.data || []);
       setModules(modulesRes.data || []);
+      setAllPermissions(allPermsRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({ title: 'Error', description: 'Failed to load roles', variant: 'destructive' });
@@ -255,10 +258,18 @@ export default function RoleManagement() {
       }
 
       fetchRolePermissions(roleId);
+      // Also refresh allPermissions for the matrix tab
+      const { data: allPermsData } = await supabase.from('role_permissions').select('*');
+      setAllPermissions(allPermsData || []);
     } catch (error) {
       console.error('Error updating permission:', error);
       toast({ title: 'Error', description: 'Failed to update permission', variant: 'destructive' });
     }
+  };
+
+  const refreshAllPermissions = async () => {
+    const { data } = await supabase.from('role_permissions').select('*');
+    setAllPermissions(data || []);
   };
 
   const handleGrantAllPermissions = async (roleId: string, moduleCode: string) => {
@@ -272,6 +283,7 @@ export default function RoleManagement() {
 
       await Promise.all(promises);
       fetchRolePermissions(roleId);
+      refreshAllPermissions();
       toast({ title: 'All permissions granted' });
     } catch (error) {
       console.error('Error granting permissions:', error);
@@ -288,6 +300,7 @@ export default function RoleManagement() {
         .eq('module_code', moduleCode);
 
       fetchRolePermissions(roleId);
+      refreshAllPermissions();
       toast({ title: 'All permissions revoked' });
     } catch (error) {
       console.error('Error revoking permissions:', error);
@@ -586,7 +599,7 @@ export default function RoleManagement() {
                         </TableCell>
                         {roles.filter(r => r.is_active).map(role => {
                           // Count permissions for this role/module
-                          const permCount = permissions.filter(
+                          const permCount = allPermissions.filter(
                             p => p.role_id === role.id && p.module_code === module.code && p.is_allowed
                           ).length;
 
