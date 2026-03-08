@@ -253,18 +253,18 @@ export default function GeneralLedger() {
 
         // Debit: Expense
         lines.push({
-          account_code: '—',
-          account_name: pv.description || 'Expense',
-          account_id: '',
+          account_code: expenseCode,
+          account_name: pv.description || expenseName,
+          account_id: expenseId,
           debit: pvAmount,
           credit: 0,
         });
 
         // Credit: Cash/Bank
         lines.push({
-          account_code: '300',
-          account_name: 'Cash and Bank',
-          account_id: '',
+          account_code: cashBankCode,
+          account_name: cashBankName,
+          account_id: cashBankId,
           debit: 0,
           credit: pvAmount,
         });
