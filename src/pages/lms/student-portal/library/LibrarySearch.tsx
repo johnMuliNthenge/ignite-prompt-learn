@@ -135,7 +135,11 @@ export default function LibrarySearch() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {book.available_copies === 0 && (
+                    {book.available_copies > 0 ? (
+                      <Button size="sm" variant="default" onClick={() => handleRequest(book.id)}>
+                        <BookmarkPlus className="h-3 w-3 mr-1" />Request
+                      </Button>
+                    ) : (
                       <Button size="sm" variant="outline" onClick={() => handleReserve(book.id)}>
                         <BookmarkPlus className="h-3 w-3 mr-1" />Reserve
                       </Button>
