@@ -105,6 +105,12 @@ export default function GeneralLedger() {
         studentMap.set(s.id, `${s.other_name || ''} ${s.surname || ''}`.trim());
       });
 
+      // Map fee_account_id → chart_of_accounts.id
+      const feeAccToCoaMap = new Map<string, string>();
+      (feeAccountsRes.data || []).forEach((fa: any) => {
+        if (fa.account_id) feeAccToCoaMap.set(fa.id, fa.account_id);
+      });
+
       // Find debtors account (Receivables) - look for common patterns
       const debtorsAccount = (accountsRes.data || []).find((a: any) =>
         a.account_name?.toLowerCase().includes('debtor') ||
