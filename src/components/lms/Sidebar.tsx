@@ -588,11 +588,6 @@ const hrModule: NavModule = {
           href: '/lms/hr/organization/structure',
           icon: Building,
         },
-        {
-          title: 'Departments',
-          href: '/lms/hr/organization/departments',
-          icon: Building2,
-        },
       ],
     },
     {
