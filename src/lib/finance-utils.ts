@@ -320,6 +320,81 @@ export function buildSyntheticTransactions(data: FinanceDataSources): SyntheticT
     });
   }
 
+  // 5. Payroll runs WITHOUT GL journal entries (fallback for runs where auto_finance_posting was off)
+  // Runs WITH journal_entry_id are already captured via GL entries above
+  if (data.payrollRuns.length > 0) {
+    data.payrollRuns.forEach((run: any) => {
+      if (run.journal_entry_id) return; // Already in GL, skip to avoid duplication
+
+      const periodName = run.payroll_periods?.name || 'Payroll';
+      const runDate = run.finalized_at ? run.finalized_at.split('T')[0] : (run.payroll_periods?.period_end || new Date().toISOString().split('T')[0]);
+      const totalGross = Number(run.total_gross) || 0;
+      const totalNet = Number(run.total_net) || 0;
+      const totalDeductions = Number(run.total_deductions) || 0;
+
+      // Compute employer contributions from items
+      let totalEmployerContrib = 0;
+      (run.payroll_items || []).forEach((item: any) => {
+        totalEmployerContrib += Number(item.employer_contributions) || 0;
+      });
+
+      const lines: SyntheticTransaction['lines'] = [];
+
+      // Dr Salary Expense (gross)
+      const salaryExpAcc = data.accounts.find(a => a.account_code === '5101') || data.accounts.find(a => a.account_type === 'Expense' && a.account_name?.toLowerCase().includes('salar'));
+      lines.push({
+        account_code: salaryExpAcc?.account_code || data.expenseCode,
+        account_name: salaryExpAcc?.account_name || 'Salary Expense',
+        account_id: salaryExpAcc?.id || data.expenseId,
+        debit: totalGross,
+        credit: 0,
+      });
+
+      // Dr Employer Contributions (expense)
+      if (totalEmployerContrib > 0) {
+        const empContribAcc = data.accounts.find(a => a.account_type === 'Expense' && a.account_name?.toLowerCase().includes('employer'));
+        lines.push({
+          account_code: empContribAcc?.account_code || data.expenseCode,
+          account_name: empContribAcc?.account_name || 'Employer Contributions',
+          account_id: empContribAcc?.id || data.expenseId,
+          debit: totalEmployerContrib,
+          credit: 0,
+        });
+      }
+
+      // Cr Payroll Liability (net pay)
+      const payrollLiabAcc = data.accounts.find(a => a.account_type === 'Liability' && a.account_name?.toLowerCase().includes('payroll'));
+      lines.push({
+        account_code: payrollLiabAcc?.account_code || '2201',
+        account_name: payrollLiabAcc?.account_name || 'Payroll Liability',
+        account_id: payrollLiabAcc?.id || '',
+        debit: 0,
+        credit: totalNet,
+      });
+
+      // Cr Statutory Deductions + Employer Contributions (as liabilities)
+      const statutoryCredit = totalDeductions + totalEmployerContrib;
+      if (statutoryCredit > 0) {
+        const statLiabAcc = data.accounts.find(a => a.account_type === 'Liability' && a.account_name?.toLowerCase().includes('statutory'));
+        lines.push({
+          account_code: statLiabAcc?.account_code || '2202',
+          account_name: statLiabAcc?.account_name || 'Statutory Deductions Payable',
+          account_id: statLiabAcc?.id || '',
+          debit: 0,
+          credit: statutoryCredit,
+        });
+      }
+
+      txns.push({
+        id: `payroll-${run.id}`,
+        date: runDate,
+        reference: `PAY-${periodName}`,
+        narration: `Payroll for ${periodName} (${run.employee_count || 0} employees)`,
+        lines,
+      });
+    });
+  }
+
   txns.sort((a, b) => b.date.localeCompare(a.date));
   return txns;
 }
