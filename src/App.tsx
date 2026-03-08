@@ -422,6 +422,9 @@ const App = () => (
               <Route path="fees/receipts" element={<FeeReceipts />} />
               <Route path="academics/results" element={<ResultSlip />} />
               <Route path="poe/upload" element={<POEUpload />} />
+              <Route path="library/search" element={<LibrarySearch />} />
+              <Route path="library/borrowed" element={<MyBorrowedBooks />} />
+              <Route path="library/fines" element={<MyLibraryFines />} />
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
