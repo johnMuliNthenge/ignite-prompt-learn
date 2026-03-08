@@ -20,11 +20,12 @@ export default function StockTransactions() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
+  const [requisitions, setRequisitions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
     transaction_type: 'grn', item_id: '', store_id: '', destination_store_id: '',
-    quantity: 1, reference_number: '', notes: '',
+    quantity: 1, reference_number: '', notes: '', requisition_id: '',
   });
 
   useEffect(() => { fetchAll(); }, []);
