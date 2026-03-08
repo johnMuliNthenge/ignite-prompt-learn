@@ -125,6 +125,9 @@ const PayrollSettings = () => {
               <CardHeader><CardTitle>Retirement & Custom Settings</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div><Label>Retirement Age</Label><Input type="number" value={settings.retirement_age || 60} onChange={e => setSettings({...settings, retirement_age: Number(e.target.value)})} /></div>
+                <div><Label>Monthly Personal Relief (KES)</Label><Input type="number" value={settings.personal_relief || 2400} onChange={e => setSettings({...settings, personal_relief: Number(e.target.value)})} /></div>
+                <div><Label>Employer NSSF Rate (decimal)</Label><Input type="number" step="0.001" value={settings.employer_nssf_rate || 0.06} onChange={e => setSettings({...settings, employer_nssf_rate: Number(e.target.value)})} /></div>
+                <div><Label>Employer Housing Levy Rate (decimal)</Label><Input type="number" step="0.001" value={settings.employer_housing_levy_rate || 0.015} onChange={e => setSettings({...settings, employer_housing_levy_rate: Number(e.target.value)})} /></div>
                 <div><Label>NSSF Tier Distribution on Payroll</Label>
                   <Select value={settings.nssf_tier_distribution || 'default'} onValueChange={v => setSettings({...settings, nssf_tier_distribution: v})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>

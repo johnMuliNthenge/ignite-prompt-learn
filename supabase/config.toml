@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.mpesa-callback]
 verify_jwt = false
+
+[functions.send-payslip]
+verify_jwt = false
