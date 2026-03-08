@@ -192,6 +192,7 @@ const PayrollSettings = () => {
                 {acctSelect('Salary Expense Account', 'salary_expense_account_id', 'Expense')}
                 {acctSelect('Payroll Liability Account', 'payroll_liability_account_id', 'Liability')}
                 {acctSelect('Employer NSSF Account *', 'employer_nssf_account_id', 'Expense')}
+                {acctSelect('Other Deductions Account (Loans, Advances)', 'other_deductions_account_id', 'Liability')}
               </CardContent>
             </Card>
           </div>
