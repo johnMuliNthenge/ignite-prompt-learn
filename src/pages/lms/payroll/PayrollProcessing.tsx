@@ -127,9 +127,9 @@ const PayrollProcessing = () => {
         const empNCB = nonCashBenefits.filter(b => b.employee_id === account.employee_id);
         let nonCashTotal = 0;
         for (const ncb of empNCB) {
-          const val = ncb.amount || ncb.non_cash_benefits?.taxable_value || 0;
+          const val = ncb.amount || (ncb as any).non_cash_benefits?.default_amount || 0;
           nonCashTotal += val;
-          detailItems.push({ component_name: ncb.non_cash_benefits?.name || 'Non-Cash Benefit', component_type: 'earning', category: 'benefit', amount: val });
+          detailItems.push({ component_name: (ncb as any).non_cash_benefits?.name || 'Non-Cash Benefit', component_type: 'earning', category: 'benefit', amount: val });
         }
 
         let taxableIncome = grossPay + nonCashTotal;

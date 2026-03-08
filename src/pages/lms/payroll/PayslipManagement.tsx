@@ -12,7 +12,7 @@ import { FileText, Search, Printer, Mail, Eye, Send, Loader2 } from 'lucide-reac
 import { useInstitution } from '@/contexts/InstitutionContext';
 
 const PayslipManagement = () => {
-  const { institution } = useInstitution();
+  const { settings: institution } = useInstitution();
   const [payslips, setPayslips] = useState<any[]>([]);
   const [periods, setPeriods] = useState<any[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState('all');
