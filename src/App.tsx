@@ -392,6 +392,7 @@ const App = () => (
 
               {/* Inventory Routes */}
               <Route path="inventory/items" element={<ItemMaster />} />
+              <Route path="inventory/categories" element={<InventoryCategoryManagement />} />
               <Route path="inventory/stores" element={<StoreManagement />} />
               <Route path="inventory/transactions" element={<StockTransactions />} />
               <Route path="inventory/requisitions" element={<StoreRequisitions />} />
