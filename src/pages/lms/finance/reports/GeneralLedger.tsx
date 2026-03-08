@@ -80,8 +80,7 @@ export default function GeneralLedger() {
         supabase.from('students').select('id, other_name, surname'),
 
         supabase.from('payment_vouchers').select(`
-          id, voucher_number, voucher_date, total_amount, vendor_name, status, description,
-          payment_voucher_items ( description, amount, account_id )
+          id, voucher_number, voucher_date, amount, vendor_name, status, description
         `).order('voucher_date', { ascending: false }),
 
         // Also fetch any existing general_ledger entries with journal entries
