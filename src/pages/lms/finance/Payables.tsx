@@ -268,13 +268,14 @@ export default function Payables() {
         status: newBalance <= 0 ? 'Paid' : 'Partial',
       }).eq('id', selectedPayable.id);
 
-      // Post to general ledger
+      // Post to general ledger — full double entry: Dr Payables (Liability), Cr Cash/Bank (Asset)
       const selectedMode = paymentModes.find(pm => pm.id === paymentData.payment_mode_id);
       if (selectedMode?.asset_account_id) {
+        const txDate = new Date().toISOString().split('T')[0];
         const { data: jeNum } = await supabase.rpc('generate_journal_number');
         const { data: jeData } = await supabase.from('journal_entries').insert({
           entry_number: jeNum || `JE-PAY-${Date.now()}`,
-          transaction_date: new Date().toISOString().split('T')[0],
+          transaction_date: txDate,
           reference: paymentNumber,
           narration: `Payment for bill ${selectedPayable.bill_number} to ${selectedPayable.vendor_name}`,
           entry_type: 'payable_payment',
@@ -285,15 +286,55 @@ export default function Payables() {
         }).select('id').single();
 
         if (jeData) {
-          await supabase.from('general_ledger').insert({
-            journal_entry_id: jeData.id,
-            account_id: selectedMode.asset_account_id,
-            transaction_date: new Date().toISOString().split('T')[0],
-            debit: 0,
-            credit: amount,
-            balance: -amount,
-            description: `Payment to ${selectedPayable.vendor_name} via ${selectedMode.name}`,
-          });
+          // Find the expense account used in the original bill GL entry
+          const { data: originalGLEntries } = await supabase
+            .from('general_ledger')
+            .select('account_id, debit')
+            .gt('debit', 0)
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          // Use the first expense account found, or fall back to a general one
+          let expenseAccountId: string | null = null;
+          if (originalGLEntries && originalGLEntries.length > 0) {
+            expenseAccountId = originalGLEntries[0].account_id;
+          } else {
+            const { data: expAcc } = await supabase
+              .from('chart_of_accounts')
+              .select('id')
+              .eq('account_type', 'Expense')
+              .eq('is_active', true)
+              .order('account_code')
+              .limit(1)
+              .maybeSingle();
+            expenseAccountId = expAcc?.id || null;
+          }
+
+          const glEntries: any[] = [
+            // Cr Cash/Bank
+            {
+              journal_entry_id: jeData.id,
+              account_id: selectedMode.asset_account_id,
+              transaction_date: txDate,
+              debit: 0,
+              credit: amount,
+              description: `Payment to ${selectedPayable.vendor_name} via ${selectedMode.name}`,
+            },
+          ];
+
+          // Dr Expense (to reduce liability / recognize expense)
+          if (expenseAccountId) {
+            glEntries.push({
+              journal_entry_id: jeData.id,
+              account_id: expenseAccountId,
+              transaction_date: txDate,
+              debit: amount,
+              credit: 0,
+              description: `Payment for bill ${selectedPayable.bill_number}`,
+            });
+          }
+
+          await supabase.from('general_ledger').insert(glEntries);
         }
       }
 
