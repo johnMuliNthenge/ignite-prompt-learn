@@ -384,6 +384,31 @@ const App = () => (
               <Route path="payroll/utilities/disbursement-modes" element={<DisbursementModes />} />
               <Route path="payroll/utilities/pay-accounts" element={<PayAccounts />} />
               <Route path="payroll/utilities/employee-statuses" element={<EmployeeStatuses />} />
+
+              {/* Inventory Routes */}
+              <Route path="inventory/items" element={<ItemMaster />} />
+              <Route path="inventory/stores" element={<StoreManagement />} />
+              <Route path="inventory/transactions" element={<StockTransactions />} />
+              <Route path="inventory/requisitions" element={<StoreRequisitions />} />
+              <Route path="inventory/reports" element={<InventoryReports />} />
+
+              {/* Procurement Routes */}
+              <Route path="procurement/suppliers" element={<SupplierManagement />} />
+              <Route path="procurement/requisitions" element={<PurchaseRequisitions />} />
+              <Route path="procurement/rfq" element={<RFQManagement />} />
+              <Route path="procurement/orders" element={<PurchaseOrders />} />
+              <Route path="procurement/grn" element={<GoodsReceipt />} />
+              <Route path="procurement/invoices" element={<ProcurementInvoices />} />
+              <Route path="procurement/reports" element={<ProcurementReports />} />
+
+              {/* Library Routes */}
+              <Route path="library/catalog" element={<BookCatalog />} />
+              <Route path="library/members" element={<LibraryMembers />} />
+              <Route path="library/circulation" element={<BookCirculation />} />
+              <Route path="library/reservations" element={<BookReservations />} />
+              <Route path="library/fines" element={<LibraryFines />} />
+              <Route path="library/settings" element={<LibrarySettingsPage />} />
+              <Route path="library/reports" element={<LibraryReports />} />
             </Route>
 
             {/* Student Portal Routes */}
