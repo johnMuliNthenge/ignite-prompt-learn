@@ -111,11 +111,12 @@ export default function GeneralLedger() {
         if (fa.account_id) feeAccToCoaMap.set(fa.id, fa.account_id);
       });
 
-      // Find debtors account (Receivables) - look for common patterns
-      const debtorsAccount = (accountsRes.data || []).find((a: any) =>
-        a.account_name?.toLowerCase().includes('debtor') ||
-        a.account_name?.toLowerCase().includes('receivable')
-      );
+      // Find debtors account - prioritize exact code match
+      const debtorsAccount = (accountsRes.data || []).find((a: any) => a.account_code === '1201') ||
+        (accountsRes.data || []).find((a: any) =>
+          a.account_name?.toLowerCase().includes('debtor') ||
+          a.account_name?.toLowerCase().includes('receivable')
+        );
       const debtorsCode = debtorsAccount ? debtorsAccount.account_code : 'DR';
       const debtorsName = debtorsAccount ? debtorsAccount.account_name : 'Student Debtors';
       const debtorsId = debtorsAccount?.id || '';
@@ -125,15 +126,16 @@ export default function GeneralLedger() {
         a.account_name?.toLowerCase().includes('prepayment')
       );
 
-      // Find general cash/bank account
-      const cashBankAccount = (accountsRes.data || []).find((a: any) =>
-        a.account_code === '1102' || a.account_name?.toLowerCase().includes('cash') || a.account_name?.toLowerCase().includes('bank')
-      );
+      // Find general cash/bank account - exact code match first, then fallback
+      const cashBankAccount = (accountsRes.data || []).find((a: any) => a.account_code === '1102') ||
+        (accountsRes.data || []).find((a: any) =>
+          a.account_type === 'Asset' && (a.account_name?.toLowerCase().includes('cash at bank') || a.account_name?.toLowerCase().includes('bank'))
+        );
       const cashBankId = cashBankAccount?.id || '';
       const cashBankCode = cashBankAccount?.account_code || '300';
       const cashBankName = cashBankAccount?.account_name || 'Cash and Bank';
 
-      // Find general fee income account
+      // Find general fee income account - must match Trial Balance logic
       const feeIncomeAccount = (accountsRes.data || []).find((a: any) =>
         a.account_type === 'Income' && (a.account_name?.toLowerCase().includes('fee') || a.account_code?.startsWith('4'))
       );
@@ -141,7 +143,7 @@ export default function GeneralLedger() {
       const feeIncomeCode = feeIncomeAccount?.account_code || '—';
       const feeIncomeName = feeIncomeAccount?.account_name || 'Fee Income';
 
-      // Find general expense account
+      // Find general expense account - exact code prefix
       const expenseAccount = (accountsRes.data || []).find((a: any) =>
         a.account_type === 'Expense' && a.account_code?.startsWith('5')
       );
