@@ -1173,6 +1173,36 @@ function SidebarContent({
             </div>
           </>
         )}
+
+        {/* Inventory Module */}
+        {canViewModule(inventoryModule) && (
+          <>
+            <Separator className="my-4" />
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(inventoryModule)}
+            </div>
+          </>
+        )}
+
+        {/* Procurement Module */}
+        {canViewModule(procurementModule) && (
+          <>
+            <Separator className="my-4" />
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(procurementModule)}
+            </div>
+          </>
+        )}
+
+        {/* Library Module */}
+        {canViewModule(libraryModule) && (
+          <>
+            <Separator className="my-4" />
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(libraryModule)}
+            </div>
+          </>
+        )}
       </ScrollArea>
 
       {/* User section */}
