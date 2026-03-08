@@ -116,6 +116,30 @@ export default function GeneralLedger() {
         a.account_name?.toLowerCase().includes('prepayment')
       );
 
+      // Find general cash/bank account
+      const cashBankAccount = (accountsRes.data || []).find((a: any) =>
+        a.account_code === '1102' || a.account_name?.toLowerCase().includes('cash') || a.account_name?.toLowerCase().includes('bank')
+      );
+      const cashBankId = cashBankAccount?.id || '';
+      const cashBankCode = cashBankAccount?.account_code || '300';
+      const cashBankName = cashBankAccount?.account_name || 'Cash and Bank';
+
+      // Find general fee income account
+      const feeIncomeAccount = (accountsRes.data || []).find((a: any) =>
+        a.account_type === 'Income' && (a.account_name?.toLowerCase().includes('fee') || a.account_code?.startsWith('4'))
+      );
+      const feeIncomeId = feeIncomeAccount?.id || '';
+      const feeIncomeCode = feeIncomeAccount?.account_code || '—';
+      const feeIncomeName = feeIncomeAccount?.account_name || 'Fee Income';
+
+      // Find general expense account
+      const expenseAccount = (accountsRes.data || []).find((a: any) =>
+        a.account_type === 'Expense' && a.account_code?.startsWith('5')
+      );
+      const expenseId = expenseAccount?.id || '';
+      const expenseCode = expenseAccount?.account_code || '—';
+      const expenseName = expenseAccount?.account_name || 'Expense';
+
       const allTransactions: DoubleEntryTransaction[] = [];
 
       // 1. Fee Invoices → Dr Debtors, Cr Income (per vote head)
