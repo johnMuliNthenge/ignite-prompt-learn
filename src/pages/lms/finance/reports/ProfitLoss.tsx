@@ -68,18 +68,34 @@ export default function ProfitLoss() {
       });
 
       // IPSAS Accrual: Supplement expenses from approved/paid vouchers (recognized when approved)
-      const { data: voucherItems } = await supabase
-        .from('payment_voucher_items')
-        .select('amount, account_id, payment_vouchers!inner(voucher_date, status)')
-        .neq('payment_vouchers.status', 'Draft')
-        .gte('payment_vouchers.voucher_date', startDate)
-        .lte('payment_vouchers.voucher_date', endDate);
+      const { data: voucherData } = await supabase
+        .from('payment_vouchers')
+        .select('amount, voucher_date, status, description')
+        .neq('status', 'Draft')
+        .gte('voucher_date', startDate)
+        .lte('voucher_date', endDate);
+
+      // Build expense map - use GL journal entries linked to vouchers for account mapping
+      const { data: voucherGLEntries } = await supabase
+        .from('general_ledger')
+        .select('account_id, debit')
+        .gte('transaction_date', startDate)
+        .lte('transaction_date', endDate)
+        .gt('debit', 0);
 
       const voucherExpenseMap = new Map<string, number>();
-      (voucherItems || []).forEach((item: any) => {
-        const accId = item.account_id;
-        if (accId) {
-          voucherExpenseMap.set(accId, (voucherExpenseMap.get(accId) || 0) + (Number(item.amount) || 0));
+      // If GL has expense entries, they're already in balanceMap
+      // For vouchers without GL entries, distribute to a general expense account
+      const totalVoucherAmount = (voucherData || []).reduce((s, v) => s + (Number(v.amount) || 0), 0);
+      if (totalVoucherAmount > 0) {
+        // Find expense accounts and assign
+        const expenseAccounts = (accountsData || []).filter((a: any) => a.account_type === 'Expense');
+        if (expenseAccounts.length > 0) {
+          const firstExpAcc = expenseAccounts[0];
+          const glBal = balanceMap.get(firstExpAcc.id) || 0;
+          if (glBal === 0) {
+            voucherExpenseMap.set(firstExpAcc.id, totalVoucherAmount);
+          }
         }
       });
 

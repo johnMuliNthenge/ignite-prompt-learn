@@ -92,7 +92,7 @@ export default function FinancialPosition() {
 
       const { data: vouchersForExpense } = await supabase
         .from('payment_vouchers')
-        .select('total_amount')
+        .select('amount')
         .neq('status', 'Draft')
         .lte('voucher_date', asOfDate);
       const totalExpenseAccrual = (vouchersForExpense || []).reduce((s, v) => s + (Number(v.total_amount) || 0), 0);

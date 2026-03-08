@@ -161,22 +161,50 @@ export default function TrialBalance() {
         }
       }
 
-      // Expense accounts from voucher items
-      const { data: voucherItems } = await supabase
-        .from('payment_voucher_items')
-        .select('amount, account_id, payment_vouchers!inner(voucher_date, status)')
-        .neq('payment_vouchers.status', 'Draft')
-        .lte('payment_vouchers.voucher_date', asOfDate);
+      // Expense from approved/paid vouchers (accrual recognition)
+      const { data: voucherData } = await supabase
+        .from('payment_vouchers')
+        .select('amount, voucher_date, status')
+        .neq('status', 'Draft')
+        .lte('voucher_date', asOfDate);
 
-      (voucherItems || []).forEach((item: any) => {
-        const accId = item.account_id;
-        if (accId) {
-          const glBal = balanceMap.get(accId) || { debit: 0, credit: 0 };
+      // Find a general expense account to supplement if no per-item breakdown
+      const totalVoucherExpense = (voucherData || []).reduce((s, v) => s + (Number(v.amount) || 0), 0);
+      if (totalVoucherExpense > 0) {
+        const expenseAcc = (accountsData || []).find((a: any) =>
+          a.account_type === 'Expense' && a.account_code?.startsWith('5')
+        );
+        if (expenseAcc) {
+          const glBal = balanceMap.get(expenseAcc.id) || { debit: 0, credit: 0 };
           if (glBal.debit === 0 && glBal.credit === 0) {
-            const existing = balanceMap.get(accId) || { debit: 0, credit: 0 };
-            balanceMap.set(accId, { debit: existing.debit + (Number(item.amount) || 0), credit: existing.credit });
+            balanceMap.set(expenseAcc.id, { debit: totalVoucherExpense, credit: 0 });
           }
         }
+      }
+
+      const formattedEntries: TrialBalanceEntry[] = (accountsData || []).map((acc: any) => {
+        const ledgerBalance = balanceMap.get(acc.id) || { debit: 0, credit: 0 };
+        const netBalance = ledgerBalance.debit - ledgerBalance.credit;
+
+        let debit_balance = 0;
+        let credit_balance = 0;
+
+        if (acc.normal_balance === 'Debit') {
+          if (netBalance >= 0) debit_balance = netBalance;
+          else credit_balance = Math.abs(netBalance);
+        } else {
+          if (netBalance <= 0) credit_balance = Math.abs(netBalance);
+          else debit_balance = netBalance;
+        }
+
+        return {
+          account_id: acc.id,
+          account_code: acc.account_code,
+          account_name: acc.account_name,
+          account_type: acc.account_type,
+          debit_balance,
+          credit_balance,
+        };
       });
 
       const nonZeroEntries = formattedEntries.filter(e => e.debit_balance > 0 || e.credit_balance > 0);
