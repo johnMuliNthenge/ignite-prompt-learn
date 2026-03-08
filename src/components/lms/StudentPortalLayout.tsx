@@ -28,6 +28,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Home,
+  BookOpen,
+  Search,
+  AlertTriangle,
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
