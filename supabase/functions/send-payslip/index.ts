@@ -186,7 +186,7 @@ serve(async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error sending payslip:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Failed to send payslip. Please try again." }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
