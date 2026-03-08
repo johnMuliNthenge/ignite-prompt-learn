@@ -232,7 +232,7 @@ const PayslipManagement = () => {
             <>
               <div ref={printRef}>
                 <div className="header" style={{ textAlign: 'center', borderBottom: '2px solid #333', paddingBottom: '15px', marginBottom: '20px' }}>
-                  <h1 style={{ margin: 0, fontSize: '20px' }}>{institution?.name || 'Institution'}</h1>
+                  <h1 style={{ margin: 0, fontSize: '20px' }}>{institution?.institution_name || 'Institution'}</h1>
                   <p style={{ margin: '5px 0', color: '#666', fontSize: '12px' }}>PAYSLIP - {selectedPayslip.payroll_periods?.name || ''}</p>
                   <p style={{ margin: '5px 0', color: '#666', fontSize: '12px' }}>Payslip No: {selectedPayslip.payslip_number}</p>
                 </div>
