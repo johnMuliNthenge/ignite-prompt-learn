@@ -337,60 +337,6 @@ export default function TrialBalance() {
         </CardContent>
       </Card>
 
-      {/* Drill-down Dialog */}
-      <Dialog open={!!selectedAccount} onOpenChange={(open) => !open && setSelectedAccount(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="font-mono text-sm text-muted-foreground">{selectedAccount?.account_code}</span>
-              <span>{selectedAccount?.account_name}</span>
-              <span className="text-sm font-normal text-muted-foreground">({selectedAccount?.account_type})</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          {txnLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : transactions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No transactions found for this account.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead className="min-w-[200px]">Description</TableHead>
-                  <TableHead className="text-right">Debit</TableHead>
-                  <TableHead className="text-right">Credit</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((txn) => (
-                  <TableRow key={txn.id}>
-                    <TableCell className="whitespace-nowrap">
-                      {format(new Date(txn.transaction_date), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{txn.reference_number || '-'}</TableCell>
-                    <TableCell>{txn.description}</TableCell>
-                    <TableCell className="text-right">
-                      {txn.debit > 0 ? formatCurrency(txn.debit) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {txn.credit > 0 ? formatCurrency(txn.credit) : '-'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                <TableRow className="font-bold bg-muted">
-                  <TableCell colSpan={3}>TOTAL ({transactions.length} transactions)</TableCell>
-                  <TableCell className="text-right">{formatCurrency(txnTotalDebit)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(txnTotalCredit)}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
