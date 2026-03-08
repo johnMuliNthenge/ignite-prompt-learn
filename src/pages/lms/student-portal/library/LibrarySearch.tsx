@@ -55,10 +55,28 @@ export default function LibrarySearch() {
       const { error } = await supabase.from('library_reservations').insert({
         book_id: bookId,
         member_id: memberId,
-        reserved_by: user?.id,
+        status: 'active',
       });
       if (error) throw error;
       toast.success('Book reserved successfully! You will be notified when available.');
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleRequest = async (bookId: string) => {
+    if (!memberId) {
+      toast.error('You are not registered as a library member. Please contact the librarian.');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('library_reservations').insert({
+        book_id: bookId,
+        member_id: memberId,
+        status: 'active',
+      });
+      if (error) throw error;
+      toast.success('Book requested! The librarian will process your request.');
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -116,7 +134,11 @@ export default function LibrarySearch() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {book.available_copies === 0 && (
+                    {book.available_copies > 0 ? (
+                      <Button size="sm" variant="default" onClick={() => handleRequest(book.id)}>
+                        <BookmarkPlus className="h-3 w-3 mr-1" />Request
+                      </Button>
+                    ) : (
                       <Button size="sm" variant="outline" onClick={() => handleReserve(book.id)}>
                         <BookmarkPlus className="h-3 w-3 mr-1" />Reserve
                       </Button>
