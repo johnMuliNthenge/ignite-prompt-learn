@@ -397,9 +397,17 @@ export default function Receivables() {
         }
       }
 
-      // Post to general ledger via payment mode asset account
+      // Post to general ledger via payment mode asset account — full double entry
       const selectedMode = paymentModes.find(pm => pm.id === paymentData.payment_mode_id);
       if (selectedMode?.asset_account_id) {
+        // Find debtors account for the credit side
+        const { data: debtorsAcc } = await supabase
+          .from('chart_of_accounts')
+          .select('id')
+          .eq('account_code', '1201')
+          .eq('is_active', true)
+          .maybeSingle();
+
         const { data: jeNum } = await supabase.rpc('generate_journal_number');
         const { data: jeData } = await supabase.from('journal_entries').insert({
           entry_number: jeNum || `JE-RCP-${Date.now()}`,
@@ -414,15 +422,31 @@ export default function Receivables() {
         }).select('id').single();
 
         if (jeData) {
-          await supabase.from('general_ledger').insert({
-            journal_entry_id: jeData.id,
-            account_id: selectedMode.asset_account_id,
-            transaction_date: paymentData.payment_date,
-            debit: amount,
-            credit: 0,
-            balance: amount,
-            description: `Fee receipt from ${selectedStudent.other_name} ${selectedStudent.surname} via ${selectedMode.name}`,
-          });
+          const glEntries: any[] = [
+            // Dr Cash/Bank (Asset)
+            {
+              journal_entry_id: jeData.id,
+              account_id: selectedMode.asset_account_id,
+              transaction_date: paymentData.payment_date,
+              debit: amount,
+              credit: 0,
+              description: `Fee receipt from ${selectedStudent.other_name} ${selectedStudent.surname} via ${selectedMode.name}`,
+            },
+          ];
+
+          // Cr Student Debtors (reduce receivable)
+          if (debtorsAcc?.id) {
+            glEntries.push({
+              journal_entry_id: jeData.id,
+              account_id: debtorsAcc.id,
+              transaction_date: paymentData.payment_date,
+              debit: 0,
+              credit: amount,
+              description: `Fee receipt from ${selectedStudent.other_name} ${selectedStudent.surname}`,
+            });
+          }
+
+          await supabase.from('general_ledger').insert(glEntries);
         }
       }
 
