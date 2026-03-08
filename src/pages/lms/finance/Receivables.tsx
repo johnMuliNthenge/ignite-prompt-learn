@@ -118,13 +118,8 @@ export default function Receivables() {
   }, []);
 
   const checkMpesaSettings = async () => {
-    const { data } = await supabase
-      .from('mpesa_settings')
-      .select('is_active')
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle();
-    setMpesaEnabled(!!data?.is_active);
+    const { data } = await supabase.rpc('is_mpesa_active');
+    setMpesaEnabled(!!data);
   };
 
   const fetchData = async () => {

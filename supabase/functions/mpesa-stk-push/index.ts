@@ -14,11 +14,24 @@ interface STKPushRequest {
   invoice_id?: string;
   account_reference?: string;
   transaction_desc?: string;
-  // For test connection
   consumer_key?: string;
   consumer_secret?: string;
   environment?: string;
 }
+
+// Validate Kenyan phone number format
+function isValidKenyanPhone(phone: string): boolean {
+  const cleaned = phone.replace(/\s+/g, "").replace(/^\+/, "");
+  const formatted = cleaned.replace(/^0/, "254");
+  return /^254[17]\d{8}$/.test(formatted);
+}
+
+function formatPhone(phone: string): string {
+  return phone.replace(/\s+/g, "").replace(/^0/, "254").replace(/^\+/, "").replace(/^(?!254)/, "254");
+}
+
+const MIN_AMOUNT = 10;
+const MAX_AMOUNT = 150000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -28,7 +41,6 @@ serve(async (req) => {
   try {
     const body: STKPushRequest = await req.json();
 
-    // Create Supabase client
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -53,9 +65,7 @@ serve(async (req) => {
         const authString = btoa(`${consumer_key}:${consumer_secret}`);
         const tokenResponse = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
           method: "GET",
-          headers: {
-            Authorization: `Basic ${authString}`,
-          },
+          headers: { Authorization: `Basic ${authString}` },
         });
 
         const tokenData = await tokenResponse.json();
@@ -80,7 +90,74 @@ serve(async (req) => {
       }
     }
 
-    // For STK Push, get settings from database
+    // === STK Push flow — validate inputs ===
+    const { phone_number, amount, student_id, invoice_id, account_reference, transaction_desc } = body;
+
+    if (!phone_number || amount === undefined || amount === null) {
+      return new Response(
+        JSON.stringify({ error: "Phone number and amount are required" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+
+    // Validate phone number format
+    if (!isValidKenyanPhone(phone_number)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid Kenyan phone number. Must be format 07XX, 01XX, or 254XXXXXXXXX" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+
+    // Validate amount
+    if (typeof amount !== "number" || !isFinite(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
+      return new Response(
+        JSON.stringify({ error: `Amount must be between ${MIN_AMOUNT} and ${MAX_AMOUNT} KES` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+
+    // Validate invoice exists and is unpaid if provided
+    if (invoice_id) {
+      const { data: invoice, error: invErr } = await supabaseClient
+        .from("fee_invoices")
+        .select("id, status, balance_due")
+        .eq("id", invoice_id)
+        .single();
+
+      if (invErr || !invoice) {
+        return new Response(
+          JSON.stringify({ error: "Invoice not found" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+
+      if (invoice.status === "Paid" || invoice.balance_due <= 0) {
+        return new Response(
+          JSON.stringify({ error: "Invoice is already fully paid" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+    }
+
+    // Validate student exists if provided
+    if (student_id) {
+      const { data: student, error: stuErr } = await supabaseClient
+        .from("students")
+        .select("id")
+        .eq("id", student_id)
+        .single();
+
+      if (stuErr || !student) {
+        return new Response(
+          JSON.stringify({ error: "Student not found" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+    }
+
+    const formattedPhone = formatPhone(phone_number);
+
+    // Get M-Pesa settings
     const { data: settings, error: settingsError } = await supabaseClient
       .from("mpesa_settings")
       .select("*")
@@ -89,26 +166,10 @@ serve(async (req) => {
       .single();
 
     if (settingsError || !settings) {
-      console.error("M-Pesa settings error:", settingsError);
       return new Response(
         JSON.stringify({ error: "M-Pesa is not configured or inactive" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
-    }
-
-    const { phone_number, amount, student_id, invoice_id, account_reference, transaction_desc } = body;
-
-    if (!phone_number || !amount) {
-      return new Response(
-        JSON.stringify({ error: "Phone number and amount are required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
-    }
-
-    // Format phone number (ensure it starts with 254)
-    let formattedPhone = phone_number.replace(/\s+/g, "").replace(/^0/, "254").replace(/^\+/, "");
-    if (!formattedPhone.startsWith("254")) {
-      formattedPhone = "254" + formattedPhone;
     }
 
     const baseUrl = settings.environment === "production"
@@ -119,9 +180,7 @@ serve(async (req) => {
     const authString = btoa(`${settings.consumer_key}:${settings.consumer_secret}`);
     const tokenResponse = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
       method: "GET",
-      headers: {
-        Authorization: `Basic ${authString}`,
-      },
+      headers: { Authorization: `Basic ${authString}` },
     });
 
     const tokenData = await tokenResponse.json();
@@ -134,17 +193,11 @@ serve(async (req) => {
       );
     }
 
-    // Generate timestamp
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
-    
-    // Generate password
     const password = btoa(`${settings.business_short_code}${settings.passkey}${timestamp}`);
-
-    // Default callback URL
     const callbackUrl = settings.callback_url || 
       `${Deno.env.get("SUPABASE_URL")}/functions/v1/mpesa-callback`;
 
-    // Initiate STK Push
     const stkResponse = await fetch(`${baseUrl}/mpesa/stkpush/v1/processrequest`, {
       method: "POST",
       headers: {
@@ -170,7 +223,6 @@ serve(async (req) => {
     console.log("STK Push response:", stkData);
 
     if (stkData.ResponseCode === "0") {
-      // Log the transaction
       await supabaseClient.from("mpesa_transactions").insert({
         checkout_request_id: stkData.CheckoutRequestID,
         merchant_request_id: stkData.MerchantRequestID,
@@ -205,7 +257,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("M-Pesa STK Push error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }

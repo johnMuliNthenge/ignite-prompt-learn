@@ -31,22 +31,31 @@ serve(async (req) => {
     }
 
     const {
-      MerchantRequestID,
       CheckoutRequestID,
       ResultCode,
       ResultDesc,
       CallbackMetadata,
     } = stkCallback;
 
-    // Find the transaction
+    // Validate required fields
+    if (!CheckoutRequestID || typeof ResultCode !== "number") {
+      console.error("Missing required callback fields");
+      return new Response(
+        JSON.stringify({ ResultCode: 0, ResultDesc: "Accepted" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Find the transaction - MUST exist in pending state to prevent forged callbacks
     const { data: transaction, error: findError } = await supabaseClient
       .from("mpesa_transactions")
       .select("*")
       .eq("checkout_request_id", CheckoutRequestID)
+      .eq("status", "pending")
       .single();
 
     if (findError || !transaction) {
-      console.error("Transaction not found:", CheckoutRequestID);
+      console.error("No pending transaction found for:", CheckoutRequestID);
       return new Response(
         JSON.stringify({ ResultCode: 0, ResultDesc: "Accepted" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -65,10 +74,9 @@ serve(async (req) => {
         for (const item of CallbackMetadata.Item) {
           switch (item.Name) {
             case "MpesaReceiptNumber":
-              mpesaReceiptNumber = item.Value;
+              mpesaReceiptNumber = String(item.Value || "");
               break;
-            case "TransactionDate":
-              // Convert from YYYYMMDDHHMMSS to ISO
+            case "TransactionDate": {
               const dateStr = String(item.Value);
               if (dateStr.length === 14) {
                 const year = dateStr.slice(0, 4);
@@ -80,14 +88,34 @@ serve(async (req) => {
                 transactionDate = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`).toISOString();
               }
               break;
+            }
             case "Amount":
-              amount = item.Value;
+              amount = Number(item.Value) || transaction.amount;
               break;
             case "PhoneNumber":
               phoneNumber = String(item.Value);
               break;
           }
         }
+      }
+
+      // Validate callback amount matches expected amount (tolerance of 1 KES for rounding)
+      if (Math.abs(amount - transaction.amount) > 1) {
+        console.error("Amount mismatch - expected:", transaction.amount, "got:", amount);
+        await supabaseClient
+          .from("mpesa_transactions")
+          .update({
+            status: "failed",
+            result_code: "AMOUNT_MISMATCH",
+            result_desc: `Expected ${transaction.amount}, received ${amount}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", transaction.id);
+
+        return new Response(
+          JSON.stringify({ ResultCode: 0, ResultDesc: "Accepted" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       // Update transaction
@@ -105,11 +133,9 @@ serve(async (req) => {
 
       // If linked to an invoice, create fee payment
       if (transaction.invoice_id) {
-        // Generate receipt number
         const { data: receiptData } = await supabaseClient.rpc("generate_receipt_number");
         const receiptNumber = receiptData || `RCP-MPESA-${Date.now()}`;
 
-        // Create payment record
         await supabaseClient.from("fee_payments").insert({
           receipt_number: receiptNumber,
           student_id: transaction.student_id,
@@ -121,7 +147,6 @@ serve(async (req) => {
           status: "Completed",
         });
 
-        // Update invoice balance
         const { data: invoice } = await supabaseClient
           .from("fee_invoices")
           .select("total_amount, balance_due")

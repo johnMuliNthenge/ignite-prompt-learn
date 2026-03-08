@@ -50,11 +50,8 @@ export default function FeeBalance() {
 
   const checkMpesaSettings = async () => {
     try {
-      const { data } = await supabase
-        .rpc('is_mpesa_active')
-        .limit(1);
-      
-      setMpesaEnabled(data && data.length > 0);
+      const { data } = await supabase.rpc('is_mpesa_active');
+      setMpesaEnabled(!!data);
     } catch {
       setMpesaEnabled(false);
     }
