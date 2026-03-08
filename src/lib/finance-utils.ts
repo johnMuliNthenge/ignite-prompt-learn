@@ -40,6 +40,7 @@ export interface FinanceDataSources {
   payments: any[];
   vouchers: any[];
   glEntries: any[];
+  payrollRuns: any[];
   debtorsId: string;
   debtorsCode: string;
   debtorsName: string;

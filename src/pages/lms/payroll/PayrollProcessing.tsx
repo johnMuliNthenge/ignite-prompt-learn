@@ -362,47 +362,88 @@ const PayrollProcessing = () => {
       if (settings?.auto_finance_posting && settings.salary_expense_account_id && settings.payroll_liability_account_id) {
         const { data: jeNum } = await supabase.rpc('generate_journal_number');
         const periodName = openPeriods.find(p => p.id === selectedPeriodId)?.name || 'Period';
+        const txDate = new Date().toISOString().split('T')[0];
+
+        // Compute all totals for balanced double-entry
+        const totalGross = currentRun.total_gross || 0;
+        const totalNet = currentRun.total_net || 0;
+
+        // Aggregate statutory deductions by config
+        const statDetails = payrollItems.flatMap(item => (itemDetails[item.id] || []).filter(d => d.is_statutory && d.statutory_config_id));
+        const statTotals: Record<string, { amount: number, configId: string }> = {};
+        for (const d of statDetails) {
+          if (!statTotals[d.statutory_config_id]) statTotals[d.statutory_config_id] = { amount: 0, configId: d.statutory_config_id };
+          statTotals[d.statutory_config_id].amount += d.amount;
+        }
+        const totalStatutoryDeductions = Object.values(statTotals).reduce((s, t) => s + t.amount, 0);
+
+        // Aggregate non-statutory deductions (loans, salary advances, etc.)
+        const nonStatDeductions = payrollItems.flatMap(item => 
+          (itemDetails[item.id] || []).filter(d => d.component_type === 'deduction' && !d.is_statutory)
+        );
+        const totalNonStatDeductions = nonStatDeductions.reduce((s, d) => s + (d.amount || 0), 0);
+
+        // Employer contributions
+        const totalEmployerNssf = payrollItems.reduce((s, item) => { const d = (itemDetails[item.id] || []).find(d => d.component_type === 'employer' && d.component_name?.includes('NSSF')); return s + (d?.amount || 0); }, 0);
+        const totalEmployerHL = payrollItems.reduce((s, item) => { const d = (itemDetails[item.id] || []).find(d => d.component_type === 'employer' && d.component_name?.includes('Housing')); return s + (d?.amount || 0); }, 0);
+
+        // Total debits = Salary Expense (gross) + Employer NSSF Expense + Employer HL Expense
+        // Total credits = Net Pay Liability + Statutory Deductions + Non-Stat Deductions + Employer NSSF Liability + Employer HL Liability
+        const totalDebitAmount = totalGross + totalEmployerNssf + totalEmployerHL;
+        const totalCreditAmount = totalNet + totalStatutoryDeductions + totalNonStatDeductions + totalEmployerNssf + totalEmployerHL;
+
         const { data: je, error: jeErr } = await supabase.from('journal_entries').insert({
-          entry_number: jeNum, transaction_date: new Date().toISOString().split('T')[0],
+          entry_number: jeNum, transaction_date: txDate,
           narration: `Payroll - ${periodName}`, status: 'posted',
-          total_debit: currentRun.total_gross + (payrollItems.reduce((s, i) => s + (i.employer_contributions || 0), 0)),
-          total_credit: currentRun.total_gross + (payrollItems.reduce((s, i) => s + (i.employer_contributions || 0), 0)),
+          total_debit: Math.round(totalDebitAmount * 100) / 100,
+          total_credit: Math.round(totalCreditAmount * 100) / 100,
           prepared_by: user?.id,
         }).select().single();
 
         if (!jeErr && je) {
-          const txDate = new Date().toISOString().split('T')[0];
-          await supabase.from('general_ledger').insert({ journal_entry_id: je.id, account_id: settings.salary_expense_account_id, debit: currentRun.total_gross, credit: 0, description: 'Payroll salary expense', transaction_date: txDate });
-          await supabase.from('general_ledger').insert({ journal_entry_id: je.id, account_id: settings.payroll_liability_account_id, debit: 0, credit: currentRun.total_net, description: 'Payroll net pay liability', transaction_date: txDate });
+          const glInserts: any[] = [];
 
-          const statDetails = payrollItems.flatMap(item => (itemDetails[item.id] || []).filter(d => d.is_statutory && d.statutory_config_id));
-          const statTotals: Record<string, { amount: number, configId: string }> = {};
-          for (const d of statDetails) {
-            if (!statTotals[d.statutory_config_id]) statTotals[d.statutory_config_id] = { amount: 0, configId: d.statutory_config_id };
-            statTotals[d.statutory_config_id].amount += d.amount;
-          }
+          // DEBIT: Salary Expense (total gross pay)
+          glInserts.push({ journal_entry_id: je.id, account_id: settings.salary_expense_account_id, debit: Math.round(totalGross * 100) / 100, credit: 0, description: 'Payroll salary expense', transaction_date: txDate });
+
+          // CREDIT: Net Pay Liability
+          glInserts.push({ journal_entry_id: je.id, account_id: settings.payroll_liability_account_id, debit: 0, credit: Math.round(totalNet * 100) / 100, description: 'Payroll net pay liability', transaction_date: txDate });
+
+          // CREDIT: Statutory deductions to their respective liability accounts
           const statConfigIds = Object.keys(statTotals);
           if (statConfigIds.length > 0) {
             const { data: statConfigs } = await supabase.from('statutory_deduction_configs').select('id, name, account_id').in('id', statConfigIds);
             for (const cfg of (statConfigs || [])) {
               if (cfg.account_id && statTotals[cfg.id]) {
-                await supabase.from('general_ledger').insert({ journal_entry_id: je.id, account_id: cfg.account_id, debit: 0, credit: Math.round(statTotals[cfg.id].amount * 100) / 100, description: `Payroll - ${cfg.name}`, transaction_date: txDate });
+                glInserts.push({ journal_entry_id: je.id, account_id: cfg.account_id, debit: 0, credit: Math.round(statTotals[cfg.id].amount * 100) / 100, description: `Payroll - ${cfg.name}`, transaction_date: txDate });
               }
             }
           }
 
-          const totalEmployerNssf = payrollItems.reduce((s, item) => { const d = (itemDetails[item.id] || []).find(d => d.component_type === 'employer' && d.component_name?.includes('NSSF')); return s + (d?.amount || 0); }, 0);
+          // CREDIT: Non-statutory deductions (loans, advances) to other deductions account
+          if (totalNonStatDeductions > 0) {
+            const otherDedAccId = settings.other_deductions_account_id || settings.payroll_liability_account_id;
+            glInserts.push({ journal_entry_id: je.id, account_id: otherDedAccId, debit: 0, credit: Math.round(totalNonStatDeductions * 100) / 100, description: 'Payroll - Other deductions (loans, advances)', transaction_date: txDate });
+          }
+
+          // DEBIT: Employer NSSF contribution expense / CREDIT: NSSF liability
           if (totalEmployerNssf > 0 && settings.employer_nssf_account_id) {
-            await supabase.from('general_ledger').insert({ journal_entry_id: je.id, account_id: settings.employer_nssf_account_id, debit: Math.round(totalEmployerNssf * 100) / 100, credit: 0, description: 'Employer NSSF contribution expense', transaction_date: txDate });
-            if (settings.nssf_account_id) { await supabase.from('general_ledger').insert({ journal_entry_id: je.id, account_id: settings.nssf_account_id, debit: 0, credit: Math.round(totalEmployerNssf * 100) / 100, description: 'Employer NSSF contribution liability', transaction_date: txDate }); }
+            glInserts.push({ journal_entry_id: je.id, account_id: settings.employer_nssf_account_id, debit: Math.round(totalEmployerNssf * 100) / 100, credit: 0, description: 'Employer NSSF contribution expense', transaction_date: txDate });
+            if (settings.nssf_account_id) {
+              glInserts.push({ journal_entry_id: je.id, account_id: settings.nssf_account_id, debit: 0, credit: Math.round(totalEmployerNssf * 100) / 100, description: 'Employer NSSF contribution liability', transaction_date: txDate });
+            }
           }
 
-          const totalEmployerHL = payrollItems.reduce((s, item) => { const d = (itemDetails[item.id] || []).find(d => d.component_type === 'employer' && d.component_name?.includes('Housing')); return s + (d?.amount || 0); }, 0);
+          // DEBIT: Employer Housing Levy expense / CREDIT: NHLF liability
           if (totalEmployerHL > 0 && settings.employer_housing_levy_account_id) {
-            await supabase.from('general_ledger').insert({ journal_entry_id: je.id, account_id: settings.employer_housing_levy_account_id, debit: Math.round(totalEmployerHL * 100) / 100, credit: 0, description: 'Employer Housing Levy expense', transaction_date: txDate });
-            if (settings.nhlf_account_id) { await supabase.from('general_ledger').insert({ journal_entry_id: je.id, account_id: settings.nhlf_account_id, debit: 0, credit: Math.round(totalEmployerHL * 100) / 100, description: 'Employer Housing Levy liability', transaction_date: txDate }); }
+            glInserts.push({ journal_entry_id: je.id, account_id: settings.employer_housing_levy_account_id, debit: Math.round(totalEmployerHL * 100) / 100, credit: 0, description: 'Employer Housing Levy expense', transaction_date: txDate });
+            if (settings.nhlf_account_id) {
+              glInserts.push({ journal_entry_id: je.id, account_id: settings.nhlf_account_id, debit: 0, credit: Math.round(totalEmployerHL * 100) / 100, description: 'Employer Housing Levy liability', transaction_date: txDate });
+            }
           }
 
+          // Batch insert all GL lines
+          await supabase.from('general_ledger').insert(glInserts);
           await supabase.from('payroll_runs').update({ journal_entry_id: je.id }).eq('id', currentRun.id);
         }
       }
