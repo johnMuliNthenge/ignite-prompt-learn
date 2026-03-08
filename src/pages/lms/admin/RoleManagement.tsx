@@ -258,6 +258,9 @@ export default function RoleManagement() {
       }
 
       fetchRolePermissions(roleId);
+      // Also refresh allPermissions for the matrix tab
+      const { data: allPermsData } = await supabase.from('role_permissions').select('*');
+      setAllPermissions(allPermsData || []);
     } catch (error) {
       console.error('Error updating permission:', error);
       toast({ title: 'Error', description: 'Failed to update permission', variant: 'destructive' });
