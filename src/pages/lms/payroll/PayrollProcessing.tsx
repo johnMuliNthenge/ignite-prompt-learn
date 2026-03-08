@@ -254,23 +254,24 @@ const PayrollProcessing = () => {
           prepared_by: user?.id,
         }).select().single();
         if (!jeErr && je) {
+          const txDate = new Date().toISOString().split('T')[0];
           // Dr Salary Expense
           await supabase.from('general_ledger').insert({
             journal_entry_id: je.id,
             account_id: settings.salary_expense_account_id,
-            debit_amount: currentRun.total_gross,
-            credit_amount: 0,
+            debit: currentRun.total_gross,
+            credit: 0,
             description: 'Payroll salary expense',
-            transaction_date: new Date().toISOString().split('T')[0],
+            transaction_date: txDate,
           });
           // Cr Payroll Liability (net pay)
           await supabase.from('general_ledger').insert({
             journal_entry_id: je.id,
             account_id: settings.payroll_liability_account_id,
-            debit_amount: 0,
-            credit_amount: currentRun.total_net,
+            debit: 0,
+            credit: currentRun.total_net,
             description: 'Payroll net pay liability',
-            transaction_date: new Date().toISOString().split('T')[0],
+            transaction_date: txDate,
           });
           // Cr Statutory accounts
           const statDetails = payrollItems.flatMap(item => (itemDetails[item.id] || []).filter(d => d.is_statutory && d.statutory_config_id));
@@ -279,17 +280,20 @@ const PayrollProcessing = () => {
             if (!statTotals[d.statutory_config_id]) statTotals[d.statutory_config_id] = { amount: 0, configId: d.statutory_config_id };
             statTotals[d.statutory_config_id].amount += d.amount;
           }
-          const { data: statConfigs } = await supabase.from('statutory_deduction_configs').select('id, name, account_id').in('id', Object.keys(statTotals));
-          for (const cfg of (statConfigs || [])) {
-            if (cfg.account_id && statTotals[cfg.id]) {
-              await supabase.from('general_ledger').insert({
-                journal_entry_id: je.id,
-                account_id: cfg.account_id,
-                debit_amount: 0,
-                credit_amount: Math.round(statTotals[cfg.id].amount * 100) / 100,
-                description: `Payroll - ${cfg.name}`,
-                transaction_date: new Date().toISOString().split('T')[0],
-              });
+          const statConfigIds = Object.keys(statTotals);
+          if (statConfigIds.length > 0) {
+            const { data: statConfigs } = await supabase.from('statutory_deduction_configs').select('id, name, account_id').in('id', statConfigIds);
+            for (const cfg of (statConfigs || [])) {
+              if (cfg.account_id && statTotals[cfg.id]) {
+                await supabase.from('general_ledger').insert({
+                  journal_entry_id: je.id,
+                  account_id: cfg.account_id,
+                  debit: 0,
+                  credit: Math.round(statTotals[cfg.id].amount * 100) / 100,
+                  description: `Payroll - ${cfg.name}`,
+                  transaction_date: txDate,
+                });
+              }
             }
           }
 
