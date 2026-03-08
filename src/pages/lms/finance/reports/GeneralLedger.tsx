@@ -221,9 +221,9 @@ export default function GeneralLedger() {
         // If payment exceeds debtors balance, credit goes to Prepayment
         // For simplicity, show standard Dr Cash/Bank, Cr Debtors
         lines.push({
-          account_code: cashCode,
-          account_name: cashName,
-          account_id: cashId,
+          account_code: cashAccCode,
+          account_name: cashAccName,
+          account_id: cashAccId,
           debit: Number(pmt.amount) || 0,
           credit: 0,
         });
