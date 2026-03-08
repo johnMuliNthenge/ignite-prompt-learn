@@ -826,6 +826,7 @@ const inventoryModule: NavModule = {
   roles: ['admin'],
   items: [
     { title: 'Item Master', href: '/lms/inventory/items', icon: Package, moduleCode: 'inventory.items' },
+    { title: 'Categories', href: '/lms/inventory/categories', icon: FolderOpen, moduleCode: 'inventory.categories' },
     { title: 'Store Management', href: '/lms/inventory/stores', icon: Warehouse, moduleCode: 'inventory.stores' },
     { title: 'Stock Transactions', href: '/lms/inventory/transactions', icon: ArrowUpDown, moduleCode: 'inventory.transactions' },
     { title: 'Store Requisitions', href: '/lms/inventory/requisitions', icon: ClipboardList, moduleCode: 'inventory.requisitions' },
