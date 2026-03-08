@@ -72,7 +72,7 @@ const PayrollProcessing = () => {
         supabase.from('payroll_tax_bands').select('*').order('sort_order'),
         supabase.from('employee_deductions').select('*').eq('is_active', true),
         supabase.from('payroll_settings').select('*').limit(1).single(),
-        supabase.from('employee_non_cash_benefits').select('*, non_cash_benefits(name, taxable_value)').eq('is_active', true),
+        supabase.from('employee_non_cash_benefits').select('*, non_cash_benefits(name, default_amount)').eq('is_active', true),
       ]);
 
       const activeAccounts = (empAccountsRes.data || []).filter(ea => ea.hr_employees?.status === 'active');
