@@ -169,11 +169,13 @@ export default function GeneralLedger() {
         // Credit: Each vote head (income line)
         if (items.length > 0) {
           items.forEach((item: any) => {
-            const acc = item.fee_account_id ? accountMap.get(item.fee_account_id) : null;
+            // Resolve fee_account_id → chart_of_accounts.id
+            const coaId = item.fee_account_id ? (feeAccToCoaMap.get(item.fee_account_id) || '') : '';
+            const acc = coaId ? accountMap.get(coaId) : null;
             lines.push({
-              account_code: acc?.code || '—',
-              account_name: acc?.name || item.description || 'Fee Income',
-              account_id: item.fee_account_id || '',
+              account_code: acc?.code || feeIncomeCode,
+              account_name: acc?.name || item.description || feeIncomeName,
+              account_id: coaId || feeIncomeId,
               debit: 0,
               credit: Number(item.total) || 0,
             });
