@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import {
+  fetchFinanceDataSources,
+  buildSyntheticTransactions,
+  buildBalanceMap,
+  formatKES,
+} from '@/lib/finance-utils';
 
 interface LineItem {
   account_code: string;
@@ -31,98 +36,28 @@ export default function ProfitLoss() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch Income/Expense accounts
-      const { data: accountsData } = await supabase
-        .from('chart_of_accounts')
-        .select('id, account_code, account_name, account_type, normal_balance')
-        .eq('is_active', true)
-        .in('account_type', ['Income', 'Expense'])
-        .order('account_code');
-
-      // Fetch GL entries for period — single source of truth
-      const { data: ledgerData } = await supabase
-        .from('general_ledger')
-        .select('account_id, debit, credit')
-        .gte('transaction_date', startDate)
-        .lte('transaction_date', endDate);
-
-      const balanceMap = new Map<string, number>();
-      (ledgerData || []).forEach((e: any) => {
-        const existing = balanceMap.get(e.account_id) || 0;
-        balanceMap.set(e.account_id, existing + (Number(e.debit) || 0) - (Number(e.credit) || 0));
+      const data = await fetchFinanceDataSources({
+        dateFilter: { startDate, endDate },
       });
+      const transactions = buildSyntheticTransactions(data);
+      const balanceMap = buildBalanceMap(transactions, data.prepayAccId, data.debtorsId);
 
-      // IPSAS Accrual: Supplement fee income from invoices (revenue recognized at invoicing)
-      const { data: invoiceItems } = await supabase
-        .from('fee_invoice_items')
-        .select('total, fee_account_id, fee_accounts(account_id), fee_invoices!inner(invoice_date)')
-        .gte('fee_invoices.invoice_date', startDate)
-        .lte('fee_invoices.invoice_date', endDate);
-
-      const invoiceIncomeMap = new Map<string, number>();
-      (invoiceItems || []).forEach((item: any) => {
-        const accId = item.fee_accounts?.account_id;
-        if (accId) {
-          invoiceIncomeMap.set(accId, (invoiceIncomeMap.get(accId) || 0) + (Number(item.total) || 0));
-        }
-      });
-
-      // IPSAS Accrual: Supplement expenses from approved/paid vouchers (recognized when approved)
-      const { data: voucherData } = await supabase
-        .from('payment_vouchers')
-        .select('amount, voucher_date, status, description')
-        .neq('status', 'Draft')
-        .gte('voucher_date', startDate)
-        .lte('voucher_date', endDate);
-
-      // Build expense map - use GL journal entries linked to vouchers for account mapping
-      const { data: voucherGLEntries } = await supabase
-        .from('general_ledger')
-        .select('account_id, debit')
-        .gte('transaction_date', startDate)
-        .lte('transaction_date', endDate)
-        .gt('debit', 0);
-
-      const voucherExpenseMap = new Map<string, number>();
-      // If GL has expense entries, they're already in balanceMap
-      // For vouchers without GL entries, distribute to a general expense account
-      const totalVoucherAmount = (voucherData || []).reduce((s, v) => s + (Number(v.amount) || 0), 0);
-      if (totalVoucherAmount > 0) {
-        // Find expense accounts and assign
-        const expenseAccounts = (accountsData || []).filter((a: any) => a.account_type === 'Expense');
-        if (expenseAccounts.length > 0) {
-          const firstExpAcc = expenseAccounts[0];
-          const glBal = balanceMap.get(firstExpAcc.id) || 0;
-          if (glBal === 0) {
-            voucherExpenseMap.set(firstExpAcc.id, totalVoucherAmount);
-          }
-        }
-      }
-
-      // Build line items
       const incomeItems: LineItem[] = [];
       const expenseItems: LineItem[] = [];
 
-      (accountsData || []).forEach((acc: any) => {
-        let glNet = balanceMap.get(acc.id) || 0;
-        let amount = 0;
+      data.accounts.forEach(acc => {
+        const bal = balanceMap.get(acc.id);
+        if (!bal) return;
+        const net = bal.debit - bal.credit;
 
         if (acc.account_type === 'Income') {
-          // Income: normal credit. Use GL if available, otherwise invoice data (accrual)
-          if (glNet !== 0) {
-            amount = Math.abs(glNet);
-          } else {
-            amount = invoiceIncomeMap.get(acc.id) || 0;
-          }
-          if (amount > 0) incomeItems.push({ account_code: acc.account_code, name: acc.account_name, amount });
-        } else {
-          // Expense: normal debit. Use GL if available, otherwise voucher data (accrual)
-          if (glNet !== 0) {
-            amount = glNet > 0 ? glNet : 0;
-          } else {
-            amount = voucherExpenseMap.get(acc.id) || 0;
-          }
-          if (amount > 0) expenseItems.push({ account_code: acc.account_code, name: acc.account_name, amount });
+          // Income normal_balance = Credit, so credit > debit means positive income
+          const amount = Math.abs(net);
+          if (amount >= 0.01) incomeItems.push({ account_code: acc.account_code, name: acc.account_name, amount });
+        } else if (acc.account_type === 'Expense') {
+          // Expense normal_balance = Debit, so debit > credit means positive expense
+          const amount = net > 0 ? net : 0;
+          if (amount >= 0.01) expenseItems.push({ account_code: acc.account_code, name: acc.account_name, amount });
         }
       });
 
@@ -136,7 +71,6 @@ export default function ProfitLoss() {
     }
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(n);
   const totalIncome = income.reduce((s, i) => s + i.amount, 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const netIncome = totalIncome - totalExpenses;
@@ -180,14 +114,14 @@ export default function ProfitLoss() {
                     <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No income for this period</TableCell></TableRow>
                   ) : income.map((item, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-mono text-xs">{item.account_code}</TableCell>
+                      <TableCell className="font-mono">{item.account_code}</TableCell>
                       <TableCell>{item.name}</TableCell>
-                      <TableCell className="text-right">{fmt(item.amount)}</TableCell>
+                      <TableCell className="text-right">{formatKES(item.amount)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold bg-muted">
                     <TableCell colSpan={2}>Total Income</TableCell>
-                    <TableCell className="text-right text-green-600">{fmt(totalIncome)}</TableCell>
+                    <TableCell className="text-right">{formatKES(totalIncome)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -204,14 +138,14 @@ export default function ProfitLoss() {
                     <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No expenses for this period</TableCell></TableRow>
                   ) : expenses.map((item, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-mono text-xs">{item.account_code}</TableCell>
+                      <TableCell className="font-mono">{item.account_code}</TableCell>
                       <TableCell>{item.name}</TableCell>
-                      <TableCell className="text-right">{fmt(item.amount)}</TableCell>
+                      <TableCell className="text-right">{formatKES(item.amount)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold bg-muted">
                     <TableCell colSpan={2}>Total Expenses</TableCell>
-                    <TableCell className="text-right text-destructive">{fmt(totalExpenses)}</TableCell>
+                    <TableCell className="text-right">{formatKES(totalExpenses)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -221,14 +155,11 @@ export default function ProfitLoss() {
           <Card className={netIncome >= 0 ? 'border-green-500' : 'border-destructive'}>
             <CardContent className="pt-6">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-medium">Net {netIncome >= 0 ? 'Profit' : 'Loss'}</span>
+                <span className="text-lg font-bold">Net {netIncome >= 0 ? 'Surplus' : 'Deficit'}</span>
                 <span className={`text-2xl font-bold ${netIncome >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {fmt(Math.abs(netIncome))}
+                  {formatKES(Math.abs(netIncome))}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                Period: {format(new Date(startDate), 'dd MMM yyyy')} to {format(new Date(endDate), 'dd MMM yyyy')}
-              </p>
             </CardContent>
           </Card>
         </div>

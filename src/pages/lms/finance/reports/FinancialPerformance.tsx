@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import {
+  fetchFinanceDataSources,
+  buildSyntheticTransactions,
+  buildBalanceMap,
+  formatKES,
+} from '@/lib/finance-utils';
 
 interface LineItem {
   account_code: string;
@@ -38,80 +43,30 @@ export default function FinancialPerformance() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch accounts with groups
-      const { data: accountsData } = await supabase
-        .from('chart_of_accounts')
-        .select('id, account_code, account_name, account_type, normal_balance, account_groups(name)')
-        .eq('is_active', true)
-        .in('account_type', ['Income', 'Expense'])
-        .order('account_code');
-
-      // Fetch GL entries for period
-      const { data: ledgerData } = await supabase
-        .from('general_ledger')
-        .select('account_id, debit, credit')
-        .gte('transaction_date', startDate)
-        .lte('transaction_date', endDate);
-
-      // Build balance map
-      const balanceMap = new Map<string, number>();
-      (ledgerData || []).forEach((e: any) => {
-        const existing = balanceMap.get(e.account_id) || 0;
-        balanceMap.set(e.account_id, existing + (Number(e.debit) || 0) - (Number(e.credit) || 0));
+      const data = await fetchFinanceDataSources({
+        includeGroups: true,
+        dateFilter: { startDate, endDate },
       });
+      const transactions = buildSyntheticTransactions(data);
+      const balanceMap = buildBalanceMap(transactions, data.prepayAccId, data.debtorsId);
 
-      // IPSAS Accrual: Supplement fee income from invoices (recognized at invoicing)
-      const { data: invoiceItems } = await supabase
-        .from('fee_invoice_items')
-        .select('total, fee_account_id, fee_accounts(account_id), fee_invoices!inner(invoice_date)')
-        .gte('fee_invoices.invoice_date', startDate)
-        .lte('fee_invoices.invoice_date', endDate);
-
-      (invoiceItems || []).forEach((item: any) => {
-        const accId = item.fee_accounts?.account_id;
-        if (accId) {
-          const glBal = balanceMap.get(accId) || 0;
-          if (glBal === 0) {
-            balanceMap.set(accId, (balanceMap.get(accId) || 0) - (Number(item.total) || 0));
-          }
-        }
-      });
-
-      // IPSAS Accrual: Supplement expenses from approved/paid vouchers (recognized when approved)
-      const { data: voucherData } = await supabase
-        .from('payment_vouchers')
-        .select('amount, voucher_date, status')
-        .neq('status', 'Draft')
-        .gte('voucher_date', startDate)
-        .lte('voucher_date', endDate);
-
-      const totalVoucherExpense = (voucherData || []).reduce((s, v) => s + (Number(v.amount) || 0), 0);
-      if (totalVoucherExpense > 0) {
-        const expenseAccounts = (accountsData || []).filter((a: any) => a.account_type === 'Expense');
-        if (expenseAccounts.length > 0) {
-          const firstExpAcc = expenseAccounts[0];
-          const glBal = balanceMap.get(firstExpAcc.id) || 0;
-          if (glBal === 0) {
-            balanceMap.set(firstExpAcc.id, totalVoucherExpense);
-          }
-        }
-      }
-
-      // Build items
       const buildSection = (type: string): GroupedSection[] => {
-        const items: LineItem[] = (accountsData || [])
-          .filter((a: any) => a.account_type === type)
-          .map((a: any) => {
-            const rawBal = balanceMap.get(a.id) || 0;
-            const amount = type === 'Income' ? Math.abs(rawBal) : rawBal;
+        const items: LineItem[] = data.accounts
+          .filter(a => a.account_type === type)
+          .map(a => {
+            const bal = balanceMap.get(a.id);
+            if (!bal) return null;
+            const net = bal.debit - bal.credit;
+            const amount = type === 'Income' ? Math.abs(net) : (net > 0 ? net : 0);
+            if (amount < 0.01) return null;
             return {
               account_code: a.account_code,
               account_name: a.account_name,
-              group_name: (a as any).account_groups?.name || 'Other',
-              amount: Math.abs(amount),
+              group_name: a.group_name || 'Other',
+              amount,
             };
           })
-          .filter(i => i.amount >= 0.01);
+          .filter((i): i is LineItem => i !== null);
 
         const groups = new Map<string, LineItem[]>();
         items.forEach(i => {
@@ -136,7 +91,6 @@ export default function FinancialPerformance() {
     }
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(n);
   const totalIncome = incomeGroups.reduce((s, g) => s + g.total, 0);
   const totalExpenses = expenseGroups.reduce((s, g) => s + g.total, 0);
   const netSurplus = totalIncome - totalExpenses;
@@ -155,23 +109,19 @@ export default function FinancialPerformance() {
       <TableBody>
         {sections.length === 0 ? (
           <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No transactions for this period</TableCell></TableRow>
-        ) : sections.map((group) => (
+        ) : sections.map(group => (
           <React.Fragment key={group.group}>
             <TableRow className="bg-muted/30">
               <TableCell colSpan={2} className="font-semibold">{group.group}</TableCell>
-              <TableCell />
+              <TableCell className="text-right font-semibold">{formatKES(group.total)}</TableCell>
             </TableRow>
             {group.items.map((item, i) => (
               <TableRow key={i}>
-                <TableCell className="font-mono text-xs pl-8">{item.account_code}</TableCell>
+                <TableCell className="font-mono pl-8">{item.account_code}</TableCell>
                 <TableCell className="pl-8">{item.account_name}</TableCell>
-                <TableCell className="text-right">{fmt(item.amount)}</TableCell>
+                <TableCell className="text-right">{formatKES(item.amount)}</TableCell>
               </TableRow>
             ))}
-            <TableRow className="border-t">
-              <TableCell colSpan={2} className="font-medium pl-8 italic">Sub-total: {group.group}</TableCell>
-              <TableCell className="text-right font-medium">{fmt(group.total)}</TableCell>
-            </TableRow>
           </React.Fragment>
         ))}
       </TableBody>
@@ -184,7 +134,7 @@ export default function FinancialPerformance() {
         <div>
           <h1 className="text-3xl font-bold">Statement of Financial Performance</h1>
           <p className="text-muted-foreground">
-            IPSAS Income & Expenditure for {format(new Date(startDate), 'dd MMM yyyy')} to {format(new Date(endDate), 'dd MMM yyyy')}
+            IPSAS Accrual — {format(new Date(startDate), 'dd MMM yyyy')} to {format(new Date(endDate), 'dd MMM yyyy')}
           </p>
         </div>
         <Button variant="outline"><Download className="mr-2 h-4 w-4" />Export</Button>
@@ -206,32 +156,24 @@ export default function FinancialPerformance() {
       ) : (
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle className="text-green-600">Revenue</CardTitle></CardHeader>
-            <CardContent>
-              {renderGroupedTable(incomeGroups)}
-              <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg text-green-600">
-                <span>Total Revenue</span><span>{fmt(totalIncome)}</span>
-              </div>
-            </CardContent>
+            <CardHeader><CardTitle>Revenue</CardTitle></CardHeader>
+            <CardContent>{renderGroupedTable(incomeGroups)}</CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-destructive">Expenditure</CardTitle></CardHeader>
-            <CardContent>
-              {renderGroupedTable(expenseGroups)}
-              <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg text-destructive">
-                <span>Total Expenditure</span><span>{fmt(totalExpenses)}</span>
-              </div>
-            </CardContent>
+            <CardHeader><CardTitle>Expenditure</CardTitle></CardHeader>
+            <CardContent>{renderGroupedTable(expenseGroups)}</CardContent>
           </Card>
 
           <Card className={netSurplus >= 0 ? 'border-green-500' : 'border-destructive'}>
             <CardContent className="pt-6">
-              <div className="flex justify-between items-center">
-                <span className="text-xl font-bold">Net {netSurplus >= 0 ? 'Surplus' : 'Deficit'}</span>
-                <span className={`text-2xl font-bold ${netSurplus >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {fmt(Math.abs(netSurplus))}
-                </span>
+              <div className="grid grid-cols-3 gap-4">
+                <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-lg font-bold">{formatKES(totalIncome)}</p></div>
+                <div><p className="text-sm text-muted-foreground">Total Expenditure</p><p className="text-lg font-bold">{formatKES(totalExpenses)}</p></div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Net {netSurplus >= 0 ? 'Surplus' : 'Deficit'}</p>
+                  <p className={`text-lg font-bold ${netSurplus >= 0 ? 'text-green-600' : 'text-destructive'}`}>{formatKES(Math.abs(netSurplus))}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
