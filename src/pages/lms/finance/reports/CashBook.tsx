@@ -74,12 +74,25 @@ export default function CashBook() {
           notes,
           bank_account_id,
           cash_account_id,
-          vendors(name)
+          payable_id
         `)
         .eq('status', 'Completed')
         .gte('payment_date', startDate)
         .lte('payment_date', endDate)
         .order('payment_date', { ascending: true });
+
+      // Fetch vendor names from payables for the expense payments
+      const payableIds = [...new Set((expensesData || []).map((e: any) => e.payable_id).filter(Boolean))];
+      let vendorNameMap = new Map<string, string>();
+      if (payableIds.length > 0) {
+        const { data: payablesData } = await supabase
+          .from('payables')
+          .select('id, vendors(name)')
+          .in('id', payableIds);
+        (payablesData || []).forEach((p: any) => {
+          vendorNameMap.set(p.id, p.vendors?.name || 'Unknown Vendor');
+        });
+      }
 
       // Combine and separate cash vs bank transactions
       const cashTxns: CashEntry[] = [];
