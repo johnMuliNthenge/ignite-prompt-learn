@@ -93,22 +93,21 @@ export async function fetchFinanceDataSources(options?: {
   if (dateFilter?.endDate) glQuery = glQuery.lte('transaction_date', dateFilter.endDate);
   if (dateFilter?.startDate) glQuery = glQuery.gte('transaction_date', dateFilter.startDate);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const queries: Promise<any>[] = [
-    supabase.from('chart_of_accounts').select(accountSelect).eq('is_active', true).order('account_code'),
-    invoicesQuery.order('invoice_date', { ascending: false }),
-    paymentsQuery.order('payment_date', { ascending: false }),
-    vouchersQuery.order('voucher_date', { ascending: false }),
-    supabase.from('fee_accounts').select('id, account_id'),
-    supabase.from('payment_modes').select('id, name, asset_account_id'),
-    glQuery.order('transaction_date', { ascending: false }),
+  const baseQueries = [
+    supabase.from('chart_of_accounts').select(accountSelect).eq('is_active', true).order('account_code') as any,
+    invoicesQuery.order('invoice_date', { ascending: false }) as any,
+    paymentsQuery.order('payment_date', { ascending: false }) as any,
+    vouchersQuery.order('voucher_date', { ascending: false }) as any,
+    supabase.from('fee_accounts').select('id, account_id') as any,
+    supabase.from('payment_modes').select('id, name, asset_account_id') as any,
+    glQuery.order('transaction_date', { ascending: false }) as any,
   ];
 
   if (includeStudents) {
-    queries.push(supabase.from('students').select('id, other_name, surname'));
+    baseQueries.push(supabase.from('students').select('id, other_name, surname') as any);
   }
 
-  const results = await Promise.all(queries);
+  const results = await Promise.all(baseQueries);
   const [accountsRes, invoicesRes, paymentsRes, vouchersRes, feeAccountsRes, paymentModesRes, glRes] = results;
   const studentsRes = includeStudents ? results[7] : { data: [] };
 
