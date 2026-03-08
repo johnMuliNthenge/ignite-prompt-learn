@@ -172,9 +172,9 @@ export default function GeneralLedger() {
         } else {
           // Single credit line if no items breakdown
           lines.push({
-            account_code: '—',
-            account_name: 'Fee Income',
-            account_id: '',
+            account_code: feeIncomeCode,
+            account_name: feeIncomeName,
+            account_id: feeIncomeId,
             debit: 0,
             credit: Number(inv.total_amount) || 0,
           });
