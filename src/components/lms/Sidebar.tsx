@@ -859,6 +859,7 @@ const libraryModule: NavModule = {
   roles: ['admin'],
   items: [
     { title: 'Book Catalog', href: '/lms/library/catalog', icon: BookMarked, moduleCode: 'library.catalog' },
+    { title: 'Categories', href: '/lms/library/categories', icon: FolderOpen, moduleCode: 'library.categories' },
     { title: 'Members', href: '/lms/library/members', icon: Users, moduleCode: 'library.members' },
     { title: 'Circulation', href: '/lms/library/circulation', icon: ArrowUpDown, moduleCode: 'library.circulation' },
     { title: 'Reservations', href: '/lms/library/reservations', icon: Calendar, moduleCode: 'library.reservations' },
