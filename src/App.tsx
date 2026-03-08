@@ -50,6 +50,7 @@ import CurriculumManagement from "./pages/lms/academics/CurriculumManagement";
 import SubjectRegistration from "./pages/lms/academics/SubjectRegistration";
 import SubjectRegistrationList from "./pages/lms/academics/SubjectRegistrationList";
 import MarksComputation from "./pages/lms/academics/MarksComputation";
+import POEMarksReport from "./pages/lms/academics/POEMarksReport";
 
 // Finance pages
 import FinanceDashboard from "./pages/lms/finance/FinanceDashboard";
@@ -273,6 +274,7 @@ const App = () => (
               <Route path="academics/subject-registration" element={<SubjectRegistrationList />} />
               <Route path="academics/subject-registration/register" element={<SubjectRegistration />} />
               <Route path="academics/marks-computation" element={<MarksComputation />} />
+              <Route path="academics/poe-marks-report" element={<POEMarksReport />} />
               {/* Finance Routes */}
               <Route path="finance" element={<FinanceDashboard />} />
               <Route path="finance/fees-status" element={<StudentFeesStatus />} />

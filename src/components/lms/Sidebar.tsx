@@ -901,6 +901,12 @@ const academicsModule: NavModule = {
       icon: ClipboardCheck,
       moduleCode: 'academics.poe_review',
     },
+    {
+      title: 'POE Marks Report',
+      href: '/lms/academics/poe-marks-report',
+      icon: BarChart2,
+      moduleCode: 'academics.poe_review',
+    },
   ],
 };
 
