@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +8,8 @@ import { Button } from '@/components/ui/button';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Download, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Download, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -24,26 +22,13 @@ interface TrialBalanceEntry {
   credit_balance: number;
 }
 
-interface LedgerTransaction {
-  id: string;
-  transaction_date: string;
-  description: string;
-  reference_number: string | null;
-  debit: number;
-  credit: number;
-  journal_entry_id: string | null;
-}
 
 export default function TrialBalance() {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<TrialBalanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [asOfDate, setAsOfDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-
-  // Drill-down state
-  const [selectedAccount, setSelectedAccount] = useState<TrialBalanceEntry | null>(null);
-  const [transactions, setTransactions] = useState<LedgerTransaction[]>([]);
-  const [txnLoading, setTxnLoading] = useState(false);
 
   useEffect(() => {
     fetchTrialBalance();
@@ -217,100 +202,9 @@ export default function TrialBalance() {
     }
   };
 
-  const handleAccountClick = async (entry: TrialBalanceEntry) => {
-    setSelectedAccount(entry);
-    setTxnLoading(true);
-    setTransactions([]);
-
-    try {
-      if (entry.account_id) {
-        // Fetch ledger transactions for this account
-        const { data, error } = await supabase
-          .from('general_ledger')
-          .select('id, transaction_date, description, reference_number, debit, credit, journal_entry_id')
-          .eq('account_id', entry.account_id)
-          .lte('transaction_date', asOfDate)
-          .order('transaction_date', { ascending: true });
-
-        if (error) throw error;
-
-        setTransactions((data || []).map((t: any) => ({
-          id: t.id,
-          transaction_date: t.transaction_date,
-          description: t.description || '',
-          reference_number: t.reference_number,
-          debit: Number(t.debit) || 0,
-          credit: Number(t.credit) || 0,
-          journal_entry_id: t.journal_entry_id,
-        })));
-      } else if (entry.account_name === 'Student Fees Receivable') {
-        // Synthetic: show invoices
-        const { data, error } = await supabase
-          .from('fee_invoices')
-          .select('id, invoice_date, invoice_number, total_amount, amount_paid, balance_due, student_id')
-          .lte('invoice_date', asOfDate)
-          .gt('balance_due', 0)
-          .order('invoice_date', { ascending: true });
-
-        if (error) throw error;
-
-        // Fetch student names
-        const studentIds = [...new Set((data || []).map(d => d.student_id).filter(Boolean))];
-        let studentMap = new Map<string, string>();
-        if (studentIds.length > 0) {
-          const { data: students } = await supabase
-            .from('students')
-            .select('id, other_name, surname')
-            .in('id', studentIds);
-          (students || []).forEach(s => studentMap.set(s.id, `${s.other_name || ''} ${s.surname || ''}`.trim()));
-        }
-
-        setTransactions((data || []).map((inv: any) => ({
-          id: inv.id,
-          transaction_date: inv.invoice_date,
-          description: `${inv.invoice_number} - ${studentMap.get(inv.student_id) || 'Unknown Student'}`,
-          reference_number: inv.invoice_number,
-          debit: Number(inv.balance_due) || 0,
-          credit: 0,
-          journal_entry_id: null,
-        })));
-      } else if (entry.account_name === 'Cash/Bank' || entry.account_name === 'Fee Income') {
-        // Synthetic: show payments
-        const { data, error } = await supabase
-          .from('fee_payments')
-          .select('id, payment_date, receipt_number, amount, reference_number, student_id')
-          .lte('payment_date', asOfDate)
-          .eq('status', 'Completed')
-          .order('payment_date', { ascending: true });
-
-        if (error) throw error;
-
-        const studentIds = [...new Set((data || []).map(d => d.student_id).filter(Boolean))];
-        let studentMap = new Map<string, string>();
-        if (studentIds.length > 0) {
-          const { data: students } = await supabase
-            .from('students')
-            .select('id, other_name, surname')
-            .in('id', studentIds);
-          (students || []).forEach(s => studentMap.set(s.id, `${s.other_name || ''} ${s.surname || ''}`.trim()));
-        }
-
-        const isCash = entry.account_name === 'Cash/Bank';
-        setTransactions((data || []).map((pay: any) => ({
-          id: pay.id,
-          transaction_date: pay.payment_date,
-          description: `${pay.receipt_number} - ${studentMap.get(pay.student_id) || 'Unknown Student'}`,
-          reference_number: pay.reference_number || pay.receipt_number,
-          debit: isCash ? Number(pay.amount) || 0 : 0,
-          credit: isCash ? 0 : Number(pay.amount) || 0,
-          journal_entry_id: null,
-        })));
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-      toast.error('Failed to load transactions');
-    } finally {
-      setTxnLoading(false);
+  const handleAccountClick = (entry: TrialBalanceEntry) => {
+    if (entry.account_id) {
+      navigate(`/lms/finance/reports/general-ledger?accountId=${entry.account_id}`);
     }
   };
 
@@ -326,8 +220,6 @@ export default function TrialBalance() {
   const totalCredits = entries.reduce((sum, e) => sum + e.credit_balance, 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01;
 
-  const txnTotalDebit = transactions.reduce((s, t) => s + t.debit, 0);
-  const txnTotalCredit = transactions.reduce((s, t) => s + t.credit, 0);
 
   if (!isAdmin) {
     return (
@@ -445,60 +337,6 @@ export default function TrialBalance() {
         </CardContent>
       </Card>
 
-      {/* Drill-down Dialog */}
-      <Dialog open={!!selectedAccount} onOpenChange={(open) => !open && setSelectedAccount(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="font-mono text-sm text-muted-foreground">{selectedAccount?.account_code}</span>
-              <span>{selectedAccount?.account_name}</span>
-              <span className="text-sm font-normal text-muted-foreground">({selectedAccount?.account_type})</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          {txnLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : transactions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No transactions found for this account.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead className="min-w-[200px]">Description</TableHead>
-                  <TableHead className="text-right">Debit</TableHead>
-                  <TableHead className="text-right">Credit</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((txn) => (
-                  <TableRow key={txn.id}>
-                    <TableCell className="whitespace-nowrap">
-                      {format(new Date(txn.transaction_date), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{txn.reference_number || '-'}</TableCell>
-                    <TableCell>{txn.description}</TableCell>
-                    <TableCell className="text-right">
-                      {txn.debit > 0 ? formatCurrency(txn.debit) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {txn.credit > 0 ? formatCurrency(txn.credit) : '-'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                <TableRow className="font-bold bg-muted">
-                  <TableCell colSpan={3}>TOTAL ({transactions.length} transactions)</TableCell>
-                  <TableCell className="text-right">{formatCurrency(txnTotalDebit)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(txnTotalCredit)}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

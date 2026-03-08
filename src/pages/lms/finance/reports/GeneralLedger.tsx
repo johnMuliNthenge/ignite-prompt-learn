@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,10 +40,11 @@ const ROWS_PER_PAGE = 10;
 
 export default function GeneralLedger() {
   const { isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
   const [transactions, setTransactions] = useState<DoubleEntryTransaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAccount, setSelectedAccount] = useState<string>('all');
+  const [selectedAccount, setSelectedAccount] = useState<string>(searchParams.get('accountId') || 'all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
