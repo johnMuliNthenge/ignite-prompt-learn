@@ -67,14 +67,14 @@ export default function GeneralLedger() {
     setLoading(true);
     try {
       // Fetch all data sources in parallel
-      const [invoicesRes, paymentsRes, accountsRes, studentsRes, vouchersRes, glRes, feeAccountsRes] = await Promise.all([
+      const [invoicesRes, paymentsRes, accountsRes, studentsRes, vouchersRes, glRes, feeAccountsRes, paymentModesRes] = await Promise.all([
         supabase.from('fee_invoices').select(`
           id, invoice_number, invoice_date, total_amount, student_id, status,
           fee_invoice_items ( description, total, fee_account_id )
         `).order('invoice_date', { ascending: false }),
 
         supabase.from('fee_payments').select(`
-          id, receipt_number, payment_date, amount, student_id, payment_mode_id
+          id, receipt_number, payment_date, amount, student_id, payment_mode_id, status
         `).order('payment_date', { ascending: false }),
 
         supabase.from('chart_of_accounts').select('id, account_code, account_name, account_type').eq('is_active', true),
@@ -85,14 +85,15 @@ export default function GeneralLedger() {
           id, voucher_number, voucher_date, amount, vendor_name, status, description
         `).order('voucher_date', { ascending: false }),
 
-        // Also fetch any existing general_ledger entries with journal entries
         supabase.from('general_ledger').select(`
           id, transaction_date, description, debit, credit, account_id, journal_entry_id,
           journal_entries:journal_entry_id ( entry_number, narration )
         `).order('transaction_date', { ascending: false }).limit(1000),
 
-        // Fetch fee_accounts to resolve fee_account_id → chart_of_accounts.id
         supabase.from('fee_accounts').select('id, account_id'),
+
+        // Batch fetch ALL payment modes upfront instead of sequential awaits
+        supabase.from('payment_modes').select('id, name, asset_account_id'),
       ]);
 
       const accountMap = new Map<string, { code: string; name: string }>();
@@ -111,31 +112,29 @@ export default function GeneralLedger() {
         if (fa.account_id) feeAccToCoaMap.set(fa.id, fa.account_id);
       });
 
+      // Map payment_mode_id → { name, asset_account_id }
+      const paymentModeMap = new Map<string, { name: string; asset_account_id: string | null }>();
+      (paymentModesRes.data || []).forEach((pm: any) => {
+        paymentModeMap.set(pm.id, { name: pm.name, asset_account_id: pm.asset_account_id });
+      });
+
       // Find debtors account - prioritize exact code match
-      const debtorsAccount = (accountsRes.data || []).find((a: any) => a.account_code === '1201') ||
-        (accountsRes.data || []).find((a: any) =>
-          a.account_name?.toLowerCase().includes('debtor') ||
-          a.account_name?.toLowerCase().includes('receivable')
-        );
+      const debtorsAccount = (accountsRes.data || []).find((a: any) => a.account_code === '1201');
       const debtorsCode = debtorsAccount ? debtorsAccount.account_code : 'DR';
       const debtorsName = debtorsAccount ? debtorsAccount.account_name : 'Student Debtors';
       const debtorsId = debtorsAccount?.id || '';
 
-      // Find prepayment / cash accounts
-      const prepaymentAccount = (accountsRes.data || []).find((a: any) =>
-        a.account_name?.toLowerCase().includes('prepayment')
-      );
-
-      // Find general cash/bank account - exact code match first, then fallback
+      // Find cash/bank account - exact code match first
       const cashBankAccount = (accountsRes.data || []).find((a: any) => a.account_code === '1102') ||
         (accountsRes.data || []).find((a: any) =>
-          a.account_type === 'Asset' && (a.account_name?.toLowerCase().includes('cash at bank') || a.account_name?.toLowerCase().includes('bank'))
+          a.account_type === 'Asset' && a.account_name?.toLowerCase().includes('cash at bank')
         );
       const cashBankId = cashBankAccount?.id || '';
       const cashBankCode = cashBankAccount?.account_code || '300';
       const cashBankName = cashBankAccount?.account_name || 'Cash and Bank';
 
-      // Find general fee income account - must match Trial Balance logic
+      // Find general fee income account - MUST match Trial Balance logic exactly
+      // TB logic: a.account_type === 'Income' && (name includes 'fee' || code starts with '4')
       const feeIncomeAccount = (accountsRes.data || []).find((a: any) =>
         a.account_type === 'Income' && (a.account_name?.toLowerCase().includes('fee') || a.account_code?.startsWith('4'))
       );
@@ -143,13 +142,16 @@ export default function GeneralLedger() {
       const feeIncomeCode = feeIncomeAccount?.account_code || '—';
       const feeIncomeName = feeIncomeAccount?.account_name || 'Fee Income';
 
-      // Find general expense account - exact code prefix
+      // Find general expense account
       const expenseAccount = (accountsRes.data || []).find((a: any) =>
         a.account_type === 'Expense' && a.account_code?.startsWith('5')
       );
       const expenseId = expenseAccount?.id || '';
       const expenseCode = expenseAccount?.account_code || '—';
       const expenseName = expenseAccount?.account_name || 'Expense';
+
+      // Prepayment account for overpayments (matches TB logic for 2103)
+      const prepayAccount = (accountsRes.data || []).find((a: any) => a.account_code === '2103');
 
       const allTransactions: DoubleEntryTransaction[] = [];
 
@@ -171,7 +173,6 @@ export default function GeneralLedger() {
         // Credit: Each vote head (income line)
         if (items.length > 0) {
           items.forEach((item: any) => {
-            // Resolve fee_account_id → chart_of_accounts.id
             const coaId = item.fee_account_id ? (feeAccToCoaMap.get(item.fee_account_id) || '') : '';
             const acc = coaId ? accountMap.get(coaId) : null;
             lines.push({
@@ -183,7 +184,6 @@ export default function GeneralLedger() {
             });
           });
         } else {
-          // Single credit line if no items breakdown
           lines.push({
             account_code: feeIncomeCode,
             account_name: feeIncomeName,
@@ -202,23 +202,18 @@ export default function GeneralLedger() {
         });
       });
 
-      // 2. Fee Payments → Dr Cash/Bank, Cr Debtors
-      for (const pmt of (paymentsRes.data || [])) {
+      // 2. Fee Payments → Dr Cash/Bank, Cr Debtors (using batched payment mode map)
+      (paymentsRes.data || []).forEach((pmt: any) => {
         const studentName = studentMap.get(pmt.student_id) || 'Unknown Student';
         const lines: DoubleEntryTransaction['lines'] = [];
 
-        // Determine cash/bank account from payment mode
+        // Determine cash/bank account from payment mode (no more sequential awaits!)
         let cashAccCode = cashBankCode;
         let cashAccName = cashBankName;
         let cashAccId = cashBankId;
 
         if (pmt.payment_mode_id) {
-          const { data: pmData } = await supabase
-            .from('payment_modes')
-            .select('name, asset_account_id')
-            .eq('id', pmt.payment_mode_id)
-            .maybeSingle();
-
+          const pmData = paymentModeMap.get(pmt.payment_mode_id);
           if (pmData?.asset_account_id) {
             const acc = accountMap.get(pmData.asset_account_id);
             if (acc) {
@@ -231,8 +226,7 @@ export default function GeneralLedger() {
           }
         }
 
-        // If payment exceeds debtors balance, credit goes to Prepayment
-        // For simplicity, show standard Dr Cash/Bank, Cr Debtors
+        // Dr Cash/Bank
         lines.push({
           account_code: cashAccCode,
           account_name: cashAccName,
@@ -241,6 +235,7 @@ export default function GeneralLedger() {
           credit: 0,
         });
 
+        // Cr Debtors
         lines.push({
           account_code: debtorsCode,
           account_name: debtorsName,
@@ -256,52 +251,45 @@ export default function GeneralLedger() {
           narration: `Payment received from ${studentName}`,
           lines,
         });
-      }
+      });
 
       // 3. Payment Vouchers → Dr Expense, Cr Cash/Bank
       (vouchersRes.data || []).forEach((pv: any) => {
-        if (pv.status === 'Draft') return; // Only show approved/paid
-        const lines: DoubleEntryTransaction['lines'] = [];
+        if (pv.status === 'Draft') return;
         const pvAmount = Number(pv.amount) || 0;
-
-        // Debit: Expense
-        lines.push({
-          account_code: expenseCode,
-          account_name: pv.description || expenseName,
-          account_id: expenseId,
-          debit: pvAmount,
-          credit: 0,
-        });
-
-        // Credit: Cash/Bank
-        lines.push({
-          account_code: cashBankCode,
-          account_name: cashBankName,
-          account_id: cashBankId,
-          debit: 0,
-          credit: pvAmount,
-        });
 
         allTransactions.push({
           id: `pv-${pv.id}`,
           date: pv.voucher_date,
           reference: pv.voucher_number,
           narration: `Payment to ${pv.vendor_name || 'Vendor'} - ${pv.description || ''}`,
-          lines,
+          lines: [
+            {
+              account_code: expenseCode,
+              account_name: pv.description || expenseName,
+              account_id: expenseId,
+              debit: pvAmount,
+              credit: 0,
+            },
+            {
+              account_code: cashBankCode,
+              account_name: cashBankName,
+              account_id: cashBankId,
+              debit: 0,
+              credit: pvAmount,
+            },
+          ],
         });
       });
 
-      // 4. Existing GL entries grouped by journal_entry_id (if any)
+      // 4. Existing GL entries grouped by journal_entry_id
       const glData = glRes.data || [];
       if (glData.length > 0) {
         const jeMap = new Map<string, any[]>();
-        const standalone: any[] = [];
         glData.forEach((gl: any) => {
           if (gl.journal_entry_id) {
             if (!jeMap.has(gl.journal_entry_id)) jeMap.set(gl.journal_entry_id, []);
             jeMap.get(gl.journal_entry_id)!.push(gl);
-          } else {
-            standalone.push(gl);
           }
         });
 
@@ -453,6 +441,28 @@ export default function GeneralLedger() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Account Balance Summary - show when filtered by specific account */}
+      {selectedAccount && selectedAccount !== 'all' && !loading && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Debits</p>
+                <p className="text-lg font-bold">{formatCurrency(totalDebits)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Credits</p>
+                <p className="text-lg font-bold">{formatCurrency(totalCredits)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Net Balance</p>
+                <p className="text-lg font-bold">{formatCurrency(Math.abs(totalDebits - totalCredits))} {totalDebits >= totalCredits ? 'Dr' : 'Cr'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Ledger Table */}
       <Card>
