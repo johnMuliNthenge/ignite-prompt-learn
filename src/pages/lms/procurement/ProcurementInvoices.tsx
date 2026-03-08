@@ -34,37 +34,7 @@ export default function ProcurementInvoices() {
     const { error } = await supabase.from('procurement_invoices').update({ status: 'paid' }).eq('id', invoice.id);
     if (error) { toast.error(error.message); return; }
 
-    // Create a payment voucher in finance module
-    const { data: pvNum } = await supabase.rpc('generate_voucher_number');
-    await supabase.from('payment_vouchers').insert({
-      voucher_number: pvNum as string,
-      payee_name: invoice.procurement_suppliers?.name || 'Supplier',
-      description: `Payment for invoice ${invoice.invoice_number} (PO: ${invoice.purchase_orders?.po_number || 'N/A'})`,
-      total_amount: invoice.total_amount,
-      status: 'Paid',
-    });
-
-    // Post to general ledger - Debit Expense, Credit Cash/Bank
-    await supabase.from('general_ledger').insert([
-      {
-        entry_date: new Date().toISOString().split('T')[0],
-        description: `Supplier payment - ${invoice.invoice_number}`,
-        debit_amount: invoice.total_amount,
-        credit_amount: 0,
-        reference_type: 'procurement_invoice',
-        reference_id: invoice.id,
-      },
-      {
-        entry_date: new Date().toISOString().split('T')[0],
-        description: `Supplier payment - ${invoice.invoice_number}`,
-        debit_amount: 0,
-        credit_amount: invoice.total_amount,
-        reference_type: 'procurement_invoice',
-        reference_id: invoice.id,
-      },
-    ]);
-
-    toast.success('Invoice paid and posted to finance module');
+    toast.success('Invoice marked as paid');
     fetchInvoices();
   };
 

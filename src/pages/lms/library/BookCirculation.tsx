@@ -190,9 +190,9 @@ export default function BookCirculation() {
         await supabase.from('fee_invoices').insert([{
           student_id: (memberData as any).student_id,
           invoice_number: `LIB-LOST-${Date.now()}`,
+          invoice_date: new Date().toISOString().split('T')[0],
           total_amount: fineAmount,
           balance_due: fineAmount,
-          description: `Library: Lost book replacement fee`,
           status: 'sent',
         }]);
         await supabase.from('library_fines').update({ posted_to_finance: true }).eq('issue_id', issue.id).eq('fine_type', 'lost');

@@ -26,7 +26,7 @@ export default function LibraryMembers() {
     const [memRes, stuRes, empRes] = await Promise.all([
       supabase.from('library_members').select('*, students(other_name, surname, student_no), hr_employees(first_name, last_name, employee_no)'),
       supabase.from('students').select('id, other_name, surname, student_no').eq('status', 'Active'),
-      supabase.from('hr_employees').select('id, first_name, last_name, employee_no').eq('status', 'Active'),
+      supabase.from('hr_employees').select('id, first_name, last_name, employee_no').eq('status', 'active'),
     ]);
     setMembers((memRes.data as any[]) || []);
     setStudents((stuRes.data as any[]) || []);
