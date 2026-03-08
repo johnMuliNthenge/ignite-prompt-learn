@@ -75,13 +75,11 @@ export default function TrialBalance() {
         balanceMap.set(entry.account_id, existing);
       });
 
+      // IPSAS Accrual: Compute receivables from total invoiced - total paid
       const { data: invoicesData } = await supabase
         .from('fee_invoices')
-        .select('balance_due')
-        .lte('invoice_date', asOfDate)
-        .gt('balance_due', 0);
-
-      const totalReceivables = (invoicesData || []).reduce((sum, inv) => sum + Number(inv.balance_due), 0);
+        .select('total_amount')
+        .lte('invoice_date', asOfDate);
 
       const { data: paymentsData } = await supabase
         .from('fee_payments')
@@ -89,62 +87,97 @@ export default function TrialBalance() {
         .lte('payment_date', asOfDate)
         .eq('status', 'Completed');
 
-      const totalPayments = (paymentsData || []).reduce((sum, pay) => sum + Number(pay.amount), 0);
+      const totalInvoiced = (invoicesData || []).reduce((sum, inv) => sum + Number(inv.total_amount), 0);
+      const totalPaid = (paymentsData || []).reduce((sum, pay) => sum + Number(pay.amount), 0);
+      const netReceivable = totalInvoiced - totalPaid;
 
-      const formattedEntries: TrialBalanceEntry[] = (accountsData || []).map((acc: any) => {
-        const ledgerBalance = balanceMap.get(acc.id) || { debit: 0, credit: 0 };
-        const netBalance = ledgerBalance.debit - ledgerBalance.credit;
+      // Expense payments (cash outflow)
+      const { data: expensePayments } = await supabase
+        .from('payable_payments')
+        .select('amount')
+        .eq('status', 'Completed')
+        .lte('payment_date', asOfDate);
+      const totalExpensePaid = (expensePayments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-        let debit_balance = 0;
-        let credit_balance = 0;
-
-        if (acc.normal_balance === 'Debit') {
-          if (netBalance >= 0) debit_balance = netBalance;
-          else credit_balance = Math.abs(netBalance);
-        } else {
-          if (netBalance <= 0) credit_balance = Math.abs(netBalance);
-          else debit_balance = netBalance;
+      // IPSAS: Supplement COA accounts with synthetic balances where GL is empty
+      // Student Debtors (1201)
+      const debtorsAcc = (accountsData || []).find((a: any) => a.account_code === '1201');
+      if (debtorsAcc && netReceivable > 0) {
+        const glBal = balanceMap.get(debtorsAcc.id) || { debit: 0, credit: 0 };
+        if (glBal.debit === 0 && glBal.credit === 0) {
+          balanceMap.set(debtorsAcc.id, { debit: totalInvoiced, credit: totalPaid });
         }
+      }
 
-        return {
-          account_id: acc.id,
-          account_code: acc.account_code,
-          account_name: acc.account_name,
-          account_type: acc.account_type,
-          debit_balance,
-          credit_balance,
-        };
+      // Student Prepayments (2103) - overpayment liability
+      const prepayAcc = (accountsData || []).find((a: any) => a.account_code === '2103');
+      if (prepayAcc && netReceivable < 0) {
+        const glBal = balanceMap.get(prepayAcc.id) || { debit: 0, credit: 0 };
+        if (glBal.debit === 0 && glBal.credit === 0) {
+          balanceMap.set(prepayAcc.id, { debit: 0, credit: Math.abs(netReceivable) });
+        }
+      }
+
+      // Cash/Bank (1102)
+      const cashAcc = (accountsData || []).find((a: any) => a.account_code === '1102');
+      if (cashAcc) {
+        const glBal = balanceMap.get(cashAcc.id) || { debit: 0, credit: 0 };
+        if (glBal.debit === 0 && glBal.credit === 0 && (totalPaid > 0 || totalExpensePaid > 0)) {
+          balanceMap.set(cashAcc.id, { debit: totalPaid, credit: totalExpensePaid });
+        }
+      }
+
+      // Fee Income: supplement from invoice items mapped to COA via fee_accounts
+      const { data: invoiceItemsData } = await supabase
+        .from('fee_invoice_items')
+        .select('total, fee_accounts(account_id)')
+        .lte('fee_invoices.invoice_date', asOfDate);
+
+      const incomeByAccount = new Map<string, number>();
+      (invoiceItemsData || []).forEach((item: any) => {
+        const accId = item.fee_accounts?.account_id;
+        if (accId) {
+          incomeByAccount.set(accId, (incomeByAccount.get(accId) || 0) + (Number(item.total) || 0));
+        }
       });
 
-      if (totalReceivables > 0 && !formattedEntries.some(e => e.account_name.toLowerCase().includes('receivable'))) {
-        formattedEntries.push({
-          account_id: null,
-          account_code: '1100',
-          account_name: 'Student Fees Receivable',
-          account_type: 'Asset',
-          debit_balance: totalReceivables,
-          credit_balance: 0,
-        });
+      incomeByAccount.forEach((amount, accId) => {
+        const glBal = balanceMap.get(accId) || { debit: 0, credit: 0 };
+        if (glBal.debit === 0 && glBal.credit === 0) {
+          balanceMap.set(accId, { debit: 0, credit: amount });
+        }
+      });
+
+      // Fallback: if no specific income accounts, use a general fee income account
+      if (incomeByAccount.size === 0 && totalInvoiced > 0) {
+        const feeIncomeAcc = (accountsData || []).find((a: any) =>
+          a.account_type === 'Income' && (a.account_name?.toLowerCase().includes('fee') || a.account_code?.startsWith('4'))
+        );
+        if (feeIncomeAcc) {
+          const glBal = balanceMap.get(feeIncomeAcc.id) || { debit: 0, credit: 0 };
+          if (glBal.debit === 0 && glBal.credit === 0) {
+            balanceMap.set(feeIncomeAcc.id, { debit: 0, credit: totalInvoiced });
+          }
+        }
       }
 
-      if (totalPayments > 0 && !formattedEntries.some(e => e.account_name.toLowerCase().includes('cash'))) {
-        formattedEntries.push({
-          account_id: null,
-          account_code: '1000',
-          account_name: 'Cash/Bank',
-          account_type: 'Asset',
-          debit_balance: totalPayments,
-          credit_balance: 0,
-        });
-        formattedEntries.push({
-          account_id: null,
-          account_code: '4000',
-          account_name: 'Fee Income',
-          account_type: 'Revenue',
-          debit_balance: 0,
-          credit_balance: totalPayments,
-        });
-      }
+      // Expense accounts from voucher items
+      const { data: voucherItems } = await supabase
+        .from('payment_voucher_items')
+        .select('amount, account_id, payment_vouchers!inner(voucher_date, status)')
+        .neq('payment_vouchers.status', 'Draft')
+        .lte('payment_vouchers.voucher_date', asOfDate);
+
+      (voucherItems || []).forEach((item: any) => {
+        const accId = item.account_id;
+        if (accId) {
+          const glBal = balanceMap.get(accId) || { debit: 0, credit: 0 };
+          if (glBal.debit === 0 && glBal.credit === 0) {
+            const existing = balanceMap.get(accId) || { debit: 0, credit: 0 };
+            balanceMap.set(accId, { debit: existing.debit + (Number(item.amount) || 0), credit: existing.credit });
+          }
+        }
+      });
 
       const nonZeroEntries = formattedEntries.filter(e => e.debit_balance > 0 || e.credit_balance > 0);
       setEntries(nonZeroEntries.length > 0 ? nonZeroEntries : formattedEntries);

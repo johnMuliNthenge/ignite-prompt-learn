@@ -52,19 +52,34 @@ export default function ProfitLoss() {
         balanceMap.set(e.account_id, existing + (Number(e.debit) || 0) - (Number(e.credit) || 0));
       });
 
-      // Supplement with fee invoices (accrual income) if GL doesn't have entries
+      // IPSAS Accrual: Supplement fee income from invoices (revenue recognized at invoicing)
       const { data: invoiceItems } = await supabase
         .from('fee_invoice_items')
         .select('total, fee_account_id, fee_accounts(account_id), fee_invoices!inner(invoice_date)')
         .gte('fee_invoices.invoice_date', startDate)
         .lte('fee_invoices.invoice_date', endDate);
 
-      // Accumulate invoice income by GL account
       const invoiceIncomeMap = new Map<string, number>();
       (invoiceItems || []).forEach((item: any) => {
         const accId = item.fee_accounts?.account_id;
         if (accId) {
           invoiceIncomeMap.set(accId, (invoiceIncomeMap.get(accId) || 0) + (Number(item.total) || 0));
+        }
+      });
+
+      // IPSAS Accrual: Supplement expenses from approved/paid vouchers (recognized when approved)
+      const { data: voucherItems } = await supabase
+        .from('payment_voucher_items')
+        .select('amount, account_id, payment_vouchers!inner(voucher_date, status)')
+        .neq('payment_vouchers.status', 'Draft')
+        .gte('payment_vouchers.voucher_date', startDate)
+        .lte('payment_vouchers.voucher_date', endDate);
+
+      const voucherExpenseMap = new Map<string, number>();
+      (voucherItems || []).forEach((item: any) => {
+        const accId = item.account_id;
+        if (accId) {
+          voucherExpenseMap.set(accId, (voucherExpenseMap.get(accId) || 0) + (Number(item.amount) || 0));
         }
       });
 
@@ -77,17 +92,20 @@ export default function ProfitLoss() {
         let amount = 0;
 
         if (acc.account_type === 'Income') {
-          // Income: normal credit. Net credit = negative in (debit-credit). 
-          // If GL has data, use it. If not, use invoice data.
+          // Income: normal credit. Use GL if available, otherwise invoice data (accrual)
           if (glNet !== 0) {
-            amount = Math.abs(glNet); // Credits produce negative net
+            amount = Math.abs(glNet);
           } else {
             amount = invoiceIncomeMap.get(acc.id) || 0;
           }
           if (amount > 0) incomeItems.push({ account_code: acc.account_code, name: acc.account_name, amount });
         } else {
-          // Expense: normal debit. Positive net = expense.
-          amount = glNet > 0 ? glNet : 0;
+          // Expense: normal debit. Use GL if available, otherwise voucher data (accrual)
+          if (glNet !== 0) {
+            amount = glNet > 0 ? glNet : 0;
+          } else {
+            amount = voucherExpenseMap.get(acc.id) || 0;
+          }
           if (amount > 0) expenseItems.push({ account_code: acc.account_code, name: acc.account_name, amount });
         }
       });
