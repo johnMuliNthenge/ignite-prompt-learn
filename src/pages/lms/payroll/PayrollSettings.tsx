@@ -45,7 +45,7 @@ const PayrollSettings = () => {
     setSaving(true);
     try {
       const { id, created_at, updated_at, ...payload } = settings;
-      const uuidFields = ['currency_id','default_payment_mode_id','salary_expense_account_id','payroll_liability_account_id','paye_account_id','shif_account_id','nssf_account_id','nhlf_account_id','net_pay_account_id','basic_salary_account_id','employer_nssf_account_id','employer_housing_levy_account_id','employee_housing_levy_account_id'];
+      const uuidFields = ['currency_id','default_payment_mode_id','salary_expense_account_id','payroll_liability_account_id','paye_account_id','shif_account_id','nssf_account_id','nhlf_account_id','net_pay_account_id','basic_salary_account_id','employer_nssf_account_id','employer_housing_levy_account_id','employee_housing_levy_account_id','other_deductions_account_id'];
       uuidFields.forEach(f => { if (!payload[f]) payload[f] = null; });
       
       if (id) {
