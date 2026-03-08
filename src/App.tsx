@@ -149,6 +149,9 @@ import FeeStatement from "./pages/lms/student-portal/fees/FeeStatement";
 import FeeReceipts from "./pages/lms/student-portal/fees/FeeReceipts";
 import ResultSlip from "./pages/lms/student-portal/academics/ResultSlip";
 import POEUpload from "./pages/lms/student-portal/poe/POEUpload";
+import LibrarySearch from "./pages/lms/student-portal/library/LibrarySearch";
+import MyBorrowedBooks from "./pages/lms/student-portal/library/MyBorrowedBooks";
+import MyLibraryFines from "./pages/lms/student-portal/library/MyLibraryFines";
 
 // Admin POE Review
 import POEReview from "./pages/lms/admin/POEReview";
