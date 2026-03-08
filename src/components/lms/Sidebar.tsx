@@ -826,6 +826,7 @@ const inventoryModule: NavModule = {
   roles: ['admin'],
   items: [
     { title: 'Item Master', href: '/lms/inventory/items', icon: Package, moduleCode: 'inventory.items' },
+    { title: 'Categories', href: '/lms/inventory/categories', icon: FolderOpen, moduleCode: 'inventory.categories' },
     { title: 'Store Management', href: '/lms/inventory/stores', icon: Warehouse, moduleCode: 'inventory.stores' },
     { title: 'Stock Transactions', href: '/lms/inventory/transactions', icon: ArrowUpDown, moduleCode: 'inventory.transactions' },
     { title: 'Store Requisitions', href: '/lms/inventory/requisitions', icon: ClipboardList, moduleCode: 'inventory.requisitions' },
@@ -858,6 +859,7 @@ const libraryModule: NavModule = {
   roles: ['admin'],
   items: [
     { title: 'Book Catalog', href: '/lms/library/catalog', icon: BookMarked, moduleCode: 'library.catalog' },
+    { title: 'Categories', href: '/lms/library/categories', icon: FolderOpen, moduleCode: 'library.categories' },
     { title: 'Members', href: '/lms/library/members', icon: Users, moduleCode: 'library.members' },
     { title: 'Circulation', href: '/lms/library/circulation', icon: ArrowUpDown, moduleCode: 'library.circulation' },
     { title: 'Reservations', href: '/lms/library/reservations', icon: Calendar, moduleCode: 'library.reservations' },

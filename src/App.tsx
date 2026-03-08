@@ -186,6 +186,7 @@ import StoreManagement from "./pages/lms/inventory/StoreManagement";
 import StockTransactions from "./pages/lms/inventory/StockTransactions";
 import StoreRequisitions from "./pages/lms/inventory/StoreRequisitions";
 import InventoryReports from "./pages/lms/inventory/InventoryReports";
+import InventoryCategoryManagement from "./pages/lms/inventory/InventoryCategoryManagement";
 
 // Procurement pages
 import SupplierManagement from "./pages/lms/procurement/SupplierManagement";
@@ -204,6 +205,7 @@ import BookReservations from "./pages/lms/library/BookReservations";
 import LibraryFines from "./pages/lms/library/LibraryFines";
 import LibrarySettingsPage from "./pages/lms/library/LibrarySettingsPage";
 import LibraryReports from "./pages/lms/library/LibraryReports";
+import LibraryCategoryManagement from "./pages/lms/library/LibraryCategoryManagement";
 
 // Super Admin pages
 import SuperAdminLogin from "./pages/super-admin/SuperAdminLogin";
@@ -390,6 +392,7 @@ const App = () => (
 
               {/* Inventory Routes */}
               <Route path="inventory/items" element={<ItemMaster />} />
+              <Route path="inventory/categories" element={<InventoryCategoryManagement />} />
               <Route path="inventory/stores" element={<StoreManagement />} />
               <Route path="inventory/transactions" element={<StockTransactions />} />
               <Route path="inventory/requisitions" element={<StoreRequisitions />} />
@@ -406,6 +409,7 @@ const App = () => (
 
               {/* Library Routes */}
               <Route path="library/catalog" element={<BookCatalog />} />
+              <Route path="library/categories" element={<LibraryCategoryManagement />} />
               <Route path="library/members" element={<LibraryMembers />} />
               <Route path="library/circulation" element={<BookCirculation />} />
               <Route path="library/reservations" element={<BookReservations />} />
