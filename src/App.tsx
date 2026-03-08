@@ -409,6 +409,7 @@ const App = () => (
 
               {/* Library Routes */}
               <Route path="library/catalog" element={<BookCatalog />} />
+              <Route path="library/categories" element={<LibraryCategoryManagement />} />
               <Route path="library/members" element={<LibraryMembers />} />
               <Route path="library/circulation" element={<BookCirculation />} />
               <Route path="library/reservations" element={<BookReservations />} />
