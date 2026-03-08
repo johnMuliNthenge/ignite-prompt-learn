@@ -135,10 +135,8 @@ export default function GeneralLedger() {
       const cashBankCode = cashBankAccount?.account_code || '300';
       const cashBankName = cashBankAccount?.account_name || 'Cash and Bank';
 
-      // Find general fee income account - exact type match first
+      // Find general fee income account - must match Trial Balance logic
       const feeIncomeAccount = (accountsRes.data || []).find((a: any) =>
-        a.account_code === '4100' || (a.account_type === 'Income' && a.account_name?.toLowerCase().includes('tuition'))
-      ) || (accountsRes.data || []).find((a: any) =>
         a.account_type === 'Income' && (a.account_name?.toLowerCase().includes('fee') || a.account_code?.startsWith('4'))
       );
       const feeIncomeId = feeIncomeAccount?.id || '';
