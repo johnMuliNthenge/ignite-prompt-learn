@@ -64,6 +64,25 @@ export default function LibrarySearch() {
     }
   };
 
+  const handleRequest = async (bookId: string) => {
+    if (!memberId) {
+      toast.error('You are not registered as a library member. Please contact the librarian.');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('library_reservations').insert({
+        book_id: bookId,
+        member_id: memberId,
+        reserved_by: user?.id,
+        notes: 'Book request from student portal',
+      });
+      if (error) throw error;
+      toast.success('Book requested! The librarian will process your request.');
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div>
