@@ -1210,12 +1210,22 @@ function SidebarContent({
           {renderNavItems(navItems)}
         </div>
 
-        {/* Instructor Module */}
-        {canViewModule(instructorModule) && (
+        {/* E-Learning Module */}
+        {canViewModule(eLearningModule) && (
           <>
             <Separator className="my-4" />
             <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
-              {renderModule(instructorModule)}
+              {renderModule(eLearningModule)}
+            </div>
+          </>
+        )}
+
+        {/* Student Management Module */}
+        {canViewModule(studentManagementModule) && (
+          <>
+            <Separator className="my-4" />
+            <div className={collapsed ? "flex flex-col items-center space-y-1" : ""}>
+              {renderModule(studentManagementModule)}
             </div>
           </>
         )}
