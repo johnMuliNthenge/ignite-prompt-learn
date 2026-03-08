@@ -195,9 +195,9 @@ export default function GeneralLedger() {
         const lines: DoubleEntryTransaction['lines'] = [];
 
         // Determine cash/bank account from payment mode
-        let cashCode = '300';
-        let cashName = 'Cash and Bank';
-        let cashId = '';
+        let cashAccCode = cashBankCode;
+        let cashAccName = cashBankName;
+        let cashAccId = cashBankId;
 
         if (pmt.payment_mode_id) {
           const { data: pmData } = await supabase
@@ -209,12 +209,12 @@ export default function GeneralLedger() {
           if (pmData?.asset_account_id) {
             const acc = accountMap.get(pmData.asset_account_id);
             if (acc) {
-              cashCode = acc.code;
-              cashName = acc.name;
-              cashId = pmData.asset_account_id;
+              cashAccCode = acc.code;
+              cashAccName = acc.name;
+              cashAccId = pmData.asset_account_id;
             }
           } else if (pmData?.name) {
-            cashName = pmData.name;
+            cashAccName = pmData.name;
           }
         }
 
