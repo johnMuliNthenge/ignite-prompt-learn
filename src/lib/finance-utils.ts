@@ -104,13 +104,21 @@ export async function fetchFinanceDataSources(options?: {
     glQuery.order('transaction_date', { ascending: false }) as any,
   ];
 
+  // Payroll runs (finalized only — these already have GL entries, but we need them for synthetic fallback)
+  let payrollQuery = supabase.from('payroll_runs')
+    .select('id, status, total_gross, total_deductions, total_net, employee_count, finalized_at, journal_entry_id, payroll_periods(name, period_start, period_end), payroll_items(id, employee_id, gross_pay, paye, nssf, shif, housing_levy, total_deductions, net_pay, employer_contributions, hr_employees(first_name, last_name))')
+    .eq('status', 'finalized');
+  if (dateFilter?.endDate) payrollQuery = payrollQuery.lte('finalized_at', dateFilter.endDate + 'T23:59:59');
+  if (dateFilter?.startDate) payrollQuery = payrollQuery.gte('finalized_at', dateFilter.startDate + 'T00:00:00');
+  baseQueries.push(payrollQuery.order('finalized_at', { ascending: false }) as any);
+
   if (includeStudents) {
     baseQueries.push(supabase.from('students').select('id, other_name, surname') as any);
   }
 
   const results = await Promise.all(baseQueries);
-  const [accountsRes, invoicesRes, paymentsRes, vouchersRes, feeAccountsRes, paymentModesRes, glRes] = results;
-  const studentsRes = includeStudents ? results[7] : { data: [] };
+  const [accountsRes, invoicesRes, paymentsRes, vouchersRes, feeAccountsRes, paymentModesRes, glRes, payrollRunsRes] = results;
+  const studentsRes = includeStudents ? results[8] : { data: [] };
 
   if (accountsRes.error) throw accountsRes.error;
 
