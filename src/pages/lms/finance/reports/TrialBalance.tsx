@@ -220,8 +220,6 @@ export default function TrialBalance() {
   const totalCredits = entries.reduce((sum, e) => sum + e.credit_balance, 0);
   const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01;
 
-  const txnTotalDebit = transactions.reduce((s, t) => s + t.debit, 0);
-  const txnTotalCredit = transactions.reduce((s, t) => s + t.credit, 0);
 
   if (!isAdmin) {
     return (
