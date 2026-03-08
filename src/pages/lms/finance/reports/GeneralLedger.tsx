@@ -442,6 +442,28 @@ export default function GeneralLedger() {
         </CardContent>
       </Card>
 
+      {/* Account Balance Summary - show when filtered by specific account */}
+      {selectedAccount && selectedAccount !== 'all' && !loading && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Debits</p>
+                <p className="text-lg font-bold">{formatCurrency(totalDebits)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Credits</p>
+                <p className="text-lg font-bold">{formatCurrency(totalCredits)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Net Balance</p>
+                <p className="text-lg font-bold">{formatCurrency(Math.abs(totalDebits - totalCredits))} {totalDebits >= totalCredits ? 'Dr' : 'Cr'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Ledger Table */}
       <Card>
         <CardHeader>
