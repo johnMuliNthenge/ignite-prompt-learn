@@ -153,7 +153,7 @@ serve(async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error sending password setup email:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Failed to send password setup email. Please try again." }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

@@ -96,7 +96,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Payment error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Payment processing failed. Please try again." }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
