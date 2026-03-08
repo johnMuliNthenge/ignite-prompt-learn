@@ -6010,14 +6010,20 @@ export type Database = {
           basic_salary: number | null
           created_at: string | null
           employee_id: string
+          employer_contributions: number | null
           gross_pay: number | null
+          housing_levy: number | null
           id: string
           leave_days_deducted: number | null
           net_pay: number | null
+          nssf: number | null
           overtime_amount: number | null
           overtime_hours: number | null
+          paye: number | null
           payroll_run_id: string
           proration_factor: number | null
+          shif: number | null
+          tax_relief: number | null
           taxable_income: number | null
           total_deductions: number | null
         }
@@ -6025,14 +6031,20 @@ export type Database = {
           basic_salary?: number | null
           created_at?: string | null
           employee_id: string
+          employer_contributions?: number | null
           gross_pay?: number | null
+          housing_levy?: number | null
           id?: string
           leave_days_deducted?: number | null
           net_pay?: number | null
+          nssf?: number | null
           overtime_amount?: number | null
           overtime_hours?: number | null
+          paye?: number | null
           payroll_run_id: string
           proration_factor?: number | null
+          shif?: number | null
+          tax_relief?: number | null
           taxable_income?: number | null
           total_deductions?: number | null
         }
@@ -6040,14 +6052,20 @@ export type Database = {
           basic_salary?: number | null
           created_at?: string | null
           employee_id?: string
+          employer_contributions?: number | null
           gross_pay?: number | null
+          housing_levy?: number | null
           id?: string
           leave_days_deducted?: number | null
           net_pay?: number | null
+          nssf?: number | null
           overtime_amount?: number | null
           overtime_hours?: number | null
+          paye?: number | null
           payroll_run_id?: string
           proration_factor?: number | null
+          shif?: number | null
+          tax_relief?: number | null
           taxable_income?: number | null
           total_deductions?: number | null
         }
@@ -6264,9 +6282,11 @@ export type Database = {
           default_payment_mode_id: string | null
           employee_housing_levy_account_id: string | null
           employer_housing_levy_account_id: string | null
+          employer_housing_levy_rate: number | null
           employer_nhif_code: string | null
           employer_nssf_account_id: string | null
           employer_nssf_number: string | null
+          employer_nssf_rate: number | null
           employer_pin: string | null
           housing_levy_relief_rate: number | null
           id: string
@@ -6286,6 +6306,7 @@ export type Database = {
           payroll_frequency: string
           payroll_liability_account_id: string | null
           payslip_email_template: string | null
+          personal_relief: number | null
           require_payroll_approval: boolean | null
           retirement_age: number | null
           salary_expense_account_id: string | null
@@ -6308,9 +6329,11 @@ export type Database = {
           default_payment_mode_id?: string | null
           employee_housing_levy_account_id?: string | null
           employer_housing_levy_account_id?: string | null
+          employer_housing_levy_rate?: number | null
           employer_nhif_code?: string | null
           employer_nssf_account_id?: string | null
           employer_nssf_number?: string | null
+          employer_nssf_rate?: number | null
           employer_pin?: string | null
           housing_levy_relief_rate?: number | null
           id?: string
@@ -6330,6 +6353,7 @@ export type Database = {
           payroll_frequency?: string
           payroll_liability_account_id?: string | null
           payslip_email_template?: string | null
+          personal_relief?: number | null
           require_payroll_approval?: boolean | null
           retirement_age?: number | null
           salary_expense_account_id?: string | null
@@ -6352,9 +6376,11 @@ export type Database = {
           default_payment_mode_id?: string | null
           employee_housing_levy_account_id?: string | null
           employer_housing_levy_account_id?: string | null
+          employer_housing_levy_rate?: number | null
           employer_nhif_code?: string | null
           employer_nssf_account_id?: string | null
           employer_nssf_number?: string | null
+          employer_nssf_rate?: number | null
           employer_pin?: string | null
           housing_levy_relief_rate?: number | null
           id?: string
@@ -6374,6 +6400,7 @@ export type Database = {
           payroll_frequency?: string
           payroll_liability_account_id?: string | null
           payslip_email_template?: string | null
+          personal_relief?: number | null
           require_payroll_approval?: boolean | null
           retirement_age?: number | null
           salary_expense_account_id?: string | null
